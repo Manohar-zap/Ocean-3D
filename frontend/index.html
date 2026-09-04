@@ -858,12 +858,14 @@ document.getElementById("btnCompare").onclick = async () => {
   const diffClass = c.difference >= 0 ? "up" : "down";
   box.style.display = "block";
   box.innerHTML = `
-    <div class="row"><span>Observed</span><span class="mono">${c.observation_value} ${c.unit}</span></div>
-    <div class="row"><span>Model</span><span class="mono">${c.model_value} ${c.unit}</span></div>
+    <div class="row"><span>Observed Value</span><span class="mono">${c.observation_value} ${c.unit}</span></div>
+    <div class="row"><span>Model Value</span><span class="mono">${c.model_value} ${c.unit}</span></div>
     <div class="row"><span>Difference (Δ)</span><span class="mono diff ${diffClass}">${c.difference>0?"+":""}${c.difference} ${c.unit}</span></div>
     <div class="row"><span>Matched Depth</span><span class="mono">${c.matched_depth} m</span></div>
+    <div class="row"><span>Observed Time</span><span class="mono">${(row.time||"").replace("T"," ").replace("Z","")}</span></div>
+    <div class="row"><span>Model Time</span><span class="mono">${(c.matched_time||"").replace("T"," ").replace("Z","")}</span></div>
     <div class="row"><span>Time Gap</span><span class="mono">${c.time_gap_hours} hrs</span></div>
-    <div class="row"><span>Match Method</span><span class="mono">${c.match_method}</span></div>`;
+    <div class="row"><span>Match Method</span><span class="mono">${c.match_method} (nearest neighbor)</span></div>`;
 };
 
 // ---------------------------------------------------------------------
