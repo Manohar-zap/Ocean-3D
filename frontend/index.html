@@ -418,6 +418,10 @@ async function initCesiumGlobe(){
   viewer.scene.globe.depthTestAgainstTerrain = state.worldTerrainLoaded;
   viewer.scene.globe.enableLighting = true;
 
+  // Enforce camera zoom limits to prevent zooming out into deep space away from Earth
+  viewer.scene.screenSpaceCameraController.maximumZoomDistance = 12000000.0; // 12,000 km max distance from Earth
+  viewer.scene.screenSpaceCameraController.minimumZoomDistance = 100.0;     // 100 meters min distance
+
   // Log Provider Type for Verification
   console.log("Active Terrain Provider Class:", viewer.terrainProvider.constructor.name);
   console.log("Cesium Ion Token Status:", state.cesiumIonStatus);
