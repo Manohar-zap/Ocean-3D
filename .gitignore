@@ -9,11 +9,14 @@ env/
 *.egg-info/
 .pytest_cache/
 
-# IDE, Secrets, Temporary Screenshots & OS
+# IDE, Secrets, Temporary Screenshots, Documents & OS
 .env
 .env.local
 frontend/config.js
 *.png
+*.docx
+*.doc
+*.pdf
 .idea/
 .vscode/
 .DS_Store
