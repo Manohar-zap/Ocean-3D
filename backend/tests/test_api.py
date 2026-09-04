@@ -103,6 +103,23 @@ class TestOCEAN3DAPI(unittest.TestCase):
         self.assertGreater(len(lines), 1)
         self.assertTrue(lines[0].startswith("kind,dataset_id,variable"))
 
+    def test_volume(self):
+        response = self.client.get("/api/model/volume?dataset_id=incois_las_model&variable=temperature&depths=0,100,500")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["dataset_id"], "incois_las_model")
+        self.assertIn("layers", data)
+        self.assertGreater(len(data["layers"]), 0)
+
+    def test_grid3d(self):
+        response = self.client.get("/api/model/grid3d?dataset_id=incois_las_model&variable=temperature")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("lats", data)
+        self.assertIn("lons", data)
+        self.assertIn("depths", data)
+        self.assertIn("grid", data)
+
 
 if __name__ == "__main__":
     unittest.main()

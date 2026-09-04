@@ -84,6 +84,64 @@ def model_times(dataset_id: str):
     return {"dataset_id": dataset_id, "times": times}
 
 
+@app.get("/api/model/volume")
+def query_model_volume(
+    dataset_id: str = Query(...),
+    variable: str = Query(...),
+    depths: Optional[str] = Query(None, description="Comma-separated depths, e.g. '0,100,200,500,1000'"),
+    min_lat: float = -90, max_lat: float = 90,
+    min_lon: float = -180, max_lon: float = 180,
+    min_depth: float = 0, max_depth: float = 6000,
+    time: Optional[str] = None,
+):
+    """Batched multi-depth query for stacked water-column visualization."""
+    if min_lat > max_lat or min_lon > max_lon:
+        raise HTTPException(400, "min must be <= max for lat/lon range")
+    target_depths = [float(d.strip()) for d in depths.split(",")] if depths else None
+    
+    f = QueryFilters(dataset_id=dataset_id, variable=variable,
+                      min_lat=min_lat, max_lat=max_lat, min_lon=min_lon, max_lon=max_lon,
+                      min_depth=min_depth, max_depth=max_depth, time=time)
+    by_depth = query_service.model_volume(f, target_depths)
+    if not by_depth:
+        raise HTTPException(404, "No volume data found for this selection")
+    
+    sample = next(iter(by_depth.values()))[0]
+    return {
+        "dataset_id": dataset_id,
+        "variable": variable,
+        "time": sample.time,
+        "unit": sample.unit,
+        "depths": list(by_depth.keys()),
+        "layers": {
+            str(d): [
+                {"lat": r.latitude, "lon": r.longitude, "depth": r.depth, "value": r.value}
+                for r in rows
+            ]
+            for d, rows in by_depth.items()
+        }
+    }
+
+
+@app.get("/api/model/grid3d")
+def query_model_grid3d(
+    dataset_id: str = Query(...),
+    variable: str = Query(...),
+    min_lat: float = -90, max_lat: float = 90,
+    min_lon: float = -180, max_lon: float = 180,
+    min_depth: float = 0, max_depth: float = 6000,
+    time: Optional[str] = None,
+):
+    """3D scalar grid for Marching Cubes isosurface extraction."""
+    f = QueryFilters(dataset_id=dataset_id, variable=variable,
+                      min_lat=min_lat, max_lat=max_lat, min_lon=min_lon, max_lon=max_lon,
+                      min_depth=min_depth, max_depth=max_depth, time=time)
+    res = query_service.model_grid3d(f)
+    if not res or not res.get("grid"):
+        raise HTTPException(404, "No 3D grid data found for this query")
+    return res
+
+
 @app.get("/api/observations")
 def query_observations(
     platform_type: Optional[str] = Query(None, description="argo | glider | ctd | bgc"),

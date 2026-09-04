@@ -24,6 +24,44 @@ class QueryService:
     def available_times(self, dataset_id: str) -> list[str]:
         return sorted({r.time for r in store.model_records if r.dataset_id == dataset_id})
 
+    def model_volume(self, f: QueryFilters, depths: list[float] | None = None) -> dict[float, list[StandardRecord]]:
+        rows = store.query_model(f)
+        if depths:
+            rows = [r for r in rows if any(abs(r.depth - d) < 1e-4 for d in depths)]
+        by_depth: dict[float, list[StandardRecord]] = {}
+        for r in rows:
+            by_depth.setdefault(r.depth, []).append(r)
+        return by_depth
+
+    def model_grid3d(self, f: QueryFilters) -> dict:
+        rows = store.query_model(f)
+        if not rows:
+            return {}
+        lats = sorted(list({r.latitude for r in rows}))
+        lons = sorted(list({r.longitude for r in rows}))
+        depths = sorted(list({r.depth for r in rows}))
+        
+        # Build 3D lookup
+        val_map = {(r.latitude, r.longitude, r.depth): r.value for r in rows}
+        grid = []
+        for d in depths:
+            plane = []
+            for lat in lats:
+                row = []
+                for lon in lons:
+                    row.append(val_map.get((lat, lon, d), 0.0))
+                plane.append(row)
+            grid.append(plane)
+        
+        return {
+            "lats": lats,
+            "lons": lons,
+            "depths": depths,
+            "grid": grid,
+            "time": rows[0].time if rows else "",
+            "unit": rows[0].unit if rows else "",
+        }
+
 
 class ComparisonService:
     """Model <-> observation matching and difference (FR-029-032, Sec. 12)."""

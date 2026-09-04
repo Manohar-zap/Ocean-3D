@@ -25,7 +25,7 @@
     font-family:'IBM Plex Sans', system-ui, sans-serif; overflow:hidden; }
   .mono{ font-family:'IBM Plex Mono', monospace; }
 
-  #app{ display:grid; grid-template-columns: 260px 1fr; grid-template-rows: 52px 1fr 84px; height:100%; }
+  #app{ display:grid; grid-template-columns: 270px 1fr; grid-template-rows: 52px 1fr 84px; height:100%; }
 
   header{ grid-column: 1 / 3; grid-row: 1; display:flex; align-items:center;
     padding:0 18px; border-bottom:1px solid var(--line); background:var(--panel); gap:18px; }
@@ -39,14 +39,14 @@
   .modeswitch button.active{ background:var(--accent-dim); color:var(--text); }
 
   aside{ grid-column:1; grid-row:2/4; background:var(--panel); border-right:1px solid var(--line);
-    padding:16px; overflow-y:auto; display:flex; flex-direction:column; gap:18px; }
+    padding:16px; overflow-y:auto; display:flex; flex-direction:column; gap:16px; }
 
   .field label{ display:block; font-size:11px; color:var(--text-dim); margin-bottom:5px; }
   select, input[type=text]{ width:100%; background:var(--panel-2); border:1px solid var(--line);
     color:var(--text); padding:7px 8px; border-radius:var(--radius); font-family:inherit; font-size:13px; }
   select:focus, input:focus{ outline:1px solid var(--accent); }
 
-  .toggle-row{ display:flex; align-items:center; justify-content:space-between; padding:5px 0; font-size:13px; }
+  .toggle-row{ display:flex; align-items:center; justify-content:space-between; padding:4px 0; font-size:12.5px; }
   .toggle-row .swatch{ width:9px; height:9px; border-radius:50%; margin-right:8px; display:inline-block; }
   .switch{ position:relative; width:32px; height:18px; }
   .switch input{ opacity:0; width:0; height:0; }
@@ -57,7 +57,7 @@
   input:checked + .slider-toggle:before{ background:var(--accent); transform:translateX(14px); }
 
   .section-title{ font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.06em;
-    border-bottom:1px solid var(--line); padding-bottom:6px; margin-bottom:2px; }
+    border-bottom:1px solid var(--line); padding-bottom:5px; margin-bottom:4px; margin-top:4px; }
 
   button.action{ background:var(--panel-2); border:1px solid var(--line); color:var(--text);
     padding:8px 10px; border-radius:var(--radius); font-family:inherit; font-size:12.5px; cursor:pointer; width:100%; }
@@ -85,7 +85,7 @@
   .cb-label{ font-size:11px; color:var(--text-dim); }
 
   /* Profile / compare side panel */
-  #profilePanel{ position:absolute; top:0; right:0; width:300px; height:100%; background:var(--panel);
+  #profilePanel{ position:absolute; top:0; right:0; width:310px; height:100%; background:var(--panel);
     border-left:1px solid var(--line); transform:translateX(100%); transition:transform .2s ease; z-index:6;
     display:flex; flex-direction:column; padding:16px; gap:12px; overflow-y:auto; }
   #profilePanel.open{ transform:translateX(0); }
@@ -96,9 +96,10 @@
   #profileChart{ width:100%; height:220px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); }
   #compareResult{ font-size:12.5px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius);
     padding:10px; display:none; }
-  #compareResult .row{ display:flex; justify-content:space-between; padding:2px 0; }
-  #compareResult .diff.up{ color:var(--obs); }
-  #compareResult .diff.down{ color:var(--accent); }
+  #compareResult .row{ display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px solid var(--line); }
+  #compareResult .row:last-child{ border-bottom:none; }
+  #compareResult .diff.up{ color:var(--obs); font-weight:600; }
+  #compareResult .diff.down{ color:var(--accent); font-weight:600; }
 
   .public-only{ display:none; }
   body.public .public-only{ display:block; }
@@ -137,17 +138,49 @@
       <select id="variableSelect"></select>
     </div>
 
+    <div class="field">
+      <label>3D View Mode</label>
+      <select id="viewModeSelect">
+        <option value="slice">Single Depth Surface</option>
+        <option value="volume">Multi-Depth Water Column Stack</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Vertical Exaggeration (<span id="exagValue">1.0x</span>)</label>
+      <input type="range" id="exagSlider" min="0.5" max="4.0" step="0.1" value="1.0">
+    </div>
+
+    <div>
+      <div class="section-title">3D Scene Layers</div>
+      <div class="toggle-row"><span>Current Vectors</span>
+        <label class="switch"><input type="checkbox" id="ovVectors"><span class="slider-toggle"></span></label></div>
+      <div class="toggle-row"><span>Seabed Bathymetry</span>
+        <label class="switch"><input type="checkbox" id="ovBathymetry" checked><span class="slider-toggle"></span></label></div>
+      <div class="toggle-row"><span>Coastlines & EEZ</span>
+        <label class="switch"><input type="checkbox" id="ovCoastlines" checked><span class="slider-toggle"></span></label></div>
+      <div class="toggle-row"><span>3D Isosurface</span>
+        <label class="switch"><input type="checkbox" id="ovIsosurface"><span class="slider-toggle"></span></label></div>
+      <div class="toggle-row"><span>3D Profile Lines</span>
+        <label class="switch"><input type="checkbox" id="ovProfileLines" checked><span class="slider-toggle"></span></label></div>
+    </div>
+
+    <div id="isoGroup" class="field" style="display:none;">
+      <label>Iso Threshold (<span id="isoValLabel">28.0</span>)</label>
+      <input type="range" id="isoSlider" min="0" max="35" step="0.5" value="28.0">
+    </div>
+
     <div>
       <div class="section-title research-only">Instrument overlay</div>
       <div class="section-title public-only">Show on map</div>
       <div class="toggle-row"><span><span class="swatch" style="background:#f2a65a"></span>Argo floats</span>
         <label class="switch"><input type="checkbox" id="ovArgo" checked><span class="slider-toggle"></span></label></div>
       <div class="toggle-row research-only"><span><span class="swatch" style="background:#8ec9e0"></span>Gliders</span>
-        <label class="switch"><input type="checkbox" id="ovGlider"><span class="slider-toggle"></span></label></div>
+        <label class="switch"><input type="checkbox" id="ovGlider" checked><span class="slider-toggle"></span></label></div>
       <div class="toggle-row research-only"><span><span class="swatch" style="background:#c58ee0"></span>CTD casts</span>
-        <label class="switch"><input type="checkbox" id="ovCtd"><span class="slider-toggle"></span></label></div>
+        <label class="switch"><input type="checkbox" id="ovCtd" checked><span class="slider-toggle"></span></label></div>
       <div class="toggle-row research-only"><span><span class="swatch" style="background:#8ee0a4"></span>BGC-Argo</span>
-        <label class="switch"><input type="checkbox" id="ovBgc"><span class="slider-toggle"></span></label></div>
+        <label class="switch"><input type="checkbox" id="ovBgc" checked><span class="slider-toggle"></span></label></div>
     </div>
 
     <div class="field research-only">
@@ -177,7 +210,7 @@
       <button class="close" id="closeProfile">✕</button>
       <h3 id="profileTitle">Platform</h3>
       <div class="meta" id="profileMeta"></div>
-      <canvas id="profileChart" width="268" height="220"></canvas>
+      <canvas id="profileChart" width="278" height="220"></canvas>
       <button class="action primary" id="btnCompare">Compare with model at this depth</button>
       <div id="compareResult"></div>
     </div>
@@ -239,8 +272,17 @@ let state = {
   times: [],
   playing: false,
   playTimer: null,
+  viewMode: "slice",
+  verticalExaggeration: 1.0,
+  showVectors: false,
+  showBathymetry: true,
+  showCoastlines: true,
+  showIsosurface: false,
+  isoThreshold: 28.0,
+  showProfileLines: true,
   markers: {},          // platform_id -> {mesh, data}
   selectedProfile: null,
+  particles: [],
 };
 
 function apiUrl(path){ return state.apiBase.replace(/\/$/, "") + path; }
@@ -279,14 +321,14 @@ function drawColorbar(min, max){
 }
 
 // ---------------------------------------------------------------------
-// Three.js scene
+// Three.js scene setup
 // ---------------------------------------------------------------------
 const wrap = document.getElementById("canvas-wrap");
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x071019, 0.028);
+scene.fog = new THREE.FogExp2(0x071019, 0.024);
 
 const camera = new THREE.PerspectiveCamera(50, wrap.clientWidth/wrap.clientHeight, 0.1, 200);
-camera.position.set(11, 8, 13);
+camera.position.set(12, 10, 14);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha:false });
 renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
@@ -295,40 +337,149 @@ renderer.setClearColor(0x071019, 1);
 wrap.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, -1.5, 0);
+controls.target.set(0, -1.8, 0);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 
-scene.add(new THREE.AmbientLight(0x88aacc, 1.1));
-const dl = new THREE.DirectionalLight(0xffffff, 0.5);
-dl.position.set(6, 10, 4);
+scene.add(new THREE.AmbientLight(0x99bbdd, 1.2));
+const dl = new THREE.DirectionalLight(0xffffff, 0.7);
+dl.position.set(8, 12, 6);
 scene.add(dl);
 
-// ocean-surface frame + depth gridlines for spatial reference
-const frame = new THREE.Group();
-const frameMat = new THREE.LineBasicMaterial({ color: 0x1a3a48, transparent:true, opacity:0.6 });
-const boxGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(SCENE_HALF*2, DEPTH_SCALE, SCENE_HALF*2));
-const boxLines = new THREE.LineSegments(boxGeo, frameMat);
-boxLines.position.y = -DEPTH_SCALE/2;
-frame.add(boxLines);
-const grid = new THREE.GridHelper(SCENE_HALF*2, 10, 0x24505f, 0x14262f);
-frame.add(grid);
-scene.add(frame);
-
-const pointsGroup = new THREE.Group();
-scene.add(pointsGroup);
-const markerGroup = new THREE.Group();
-scene.add(markerGroup);
+// Groups for layered rendering
+const frameGroup = new THREE.Group(); scene.add(frameGroup);
+const surfaceGroup = new THREE.Group(); scene.add(surfaceGroup);
+const vectorGroup = new THREE.Group(); scene.add(vectorGroup);
+const bathymetryGroup = new THREE.Group(); scene.add(bathymetryGroup);
+const coastlineGroup = new THREE.Group(); scene.add(coastlineGroup);
+const isoGroup = new THREE.Group(); scene.add(isoGroup);
+const markerGroup = new THREE.Group(); scene.add(markerGroup);
+const profileLinesGroup = new THREE.Group(); scene.add(profileLinesGroup);
 
 function latLonToXZ(lat, lon){
   const x = ((lon - LON_RANGE[0]) / (LON_RANGE[1]-LON_RANGE[0]) - 0.5) * SCENE_HALF * 2;
   const z = ((lat - LAT_RANGE[0]) / (LAT_RANGE[1]-LAT_RANGE[0]) - 0.5) * SCENE_HALF * 2;
   return [x, z];
 }
-function depthToY(depth){ return -(depth / 2000) * DEPTH_SCALE; }
+function depthToY(depth){
+  return -(depth / 2000) * DEPTH_SCALE * state.verticalExaggeration;
+}
+
+// Build 3D Frame & Depth Ruler
+function buildFrameAndRuler(){
+  frameGroup.clear();
+  const scaledDepthScale = DEPTH_SCALE * state.verticalExaggeration;
+
+  // Bounding Box Frame
+  const frameMat = new THREE.LineBasicMaterial({ color: 0x1a3a48, transparent:true, opacity:0.6 });
+  const boxGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(SCENE_HALF*2, scaledDepthScale, SCENE_HALF*2));
+  const boxLines = new THREE.LineSegments(boxGeo, frameMat);
+  boxLines.position.y = -scaledDepthScale/2;
+  frameGroup.add(boxLines);
+
+  // Surface Grid
+  const grid = new THREE.GridHelper(SCENE_HALF*2, 10, 0x24505f, 0x14262f);
+  frameGroup.add(grid);
+
+  // 3D Depth Ruler Ticks & Lines on Corner Axis
+  const cornerX = SCENE_HALF + 0.3;
+  const cornerZ = -SCENE_HALF;
+  const rulerMat = new THREE.LineBasicMaterial({ color: 0x3fe0c5, transparent:true, opacity:0.8 });
+  const rulerGeo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(cornerX, 0, cornerZ),
+    new THREE.Vector3(cornerX, -scaledDepthScale, cornerZ)
+  ]);
+  frameGroup.add(new THREE.Line(rulerGeo, rulerMat));
+
+  // Ticks at major depth intervals
+  const rulerDepths = [0, 100, 200, 500, 1000, 2000];
+  rulerDepths.forEach(d => {
+    const y = depthToY(d);
+    const tickGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(cornerX, y, cornerZ),
+      new THREE.Vector3(cornerX + 0.3, y, cornerZ)
+    ]);
+    frameGroup.add(new THREE.Line(tickGeo, rulerMat));
+  });
+}
 
 // ---------------------------------------------------------------------
-// Data loading
+// Coastlines & Bathymetry Construction
+// ---------------------------------------------------------------------
+function buildCoastlines(){
+  coastlineGroup.clear();
+  if(!state.showCoastlines) return;
+
+  // Indian Ocean peninsula / EEZ bounding polylines
+  const coastlinePoints = [
+    [8.0, 77.5], [10.0, 76.0], [13.0, 74.8], [15.5, 73.8], [19.0, 72.8],
+    [22.5, 69.5], [23.5, 68.5], [24.0, 69.0], [21.0, 72.5], [16.0, 81.0],
+    [13.0, 80.2], [10.0, 79.8], [8.0, 77.5]
+  ];
+  const pts = coastlinePoints.map(p => {
+    const [x, z] = latLonToXZ(p[0], p[1]);
+    return new THREE.Vector3(x, 0.02, z);
+  });
+
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineBasicMaterial({ color: 0x3fe0c5, linewidth: 2 });
+  coastlineGroup.add(new THREE.Line(geo, mat));
+
+  // EEZ Border Polygon
+  const eezPoints = [
+    [2.0, 65.0], [2.0, 92.0], [22.0, 92.0], [22.0, 65.0], [2.0, 65.0]
+  ];
+  const eezPts = eezPoints.map(p => {
+    const [x, z] = latLonToXZ(p[0], p[1]);
+    return new THREE.Vector3(x, 0.01, z);
+  });
+  const eezGeo = new THREE.BufferGeometry().setFromPoints(eezPts);
+  const eezMat = new THREE.LineDashedMaterial({ color: 0x1f6e63, dashSize: 0.2, gapSize: 0.1 });
+  const line = new THREE.Line(eezGeo, eezMat);
+  line.computeLineDistances();
+  coastlineGroup.add(line);
+}
+
+function buildBathymetry(){
+  bathymetryGroup.clear();
+  if(!state.showBathymetry) return;
+
+  const N = 24;
+  const geo = new THREE.PlaneGeometry(SCENE_HALF*2, SCENE_HALF*2, N-1, N-1);
+  geo.rotateX(-Math.PI/2);
+
+  const pos = geo.attributes.position;
+  const colors = new Float32Array(pos.count * 3);
+
+  for(let i = 0; i < pos.count; i++){
+    const x = pos.getX(i);
+    const z = pos.getZ(i);
+    // Synthetic ridge topography (Ninety East Ridge + Continental Slope)
+    const ridge = Math.exp(-Math.pow(x - 2.0, 2) / 1.2) * 0.6;
+    const slope = Math.exp(-Math.pow(z + 3.0, 2) / 2.5) * 0.8;
+    const seabedDepth = 2000 - (ridge + slope) * 600;
+
+    pos.setY(i, depthToY(seabedDepth));
+
+    // Dark seabed colormap
+    const t = (seabedDepth - 1000) / 1000;
+    colors[i*3] = 0.02 + 0.05 * t;
+    colors[i*3+1] = 0.08 + 0.1 * t;
+    colors[i*3+2] = 0.12 + 0.15 * t;
+  }
+
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geo.computeVertexNormals();
+
+  const mat = new THREE.MeshStandardMaterial({
+    vertexColors: true, roughness: 0.8, metalness: 0.2, side: THREE.DoubleSide
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  bathymetryGroup.add(mesh);
+}
+
+// ---------------------------------------------------------------------
+// Data loading & Rendering
 // ---------------------------------------------------------------------
 async function loadCatalog(){
   const res = await fetch(apiUrl("/api/catalog"));
@@ -377,7 +528,16 @@ function currentBounds(){
   };
 }
 
-async function loadModelSlice(){
+async function loadModelData(){
+  if(state.viewMode === "slice"){
+    await loadSingleSlice();
+  } else {
+    await loadVolumeStack();
+  }
+}
+
+async function loadSingleSlice(){
+  surfaceGroup.clear();
   const depth = DEPTHS[state.depthIndex];
   const time = state.times[state.timeIndex];
   const b = currentBounds();
@@ -385,44 +545,179 @@ async function loadModelSlice(){
     + `&min_depth=${depth}&max_depth=${depth}&time=${encodeURIComponent(time||"")}`
     + `&min_lat=${b.min_lat}&max_lat=${b.max_lat}&min_lon=${b.min_lon}&max_lon=${b.max_lon}`);
   const res = await fetch(url);
-  if(!res.ok){ pointsGroup.clear(); return; }
+  if(!res.ok) return;
   const data = await res.json();
-  renderSlice(data);
+
+  const mesh = buildTriangulatedSurface(data.points, depth, 0.92, true);
+  if(mesh) surfaceGroup.add(mesh);
+
   document.getElementById("timeLabel").textContent = (data.time || "").replace("T"," ").replace("Z","");
 }
 
-function renderSlice(data){
-  pointsGroup.clear();
-  const ds = state.catalog.find(d => d.dataset_id === state.dataset_id);
-  const [vmin, vmax] = ds.valid_range[state.variable];
-  drawColorbar(vmin, vmax);
+async function loadVolumeStack(){
+  surfaceGroup.clear();
+  const time = state.times[state.timeIndex];
+  const b = currentBounds();
+  const stackDepths = [0, 100, 200, 500, 1000];
+  const url = apiUrl(`/api/model/volume?dataset_id=${state.dataset_id}&variable=${state.variable}`
+    + `&depths=0,100,200,500,1000&time=${encodeURIComponent(time||"")}`
+    + `&min_lat=${b.min_lat}&max_lat=${b.max_lat}&min_lon=${b.min_lon}&max_lon=${b.max_lon}`);
+  const res = await fetch(url);
+  if(!res.ok) return;
+  const data = await res.json();
 
-  const n = data.points.length;
-  const geo = new THREE.BufferGeometry();
-  const positions = new Float32Array(n*3);
-  const colors = new Float32Array(n*3);
-  data.points.forEach((p, i) => {
-    const [x,z] = latLonToXZ(p.lat, p.lon);
-    positions[i*3]=x; positions[i*3+1]=depthToY(p.depth); positions[i*3+2]=z;
-    const t = (p.value - vmin) / Math.max(1e-9, (vmax - vmin));
-    const [r,g,bl] = colormap(t);
-    colors[i*3]=r; colors[i*3+1]=g; colors[i*3+2]=bl;
-  });
-  geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-  const mat = new THREE.PointsMaterial({ size: 0.34, vertexColors:true, sizeAttenuation:true });
-  pointsGroup.add(new THREE.Points(geo, mat));
+  const activeDepth = DEPTHS[state.depthIndex];
+  for(const [depthStr, pts] of Object.entries(data.layers)){
+    const d = parseFloat(depthStr);
+    const isActive = Math.abs(d - activeDepth) < 10;
+    const opacity = isActive ? 0.95 : 0.35;
+    const mesh = buildTriangulatedSurface(pts, d, opacity, isActive);
+    if(mesh) surfaceGroup.add(mesh);
+  }
 }
 
+// Build Continuous Triangulated Surface Mesh from Grid Points
+function buildTriangulatedSurface(points, depth, opacity = 0.9, isActive = true){
+  if(!points || !points.length) return null;
+
+  const ds = state.catalog.find(d => d.dataset_id === state.dataset_id);
+  const [vmin, vmax] = ds ? ds.valid_range[state.variable] : [0, 30];
+  drawColorbar(vmin, vmax);
+
+  // Group by unique lat/lon grid
+  const lats = sortedUnique(points.map(p => p.lat));
+  const lons = sortedUnique(points.map(p => p.lon));
+  const numLats = lats.length;
+  const numLons = lons.length;
+
+  if(numLats < 2 || numLons < 2) return null;
+
+  const valLookup = {};
+  points.forEach(p => { valLookup[`${p.lat}_${p.lon}`] = p.value; });
+
+  const numVertices = numLats * numLons;
+  const positions = new Float32Array(numVertices * 3);
+  const colors = new Float32Array(numVertices * 3);
+
+  const yPos = depthToY(depth);
+
+  for(let i = 0; i < numLats; i++){
+    for(let j = 0; j < numLons; j++){
+      const idx = i * numLons + j;
+      const lat = lats[i], lon = lons[j];
+      const [x, z] = latLonToXZ(lat, lon);
+      const val = valLookup[`${lat}_${lon}`] ?? vmin;
+
+      positions[idx * 3] = x;
+      positions[idx * 3 + 1] = yPos;
+      positions[idx * 3 + 2] = z;
+
+      const t = (val - vmin) / Math.max(1e-9, (vmax - vmin));
+      const [r, g, b] = colormap(t);
+      colors[idx * 3] = r;
+      colors[idx * 3 + 1] = g;
+      colors[idx * 3 + 2] = b;
+    }
+  }
+
+  // Triangulate Grid Cells
+  const indices = [];
+  for(let i = 0; i < numLats - 1; i++){
+    for(let j = 0; j < numLons - 1; j++){
+      const a = i * numLons + j;
+      const b = i * numLons + (j + 1);
+      const c = (i + 1) * numLons + j;
+      const d = (i + 1) * numLons + (j + 1);
+
+      indices.push(a, b, c);
+      indices.push(b, d, c);
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+
+  const mat = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    side: THREE.DoubleSide,
+    roughness: 0.35,
+    metalness: 0.1,
+    transparent: opacity < 0.99,
+    opacity: opacity,
+    wireframe: false
+  });
+
+  const mesh = new THREE.Mesh(geo, mat);
+  if(isActive){
+    // Edge outline for active surface layer
+    const wireGeo = new THREE.WireframeGeometry(geo);
+    const wireMat = new THREE.LineBasicMaterial({ color: 0x3fe0c5, transparent: true, opacity: 0.2 });
+    mesh.add(new THREE.LineSegments(wireGeo, wireMat));
+  }
+
+  return mesh;
+}
+
+function sortedUnique(arr){
+  return Array.from(new Set(arr)).sort((a,b) => a - b);
+}
+
+// Render Current Vectors / Flow Field
+async function loadVectors(){
+  vectorGroup.clear();
+  if(!state.showVectors) return;
+
+  const depth = DEPTHS[state.depthIndex];
+  const time = state.times[state.timeIndex];
+  const b = currentBounds();
+
+  const [resU, resV] = await Promise.all([
+    fetch(apiUrl(`/api/model?dataset_id=incois_las_model&variable=current_u&min_depth=${depth}&max_depth=${depth}&time=${encodeURIComponent(time||"")}&min_lat=${b.min_lat}&max_lat=${b.max_lat}&min_lon=${b.min_lon}&max_lon=${b.max_lon}`)),
+    fetch(apiUrl(`/api/model?dataset_id=incois_las_model&variable=current_v&min_depth=${depth}&max_depth=${depth}&time=${encodeURIComponent(time||"")}&min_lat=${b.min_lat}&max_lat=${b.max_lat}&min_lon=${b.min_lon}&max_lon=${b.max_lon}`))
+  ]);
+
+  if(!resU.ok || !resV.ok) return;
+  const dataU = await resU.json();
+  const dataV = await resV.json();
+
+  const vMap = {};
+  dataV.points.forEach(p => { vMap[`${p.lat}_${p.lon}`] = p.value; });
+
+  const yPos = depthToY(depth);
+
+  dataU.points.forEach(pu => {
+    const u = pu.value;
+    const v = vMap[`${pu.lat}_${pu.lon}`] || 0.0;
+    const speed = Math.sqrt(u*u + v*v);
+    if(speed < 1e-4) return;
+
+    const [x, z] = latLonToXZ(pu.lat, pu.lon);
+    const dir = new THREE.Vector3(u, 0, v).normalize();
+    const len = Math.min(0.8, Math.max(0.15, speed * 2.0));
+
+    const arrow = new THREE.ArrowHelper(dir, new THREE.Vector3(x, yPos + 0.08, z), len, 0x3fe0c5, 0.12, 0.08);
+    vectorGroup.add(arrow);
+  });
+}
+
+// ---------------------------------------------------------------------
+// Observations & 3D Vertical Profile Paths
+// ---------------------------------------------------------------------
 const PLATFORM_COLOR = { argo: 0xf2a65a, glider: 0x8ec9e0, ctd: 0xc58ee0, bgc: 0x8ee0a4 };
 
 async function loadObservations(){
   markerGroup.clear();
+  profileLinesGroup.clear();
   state.markers = {};
+
   const toggles = [
     ["argo", "ovArgo"], ["glider", "ovGlider"], ["ctd", "ovCtd"], ["bgc", "ovBgc"],
   ];
   const b = currentBounds();
+
   for(const [ptype, id] of toggles){
     if(!document.getElementById(id).checked) continue;
     const url = apiUrl(`/api/observations?platform_type=${ptype}`
@@ -430,28 +725,64 @@ async function loadObservations(){
     const res = await fetch(url);
     if(!res.ok) continue;
     const data = await res.json();
-    const geo = new THREE.SphereGeometry(0.13, 12, 12);
-    const mat = new THREE.MeshStandardMaterial({ color: PLATFORM_COLOR[ptype], emissive: PLATFORM_COLOR[ptype], emissiveIntensity:0.35 });
-    data.markers.forEach(m => {
-      const [x,z] = latLonToXZ(m.lat, m.lon);
+
+    const geo = new THREE.SphereGeometry(0.14, 14, 14);
+    const mat = new THREE.MeshStandardMaterial({
+      color: PLATFORM_COLOR[ptype], emissive: PLATFORM_COLOR[ptype], emissiveIntensity: 0.4
+    });
+
+    for(const m of data.markers){
+      const [x, z] = latLonToXZ(m.lat, m.lon);
       const mesh = new THREE.Mesh(geo, mat);
       mesh.position.set(x, depthToY(m.depth) + 0.05, z);
       mesh.userData.platform_id = m.platform_id;
       markerGroup.add(mesh);
       state.markers[m.platform_id] = { mesh, data: m };
-    });
+
+      // Render 3D Vertical Polyline Profile Path descending through water column
+      if(state.showProfileLines){
+        load3DProfileLine(m.platform_id, x, z, PLATFORM_COLOR[ptype]);
+      }
+    }
   }
 }
 
+async function load3DProfileLine(platform_id, x, z, colorHex){
+  const res = await fetch(apiUrl(`/api/observations/${platform_id}/profile`));
+  if(!res.ok) return;
+  const data = await res.json();
+
+  const points = data.profile.map(p => new THREE.Vector3(x, depthToY(p.depth), z));
+  if(points.length < 2) return;
+
+  const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+  const lineMat = new THREE.LineBasicMaterial({ color: colorHex, linewidth: 2, transparent: true, opacity: 0.8 });
+  const line = new THREE.Line(lineGeo, lineMat);
+  profileLinesGroup.add(line);
+
+  // Cast sample nodes along vertical line
+  const nodeGeo = new THREE.SphereGeometry(0.04, 8, 8);
+  const nodeMat = new THREE.MeshBasicMaterial({ color: colorHex });
+  points.forEach(pt => {
+    const node = new THREE.Mesh(nodeGeo, nodeMat);
+    node.position.copy(pt);
+    profileLinesGroup.add(node);
+  });
+}
+
 async function refreshAll(){
-  await Promise.all([loadModelSlice(), loadObservations()]);
+  buildFrameAndRuler();
+  buildCoastlines();
+  buildBathymetry();
+  await Promise.all([loadModelData(), loadVectors(), loadObservations()]);
 }
 
 // ---------------------------------------------------------------------
-// Picking (click a marker -> profile panel)
+// Picking & Profile Comparison Side-Panel
 // ---------------------------------------------------------------------
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
+
 renderer.domElement.addEventListener("click", (ev) => {
   const rect = renderer.domElement.getBoundingClientRect();
   mouse.x = ((ev.clientX - rect.left)/rect.width)*2 - 1;
@@ -470,7 +801,7 @@ async function openProfile(platform_id){
   state.selectedProfile = data;
   document.getElementById("profileTitle").textContent = platform_id;
   document.getElementById("profileMeta").textContent =
-    `${data.platform_type.toUpperCase()} platform · depth-resolved profile`;
+    `${data.platform_type.toUpperCase()} platform · depth-resolved vertical profile`;
   drawProfileChart(data.profile.filter(r => r.variable === state.variable));
   document.getElementById("compareResult").style.display = "none";
   document.getElementById("profilePanel").classList.add("open");
@@ -488,26 +819,26 @@ function drawProfileChart(rows){
     return;
   }
   rows = [...rows].sort((a,b) => a.depth - b.depth);
-  const pad = 30;
+  const pad = 32;
   const maxDepth = Math.max(...rows.map(r=>r.depth));
   const vals = rows.map(r=>r.value);
   const vmin = Math.min(...vals), vmax = Math.max(...vals);
   const xOf = v => pad + (v - vmin)/Math.max(1e-9,(vmax-vmin)) * (canvas.width - pad*1.4);
-  const yOf = d => 12 + (d/Math.max(1,maxDepth)) * (canvas.height - 34);
+  const yOf = d => 14 + (d/Math.max(1,maxDepth)) * (canvas.height - 38);
 
   ctx.strokeStyle = "#1a2f3c"; ctx.beginPath();
   ctx.moveTo(pad, 12); ctx.lineTo(pad, canvas.height-22); ctx.stroke();
 
-  ctx.strokeStyle = "#3fe0c5"; ctx.lineWidth = 1.6; ctx.beginPath();
+  ctx.strokeStyle = "#3fe0c5"; ctx.lineWidth = 1.8; ctx.beginPath();
   rows.forEach((r,i) => { const x=xOf(r.value), y=yOf(r.depth); i? ctx.lineTo(x,y): ctx.moveTo(x,y); });
   ctx.stroke();
 
   ctx.fillStyle = "#f2a65a";
-  rows.forEach(r => { ctx.beginPath(); ctx.arc(xOf(r.value), yOf(r.depth), 2.4, 0, 7); ctx.fill(); });
+  rows.forEach(r => { ctx.beginPath(); ctx.arc(xOf(r.value), yOf(r.depth), 2.8, 0, 7); ctx.fill(); });
 
   ctx.fillStyle = "#7c93a0"; ctx.font = "10px IBM Plex Mono";
   ctx.fillText(`${vmin.toFixed(1)}`, pad-4, canvas.height-6);
-  ctx.fillText(`${vmax.toFixed(1)}`, canvas.width-34, canvas.height-6);
+  ctx.fillText(`${vmax.toFixed(1)}`, canvas.width-36, canvas.height-6);
   ctx.fillText(`0m`, 2, 16);
   ctx.fillText(`${maxDepth}m`, 2, canvas.height-24);
 }
@@ -516,7 +847,6 @@ document.getElementById("btnCompare").onclick = async () => {
   if(!state.selectedProfile) return;
   const rows = state.selectedProfile.profile.filter(r => r.variable === state.variable);
   if(!rows.length) return;
-  // pick the profile sample nearest the currently selected depth control
   const targetDepth = DEPTHS[state.depthIndex];
   const row = rows.reduce((a,b) => Math.abs(b.depth-targetDepth) < Math.abs(a.depth-targetDepth) ? b : a);
   const url = apiUrl(`/api/compare?platform_id=${state.selectedProfile.platform_id}`
@@ -530,12 +860,14 @@ document.getElementById("btnCompare").onclick = async () => {
   box.innerHTML = `
     <div class="row"><span>Observed</span><span class="mono">${c.observation_value} ${c.unit}</span></div>
     <div class="row"><span>Model</span><span class="mono">${c.model_value} ${c.unit}</span></div>
-    <div class="row"><span>Difference</span><span class="mono diff ${diffClass}">${c.difference>0?"+":""}${c.difference} ${c.unit}</span></div>
-    <div class="row"><span>Match</span><span class="mono">${c.match_method}, Δt ${c.time_gap_hours}h</span></div>`;
+    <div class="row"><span>Difference (Δ)</span><span class="mono diff ${diffClass}">${c.difference>0?"+":""}${c.difference} ${c.unit}</span></div>
+    <div class="row"><span>Matched Depth</span><span class="mono">${c.matched_depth} m</span></div>
+    <div class="row"><span>Time Gap</span><span class="mono">${c.time_gap_hours} hrs</span></div>
+    <div class="row"><span>Match Method</span><span class="mono">${c.match_method}</span></div>`;
 };
 
 // ---------------------------------------------------------------------
-// UI wiring
+// UI Event Wiring
 // ---------------------------------------------------------------------
 document.getElementById("datasetSelect").onchange = async (e) => {
   state.dataset_id = e.target.value;
@@ -544,16 +876,37 @@ document.getElementById("datasetSelect").onchange = async (e) => {
   await refreshAll();
 };
 document.getElementById("variableSelect").onchange = async (e) => {
-  state.variable = e.target.value; await loadModelSlice();
+  state.variable = e.target.value; await refreshAll();
+};
+document.getElementById("viewModeSelect").onchange = async (e) => {
+  state.viewMode = e.target.value; await loadModelData();
+};
+document.getElementById("exagSlider").oninput = async (e) => {
+  state.verticalExaggeration = parseFloat(e.target.value);
+  document.getElementById("exagValue").textContent = `${state.verticalExaggeration.toFixed(1)}x`;
+  await refreshAll();
 };
 document.getElementById("depthSlider").oninput = async (e) => {
   state.depthIndex = parseInt(e.target.value);
   document.getElementById("depthLabel").textContent = `${DEPTHS[state.depthIndex]} m`;
-  await loadModelSlice();
+  await refreshAll();
 };
 document.getElementById("timeSlider").oninput = async (e) => {
-  state.timeIndex = parseInt(e.target.value); await loadModelSlice();
+  state.timeIndex = parseInt(e.target.value); await refreshAll();
 };
+document.getElementById("ovVectors").onchange = (e) => {
+  state.showVectors = e.target.checked; loadVectors();
+};
+document.getElementById("ovBathymetry").onchange = (e) => {
+  state.showBathymetry = e.target.checked; buildBathymetry();
+};
+document.getElementById("ovCoastlines").onchange = (e) => {
+  state.showCoastlines = e.target.checked; buildCoastlines();
+};
+document.getElementById("ovProfileLines").onchange = (e) => {
+  state.showProfileLines = e.target.checked; loadObservations();
+};
+
 ["ovArgo","ovGlider","ovCtd","ovBgc"].forEach(id => {
   document.getElementById(id).onchange = loadObservations;
 });
@@ -569,7 +922,7 @@ document.getElementById("btnPlay").onclick = () => {
     state.playTimer = setInterval(async () => {
       const slider = document.getElementById("timeSlider");
       let v = (parseInt(slider.value) + 1) % state.times.length;
-      slider.value = v; state.timeIndex = v; await loadModelSlice();
+      slider.value = v; state.timeIndex = v; await loadModelData();
     }, 1200);
   } else clearInterval(state.playTimer);
 };
@@ -580,7 +933,7 @@ function guidedTour(){
   const t = setInterval(async () => {
     slider.value = i; state.depthIndex = i;
     document.getElementById("depthLabel").textContent = `${DEPTHS[i]} m`;
-    await loadModelSlice();
+    await refreshAll();
     i++;
     if(i >= DEPTHS.length){ clearInterval(t); }
   }, 1000);
@@ -612,7 +965,7 @@ document.getElementById("btnResearch").onclick = () => setMode("research");
 document.getElementById("btnPublic").onclick = () => setMode("public");
 
 // ---------------------------------------------------------------------
-// Render loop / resize
+// Render loop / animation
 // ---------------------------------------------------------------------
 function animate(){
   requestAnimationFrame(animate);
@@ -628,9 +981,7 @@ window.addEventListener("resize", () => {
   renderer.setSize(wrap.clientWidth, wrap.clientHeight);
 });
 
-// ---------------------------------------------------------------------
 // Boot
-// ---------------------------------------------------------------------
 (async function boot(){
   try{
     await loadCatalog();

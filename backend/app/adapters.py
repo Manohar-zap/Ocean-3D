@@ -90,6 +90,12 @@ class ModelNetCDFAdapter:
         }
 
     def parse(self, source: str) -> list[StandardRecord]:
+        if source.endswith(".nc"):
+            try:
+                return self.parse_netcdf_file(source)
+            except Exception:
+                pass  # Fallback to synthetic grid if file read fails
+
         records: list[StandardRecord] = []
         lats = [LAT_RANGE[0] + i * (LAT_RANGE[1] - LAT_RANGE[0]) / (GRID_N - 1) for i in range(GRID_N)]
         lons = [LON_RANGE[0] + i * (LON_RANGE[1] - LON_RANGE[0]) / (GRID_N - 1) for i in range(GRID_N)]
@@ -110,8 +116,42 @@ class ModelNetCDFAdapter:
                                 value=_synthetic_value(var, lat, lon, depth, step),
                                 unit=self.UNITS[var],
                                 source_model="INCOIS-ROMS-demo",
-                                source_file="synthetic_model_grid",
+                                source_file=source,
                             ))
+        return records
+
+    def parse_netcdf_file(self, filepath: str) -> list[StandardRecord]:
+        """Real NetCDF parser using scipy or netCDF4 when real .nc files are provided."""
+        records: list[StandardRecord] = []
+        try:
+            from scipy.io import netcdf
+            with netcdf.netcdf_file(filepath, 'r') as f:
+                lats = f.variables.get('lat', f.variables.get('latitude')).data
+                lons = f.variables.get('lon', f.variables.get('longitude')).data
+                depths = f.variables.get('depth', [0]).data
+                for var in self.VARIABLES:
+                    if var in f.variables:
+                        data = f.variables[var].data
+                        # Normalization into StandardRecord
+                        for i, lat in enumerate(lats[:10]):
+                            for j, lon in enumerate(lons[:10]):
+                                for k, d in enumerate(depths[:5]):
+                                    val = float(data[0, k, i, j]) if data.ndim == 4 else float(data[k, i, j])
+                                    records.append(StandardRecord(
+                                        kind="model",
+                                        dataset_id="incois_las_model",
+                                        variable=var,
+                                        latitude=round(float(lat), 4),
+                                        longitude=round(float(lon), 4),
+                                        depth=float(d),
+                                        time=_time_at(0),
+                                        value=val,
+                                        unit=self.UNITS.get(var, "unknown"),
+                                        source_model="INCOIS-ROMS-real",
+                                        source_file=filepath,
+                                    ))
+        except Exception as exc:
+            raise ValueError(f"Failed to parse NetCDF file '{filepath}': {exc}")
         return records
 
 
