@@ -155,11 +155,11 @@
       <div class="section-title">3D Scene Layers</div>
       <div class="toggle-row"><span>Current Vectors</span>
         <label class="switch"><input type="checkbox" id="ovVectors"><span class="slider-toggle"></span></label></div>
-      <div class="toggle-row"><span>Seabed Bathymetry (Demo)</span>
+      <div class="toggle-row"><span>Seabed Bathymetry (Demo Data)</span>
         <label class="switch"><input type="checkbox" id="ovBathymetry" checked><span class="slider-toggle"></span></label></div>
       <div class="toggle-row"><span>Coastlines & EEZ</span>
         <label class="switch"><input type="checkbox" id="ovCoastlines" checked><span class="slider-toggle"></span></label></div>
-      <div class="toggle-row"><span>3D Isosurface</span>
+      <div class="toggle-row"><span>3D Isosurface (Preview / Planned)</span>
         <label class="switch"><input type="checkbox" id="ovIsosurface"><span class="slider-toggle"></span></label></div>
       <div class="toggle-row"><span>3D Profile Lines</span>
         <label class="switch"><input type="checkbox" id="ovProfileLines" checked><span class="slider-toggle"></span></label></div>
@@ -651,12 +651,7 @@ function buildTriangulatedSurface(points, depth, opacity = 0.9, isActive = true)
   });
 
   const mesh = new THREE.Mesh(geo, mat);
-  if(isActive){
-    // Edge outline for active surface layer
-    const wireGeo = new THREE.WireframeGeometry(geo);
-    const wireMat = new THREE.LineBasicMaterial({ color: 0x3fe0c5, transparent: true, opacity: 0.2 });
-    mesh.add(new THREE.LineSegments(wireGeo, wireMat));
-  }
+  return mesh;
 
   return mesh;
 }
