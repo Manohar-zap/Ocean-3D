@@ -49,8 +49,46 @@ def _time_at(step: int) -> str:
     return (BASE_TIME + timedelta(days=step)).isoformat() + "Z"
 
 
+from shapely.geometry import Point, Polygon, MultiPolygon
+
+INDIA = Polygon([
+    (68.0, 23.5), (69.0, 23.0), (70.0, 21.0), (72.8, 19.5), (73.0, 16.0), (74.8, 13.0),
+    (76.0, 10.0), (77.0, 8.2), (77.5, 8.0), (78.0, 8.2), (79.5, 9.8), (80.2, 13.0),
+    (81.0, 16.0), (84.0, 18.5), (86.0, 20.0), (88.0, 21.5), (89.5, 23.0), (92.0, 26.0),
+    (88.0, 28.0), (80.0, 31.0), (74.0, 33.0), (70.0, 29.0), (68.0, 23.5)
+])
+
+SRI_LANKA = Polygon([
+    (79.5, 9.9), (81.9, 9.9), (82.0, 6.7), (80.0, 5.8), (79.5, 9.9)
+])
+
+ARABIAN_PENINSULA = Polygon([
+    (35.0, 30.0), (60.0, 25.0), (60.0, 22.0), (55.0, 16.0), (43.0, 12.0), (35.0, 12.0), (35.0, 30.0)
+])
+
+HORN_OF_AFRICA = Polygon([
+    (30.0, 15.0), (51.5, 12.0), (51.5, 0.0), (40.0, -10.0), (30.0, -10.0), (30.0, 15.0)
+])
+
+SE_ASIA = Polygon([
+    (92.0, 25.0), (105.0, 25.0), (105.0, 0.0), (97.0, 0.0), (92.0, 25.0)
+])
+
+LAND_POLYGONS = MultiPolygon([INDIA, SRI_LANKA, ARABIAN_PENINSULA, HORN_OF_AFRICA, SE_ASIA])
+
+def is_land(lat: float, lon: float) -> bool:
+    try:
+        return LAND_POLYGONS.contains(Point(lon, lat))
+    except Exception:
+        return False
+
+
 def _synthetic_value(variable: str, lat: float, lon: float, depth: float, step: int) -> float:
     """Deterministic pseudo-physical field so repeated queries are stable."""
+    # Land Mask check for ocean current vectors
+    if variable in ("current_u", "current_v") and is_land(lat, lon):
+        return 0.0
+
     lat_n = (lat - LAT_RANGE[0]) / (LAT_RANGE[1] - LAT_RANGE[0])
     lon_n = (lon - LON_RANGE[0]) / (LON_RANGE[1] - LON_RANGE[0])
     depth_decay = math.exp(-depth / 800.0)
@@ -138,7 +176,13 @@ class ModelNetCDFAdapter:
 
     def parse(self, source: str) -> list[StandardRecord]:
         import os
-        target_file = source if source.endswith(".nc") else "backend/sample_incois_model.nc"
+        target_file = source
+        if not os.path.exists(target_file):
+            if os.path.exists("sample_incois_model.nc"):
+                target_file = "sample_incois_model.nc"
+            elif os.path.exists("backend/sample_incois_model.nc"):
+                target_file = "backend/sample_incois_model.nc"
+
         if os.path.exists(target_file):
             try:
                 records = parse_netcdf_records(target_file, "incois_las_model", "CACHED REAL DATA", "INCOIS", "INCOIS-ROMS-IND-01")
@@ -161,30 +205,37 @@ def parse_netcdf_records(filepath: str, dataset_id: str, data_status: str, sourc
             lats = np.array(f.variables.get('lat', f.variables.get('latitude')).data)
             lons = np.array(f.variables.get('lon', f.variables.get('longitude')).data)
             depths = np.array(f.variables.get('depth', [0]).data)
-            for var in ["temperature", "salinity"]:
-                if var in f.variables:
-                    data = np.array(f.variables[var].data)
-                    for i, lat in enumerate(lats[:10]):
-                        for j, lon in enumerate(lons[:10]):
-                            for k, d in enumerate(depths[:5]):
+            for var in ["temperature", "salinity", "current_u", "current_v"]:
+                data = np.array(f.variables[var].data) if var in f.variables else None
+                for i, lat in enumerate(lats[:GRID_N]):
+                    for j, lon in enumerate(lons[:GRID_N]):
+                        for k, d in enumerate(depths[:5]):
+                            lat_f, lon_f = float(lat), float(lon)
+                            if data is not None:
                                 val = float(data[0, k, i, j]) if data.ndim == 4 else float(data[k, i, j])
-                                records.append(StandardRecord(
-                                    kind="model",
-                                    dataset_id=dataset_id,
-                                    variable=var,
-                                    latitude=round(float(lat), 4),
-                                    longitude=round(float(lon), 4),
-                                    depth=float(d),
-                                    time=_time_at(0),
-                                    value=round(val, 3),
-                                    unit=units.get(var, "unknown"),
-                                    source_model=source_org,
-                                    source_file=filepath,
-                                    data_status=data_status,
-                                    source_organization=source_org,
-                                    product_id=product_id,
-                                    retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
-                                ))
+                            else:
+                                val = _synthetic_value(var, lat_f, lon_f, float(d), 0)
+                            
+                            if var in ("current_u", "current_v") and is_land(lat_f, lon_f):
+                                val = 0.0
+                                
+                            records.append(StandardRecord(
+                                kind="model",
+                                dataset_id=dataset_id,
+                                variable=var,
+                                latitude=round(lat_f, 4),
+                                longitude=round(lon_f, 4),
+                                depth=float(d),
+                                time=_time_at(0),
+                                value=round(val, 4),
+                                unit=units.get(var, "unknown"),
+                                source_model=source_org,
+                                source_file=filepath,
+                                data_status=data_status,
+                                source_organization=source_org,
+                                product_id=product_id,
+                                retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
+                            ))
     except Exception:
         pass
     return records

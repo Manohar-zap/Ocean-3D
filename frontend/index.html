@@ -633,15 +633,18 @@ async function loadVectors(){
   const dataV = await resV.json();
 
   const vMap = {};
-  dataV.points.forEach(p => { vMap[`${p.lat}_${p.lon}`] = p.value; });
+  dataV.points.forEach(p => { vMap[`${p.lat.toFixed(4)}_${p.lon.toFixed(4)}`] = p.value; });
 
   const height = -depth * state.verticalExaggeration * 15.0 + 50.0;
 
-  dataU.points.forEach(pu => {
-    const u = pu.value, v = vMap[`${pu.lat}_${pu.lon}`] || 0.0;
-    const speed = Math.sqrt(u*u + v*v);
-    if(speed < 1e-4) return;
+  dataU.points.forEach((pu) => {
+    const u = pu.value;
+    const v = vMap[`${pu.lat.toFixed(4)}_${pu.lon.toFixed(4)}`] ?? 0.0;
 
+    // Land Mask Check: Discard current vectors over land cells (where u == 0 and v == 0)
+    if (Math.abs(u) < 1e-4 && Math.abs(v) < 1e-4) return;
+
+    const speed = Math.sqrt(u*u + v*v);
     const endLat = pu.lat + v * 0.15;
     const endLon = pu.lon + u * 0.15;
 
