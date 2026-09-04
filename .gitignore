@@ -12,6 +12,7 @@ env/
 # IDE, Secrets & OS
 .env
 .env.local
+frontend/config.js
 .idea/
 .vscode/
 .DS_Store
