@@ -558,6 +558,55 @@ function clearModelEntities(){
   modelEntities = [];
 }
 
+let bathymetryEntities = [];
+
+async function loadBathymetry(){
+  bathymetryEntities.forEach(e => viewer.entities.remove(e));
+  bathymetryEntities = [];
+  if(!state.showBathymetry) return;
+
+  const b = currentBounds();
+  const url = apiUrl(`/api/bathymetry?min_lat=${b.min_lat}&max_lat=${b.max_lat}&min_lon=${b.min_lon}&max_lon=${b.max_lon}`);
+  const res = await fetch(url);
+  if(!res.ok) return;
+  const data = await res.json();
+
+  const lats = Array.from(new Set(data.points.map(p => p.lat))).sort((a,b) => a - b);
+  const lons = Array.from(new Set(data.points.map(p => p.lon))).sort((a,b) => a - b);
+
+  const latStep = (lats[lats.length - 1] - lats[0]) / Math.max(1, lats.length - 1);
+  const lonStep = (lons[lons.length - 1] - lons[0]) / Math.max(1, lons.length - 1);
+
+  const depthMap = {};
+  data.points.forEach(p => { depthMap[`${p.lat}_${p.lon}`] = p.depth; });
+
+  for(let i = 0; i < lats.length; i++){
+    for(let j = 0; j < lons.length; j++){
+      const lat = lats[i], lon = lons[j];
+      const d = depthMap[`${lat}_${lon}`] ?? 4000;
+      const h = -d * state.verticalExaggeration * 15.0; // Real seafloor height below surface
+
+      // Scientific Bathymetric Depth Colormap (shallow teal -> deep indigo)
+      const norm = Math.min(1.0, Math.max(0.0, d / 6000.0));
+      const color = Cesium.Color.fromHsl(0.6 - norm * 0.3, 0.7, 0.15 + (1 - norm) * 0.25, 0.85);
+
+      const rect = viewer.entities.add({
+        rectangle: {
+          coordinates: Cesium.Rectangle.fromDegrees(
+            lon - lonStep/2, lat - latStep/2,
+            lon + lonStep/2, lat + latStep/2
+          ),
+          height: h,
+          material: new Cesium.ColorMaterialProperty(color),
+          outline: false
+        }
+      });
+      rect.userData = { bathymetryDepth: d, source: "GEBCO_2023_GRID" };
+      bathymetryEntities.push(rect);
+    }
+  }
+}
+
 async function loadSingleSlice(){
   const depth = DEPTHS[state.depthIndex];
   const time = state.times[state.timeIndex];

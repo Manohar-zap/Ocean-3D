@@ -142,6 +142,31 @@ def query_model_grid3d(
     return res
 
 
+@app.get("/api/bathymetry")
+def query_bathymetry(
+    min_lat: float = -90, max_lat: float = 90,
+    min_lon: float = -180, max_lon: float = 180,
+):
+    """Real GEBCO / ETOPO Global Bathymetry Seafloor dataset query."""
+    f = QueryFilters(dataset_id="gebco_bathymetry", variable="elevation",
+                      min_lat=min_lat, max_lat=max_lat, min_lon=min_lon, max_lon=max_lon)
+    rows = query_service.model_grid(f)
+    if not rows:
+        raise HTTPException(404, "No bathymetry data matches this query.")
+    return {
+        "dataset_id": "gebco_bathymetry",
+        "source_organization": "GEBCO (General Bathymetric Chart of the Oceans)",
+        "product_id": "GEBCO_2023_GRID",
+        "data_status": rows[0].data_status,
+        "unit": "meters",
+        "count": len(rows),
+        "points": [
+            {"lat": r.latitude, "lon": r.longitude, "depth": r.depth, "elevation": r.value}
+            for r in rows
+        ],
+    }
+
+
 @app.get("/api/observations")
 def query_observations(
     platform_type: Optional[str] = Query(None, description="argo | glider | ctd | bgc"),

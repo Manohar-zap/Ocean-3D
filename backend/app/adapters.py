@@ -151,6 +151,75 @@ class CopernicusMarineAdapter:
         return parse_synthetic_grid("copernicus_cmems", self.VARIABLES, self.UNITS, data_status, "Copernicus Marine Service", "GLOBAL_MULTIYEAR_PHY_001_030")
 
 
+class BathymetryAdapter:
+    """GEBCO / ETOPO Global Bathymetry Dataset Adapter."""
+
+    VARIABLES = ["elevation"]
+    UNITS = {"elevation": "meters"}
+
+    def can_handle(self, source: str) -> bool:
+        return source in ("gebco_bathymetry", "gebco", "etopo") or "bathymetry" in source
+
+    def metadata(self) -> dict:
+        import os
+        has_file = os.path.exists("backend/sample_bathymetry_gebco.nc") or os.path.exists("sample_bathymetry_gebco.nc")
+        status = "CACHED REAL DATA" if has_file else "DEMONSTRATION DATA"
+        return {
+            "source_name": "GEBCO_2023_GRID Global Ocean Bathymetry",
+            "variables": self.VARIABLES,
+            "units": self.UNITS,
+            "platform_type": None,
+            "data_status": status,
+            "source_organization": "GEBCO (General Bathymetric Chart of the Oceans)",
+            "product_id": "GEBCO_2023_GRID",
+            "retrieval_timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+    def parse(self, source: str) -> list[StandardRecord]:
+        import os, numpy as np
+        from scipy.io import netcdf
+        
+        target_file = "sample_bathymetry_gebco.nc"
+        if not os.path.exists(target_file):
+            if os.path.exists("backend/sample_bathymetry_gebco.nc"):
+                target_file = "backend/sample_bathymetry_gebco.nc"
+
+        records: list[StandardRecord] = []
+        if os.path.exists(target_file):
+            try:
+                with netcdf.netcdf_file(target_file, 'r', mmap=False) as f:
+                    lats = np.array(f.variables['lat'].data)
+                    lons = np.array(f.variables['lon'].data)
+                    elevation = np.array(f.variables['elevation'].data)
+
+                    for i, lat in enumerate(lats):
+                        for j, lon in enumerate(lons):
+                            lat_f, lon_f = float(lat), float(lon)
+                            depth_val = float(elevation[i, j])
+                            records.append(StandardRecord(
+                                kind="model",
+                                dataset_id="gebco_bathymetry",
+                                variable="elevation",
+                                latitude=round(lat_f, 4),
+                                longitude=round(lon_f, 4),
+                                depth=abs(depth_val),
+                                time=_time_at(0),
+                                value=round(depth_val, 2),
+                                unit="meters",
+                                source_model="GEBCO_2023_GRID",
+                                source_file=target_file,
+                                data_status="CACHED REAL DATA",
+                                source_organization="GEBCO",
+                                product_id="GEBCO_2023_GRID",
+                                retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
+                            ))
+                if records:
+                    return records
+            except Exception:
+                pass
+        return records
+
+
 class ModelNetCDFAdapter:
     """INCOIS ocean circulation model output adapter (ROMS NetCDF)."""
 
@@ -447,6 +516,7 @@ class CTDBGCObservationAdapter:
 
 # Registry: order matters only in that can_handle() must be unambiguous.
 REGISTERED_ADAPTERS: list[Adapter] = [
+    BathymetryAdapter(),
     CopernicusMarineAdapter(),
     ModelNetCDFAdapter(),
     BGCFieldAdapter(),
@@ -457,7 +527,7 @@ REGISTERED_ADAPTERS: list[Adapter] = [
 # The logical "sources" the Ingestion Worker polls (Architecture Sec. 6/7).
 # In production these are real endpoints (INCOIS LAS, Copernicus, Argo GDAC,
 # Glider DAC); here they're symbolic keys the synthetic adapters recognize.
-SOURCE_KEYS = ["copernicus_cmems", "incois_las_model", "bgc_model", "argo_gdac", "glider_dac", "ctd_cast", "bgc_argo"]
+SOURCE_KEYS = ["gebco_bathymetry", "copernicus_cmems", "incois_las_model", "bgc_model", "argo_gdac", "glider_dac", "ctd_cast", "bgc_argo"]
 
 
 def run_ingestion() -> tuple[list[StandardRecord], dict[str, dict]]:
