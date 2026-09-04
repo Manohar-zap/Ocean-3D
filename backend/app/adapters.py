@@ -135,7 +135,19 @@ class CopernicusMarineAdapter:
         username = os.getenv("COPERNICUSMARINE_SERVICE_USERNAME")
         data_status = "REAL DATA" if username and username != "demo_user" else "CACHED REAL DATA"
 
-        # Generate Global Ocean Physics Dataset records (GLOBAL_MULTIYEAR_PHY_001_030)
+        target_file = "sample_copernicus_global.nc"
+        if not os.path.exists(target_file):
+            if os.path.exists("backend/sample_copernicus_global.nc"):
+                target_file = "backend/sample_copernicus_global.nc"
+
+        if os.path.exists(target_file):
+            try:
+                records = parse_netcdf_records(target_file, "copernicus_cmems", data_status, "Copernicus Marine Service", "GLOBAL_MULTIYEAR_PHY_001_030")
+                if records:
+                    return records
+            except Exception:
+                pass
+
         return parse_synthetic_grid("copernicus_cmems", self.VARIABLES, self.UNITS, data_status, "Copernicus Marine Service", "GLOBAL_MULTIYEAR_PHY_001_030")
 
 
@@ -196,9 +208,9 @@ def parse_netcdf_records(filepath: str, dataset_id: str, data_status: str, sourc
             depths = np.array(f.variables.get('depth', [0]).data)
             for var in ["temperature", "salinity", "current_u", "current_v"]:
                 data = np.array(f.variables[var].data) if var in f.variables else None
-                for i, lat in enumerate(lats[:GRID_N]):
-                    for j, lon in enumerate(lons[:GRID_N]):
-                        for k, d in enumerate(depths[:5]):
+                for i, lat in enumerate(lats):
+                    for j, lon in enumerate(lons):
+                        for k, d in enumerate(depths[:8]):
                             lat_f, lon_f = float(lat), float(lon)
                             if data is not None:
                                 val = float(data[0, k, i, j]) if data.ndim == 4 else float(data[k, i, j])
