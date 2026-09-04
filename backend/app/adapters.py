@@ -124,15 +124,15 @@ class ModelNetCDFAdapter:
         """Real NetCDF parser using scipy or netCDF4 when real .nc files are provided."""
         records: list[StandardRecord] = []
         try:
+            import numpy as np
             from scipy.io import netcdf
-            with netcdf.netcdf_file(filepath, 'r') as f:
-                lats = f.variables.get('lat', f.variables.get('latitude')).data
-                lons = f.variables.get('lon', f.variables.get('longitude')).data
-                depths = f.variables.get('depth', [0]).data
+            with netcdf.netcdf_file(filepath, 'r', mmap=False) as f:
+                lats = np.array(f.variables.get('lat', f.variables.get('latitude')).data)
+                lons = np.array(f.variables.get('lon', f.variables.get('longitude')).data)
+                depths = np.array(f.variables.get('depth', [0]).data)
                 for var in self.VARIABLES:
                     if var in f.variables:
-                        data = f.variables[var].data
-                        # Normalization into StandardRecord
+                        data = np.array(f.variables[var].data)
                         for i, lat in enumerate(lats[:10]):
                             for j, lon in enumerate(lons[:10]):
                                 for k, d in enumerate(depths[:5]):
@@ -145,7 +145,7 @@ class ModelNetCDFAdapter:
                                         longitude=round(float(lon), 4),
                                         depth=float(d),
                                         time=_time_at(0),
-                                        value=val,
+                                        value=round(val, 3),
                                         unit=self.UNITS.get(var, "unknown"),
                                         source_model="INCOIS-ROMS-real",
                                         source_file=filepath,
