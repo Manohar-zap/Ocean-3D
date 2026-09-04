@@ -9,7 +9,9 @@ env/
 *.egg-info/
 .pytest_cache/
 
-# IDE & OS
+# IDE, Secrets & OS
+.env
+.env.local
 .idea/
 .vscode/
 .DS_Store

@@ -9,7 +9,7 @@ this module for real Postgres is an implementation detail behind that
 contract (Architecture Sec. 3, "each layer independently replaceable").
 """
 from __future__ import annotations
-from datetime import datetime
+from datetime import datetime, timezone
 from .schemas import StandardRecord, DatasetMeta, QueryFilters
 from .adapters import run_ingestion
 
@@ -48,8 +48,12 @@ class Store:
                 units=meta["units"],
                 valid_range=valid_range,
                 provenance=meta["source_name"],
-                last_updated=datetime.utcnow().isoformat() + "Z",
+                last_updated=datetime.now(timezone.utc).isoformat(),
                 kind="model" if rows and rows[0].kind == "model" else "observation",
+                data_status=meta.get("data_status", "CACHED REAL DATA"),
+                source_organization=meta.get("source_organization", "INCOIS / Copernicus Marine"),
+                product_id=meta.get("product_id", dataset_id),
+                retrieval_timestamp=meta.get("retrieval_timestamp", datetime.now(timezone.utc).isoformat()),
             )
 
     # -- Query Service entry points (Architecture Sec. 5.2) -----------------

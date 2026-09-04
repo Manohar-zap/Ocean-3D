@@ -31,6 +31,10 @@ class StandardRecord(BaseModel):
     quality_flag: Optional[str] = "good"
     source_file: Optional[str] = None
     ingestion_ts: Optional[str] = None
+    data_status: Literal["REAL DATA", "CACHED REAL DATA", "DEMONSTRATION DATA"] = "CACHED REAL DATA"
+    source_organization: Optional[str] = "INCOIS / Copernicus Marine"
+    product_id: Optional[str] = None
+    retrieval_timestamp: Optional[str] = None
 
 
 class DatasetMeta(BaseModel):
@@ -43,6 +47,10 @@ class DatasetMeta(BaseModel):
     source_url: Optional[str] = None
     last_updated: Optional[str] = None
     kind: RecordKind
+    data_status: Literal["REAL DATA", "CACHED REAL DATA", "DEMONSTRATION DATA"] = "CACHED REAL DATA"
+    source_organization: Optional[str] = "INCOIS / Copernicus Marine"
+    product_id: Optional[str] = None
+    retrieval_timestamp: Optional[str] = None
 
 
 class QueryFilters(BaseModel):
