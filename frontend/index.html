@@ -3,11 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>OCEAN 3D — Real 3D Earth & Geographic Workspace</title>
+<title>OCEAN 3D — Real 3D Earth Globe & Geographic Workspace</title>
 
 <!-- CesiumJS Official Library v1.114 -->
 <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
 <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+
+<script src="config.js"></script>
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
@@ -78,6 +80,8 @@
   #loading{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     font-size:13.5px; color:var(--text-dim); background:var(--bg); z-index:15; }
 
+  #terrainErrorBanner{ position:absolute; top:48px; left:12px; right:12px; background:rgba(232, 101, 79, 0.9); color:#fff; padding:8px 12px; font-size:12px; border-radius:3px; display:none; z-index:20; font-family:'IBM Plex Mono', monospace; }
+
   footer{ grid-column:1/3; grid-row:3; background:var(--panel); border-top:1px solid var(--line);
     display:flex; align-items:center; padding:0 18px; gap:22px; z-index:2; }
 
@@ -131,6 +135,7 @@
 
   <aside>
     <button class="action primary" id="btnFlyIndia">Fly to India & Indian Ocean</button>
+    <button class="action" id="btnFlyHimalayas" style="margin-top:-6px;">Fly to Himalayas (3D Terrain Test)</button>
 
     <div class="field research-only">
       <label>Backend API</label>
@@ -227,7 +232,8 @@
     <div id="cesiumContainer"></div>
     <div id="hint">Drag to orbit Earth globe · scroll to zoom · click an observation platform to inspect</div>
     <div id="coordsReadout" class="mono">Position: 18.00°N, 78.50°E | India & Indian Ocean Globe Workspace</div>
-    <div id="loading">Initializing Real 3D Earth Globe (CesiumJS)…</div>
+    <div id="terrainErrorBanner"></div>
+    <div id="loading">Initializing Real 3D Earth Globe & Cesium World Terrain…</div>
 
     <div id="profilePanel">
       <button class="close" id="closeProfile">✕</button>
@@ -287,6 +293,9 @@ let state = {
   showProfileLines: true,
   markers: {},          // platform_id -> entity
   selectedProfile: null,
+  terrainProviderType: "Unknown",
+  cesiumIonStatus: "FAIL",
+  worldTerrainLoaded: false
 };
 
 function apiUrl(path){ return state.apiBase.replace(/\/$/, "") + path; }
@@ -323,26 +332,50 @@ function drawColorbar(min, max){
 }
 
 // ---------------------------------------------------------------------
-// Cesium Globe Initialization
+// Cesium Globe Initialization & World Terrain Provider
 // ---------------------------------------------------------------------
 let viewer = null;
 
 async function initCesiumGlobe(){
-  // Ion Token configuration with fallback
+  // Ion Token configuration
   const token = (typeof window !== 'undefined' && window.CESIUM_ION_TOKEN) || '';
-  if(token && token !== 'demo_token') {
+  if(token && token !== 'demo_token' && token !== 'your_cesium_ion_token_here') {
     Cesium.Ion.defaultAccessToken = token;
+    state.cesiumIonStatus = "SUCCESS";
   } else {
     Cesium.Ion.defaultAccessToken = '';
+    state.cesiumIonStatus = "FAILED (Missing Token in config.js or .env)";
   }
 
-  // Esri World Imagery (high-resolution global satellite imagery)
+  // Esri World Imagery MapServer (High-resolution global satellite imagery)
   const esriImagery = new Cesium.ArcGisMapServerImageryProvider({
     url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
   });
 
-  // Ellipsoid Terrain Provider (avoids 401 unauthenticated Ion asset requests)
-  const terrainProvider = new Cesium.EllipsoidTerrainProvider();
+  // Attempt Cesium World Terrain Provider Initialization
+  let terrainProvider = null;
+  if(state.cesiumIonStatus === "SUCCESS"){
+    try {
+      terrainProvider = await Cesium.createWorldTerrainAsync({
+        requestVertexNormals: true,
+        requestWaterMask: true
+      });
+      state.worldTerrainLoaded = true;
+      state.terrainProviderType = "CesiumTerrainProvider (Cesium World Terrain)";
+    } catch(err) {
+      console.warn("Cesium World Terrain Error:", err);
+      showTerrainError("Cesium World Terrain authentication error: Token rejected by Cesium Ion service.");
+    }
+  }
+
+  if(!terrainProvider){
+    terrainProvider = new Cesium.EllipsoidTerrainProvider();
+    state.worldTerrainLoaded = false;
+    state.terrainProviderType = "EllipsoidTerrainProvider (Smooth WGS84 Ellipsoid)";
+    if(state.cesiumIonStatus !== "SUCCESS"){
+      showTerrainError("Cesium World Terrain Notice: CESIUM_ION_TOKEN required for streamed 3D terrain elevation. Draping satellite imagery on WGS84 ellipsoid.");
+    }
+  }
 
   viewer = new Cesium.Viewer('cesiumContainer', {
     imageryProvider: esriImagery,
@@ -350,7 +383,7 @@ async function initCesiumGlobe(){
     timeline: false,
     animation: false,
     sceneModePicker: false,
-    baseLayerPicker: false,
+    baseLayerPicker: true,
     geocoder: false,
     navigationHelpButton: false,
     homeButton: false,
@@ -359,7 +392,12 @@ async function initCesiumGlobe(){
     infoBox: false
   });
 
-  viewer.scene.globe.depthTestAgainstTerrain = false;
+  viewer.scene.globe.depthTestAgainstTerrain = state.worldTerrainLoaded;
+  viewer.scene.globe.enableLighting = true;
+
+  // Log Provider Type for Verification
+  console.log("Active Terrain Provider Class:", viewer.terrainProvider.constructor.name);
+  console.log("Cesium Ion Token Status:", state.cesiumIonStatus);
 
   // Initial Camera Target: India + Indian Ocean
   flyToIndia();
@@ -387,6 +425,12 @@ async function initCesiumGlobe(){
   }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 }
 
+function showTerrainError(msg){
+  const banner = document.getElementById("terrainErrorBanner");
+  banner.style.display = "block";
+  banner.textContent = msg;
+}
+
 function flyToIndia(){
   if(!viewer) return;
   viewer.camera.flyTo({
@@ -400,7 +444,21 @@ function flyToIndia(){
   });
 }
 
+function flyToHimalayas(){
+  if(!viewer) return;
+  viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(86.925, 27.988, 25000),
+    orientation: {
+      heading: Cesium.Math.toRadians(15.0),
+      pitch: Cesium.Math.toRadians(-25.0),
+      roll: 0.0
+    },
+    duration: 2.5
+  });
+}
+
 document.getElementById("btnFlyIndia").onclick = flyToIndia;
+document.getElementById("btnFlyHimalayas").onclick = flyToHimalayas;
 
 // ---------------------------------------------------------------------
 // Scientific Ocean Layers on Cesium Globe
@@ -518,7 +576,7 @@ function renderCesiumSurfaceGrid(points, depth, alpha = 0.85){
   const [vmin, vmax] = ds ? ds.valid_range[state.variable] : [0, 30];
   drawColorbar(vmin, vmax);
 
-  const heightOffset = -depth * state.verticalExaggeration * 15.0; // depth meters -> height
+  const heightOffset = -depth * state.verticalExaggeration * 15.0;
 
   const lats = Array.from(new Set(points.map(p => p.lat))).sort((a,b) => a - b);
   const lons = Array.from(new Set(points.map(p => p.lon))).sort((a,b) => a - b);
@@ -682,7 +740,6 @@ async function load3DProfileLine(platform_id, lat, lon, colorCss){
 }
 
 async function refreshAll(){
-  // Diagnostic Step 7: Baseline Earth Globe view; layers render when enabled/interacted
   clearModelEntities();
 }
 
