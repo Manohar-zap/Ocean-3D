@@ -330,31 +330,27 @@ let viewer = null;
 async function initCesiumGlobe(){
   // Ion Token configuration with fallback
   const token = (typeof window !== 'undefined' && window.CESIUM_ION_TOKEN) || '';
-  if(token) Cesium.Ion.defaultAccessToken = token;
-
-  // Real Terrain Provider
-  let terrainProvider;
-  try {
-    terrainProvider = await Cesium.createWorldTerrainAsync({
-      requestVertexNormals: true,
-      requestWaterMask: true
-    });
-  } catch(e) {
-    terrainProvider = new Cesium.EllipsoidTerrainProvider();
+  if(token && token !== 'demo_token') {
+    Cesium.Ion.defaultAccessToken = token;
+  } else {
+    Cesium.Ion.defaultAccessToken = '';
   }
 
-  // Real Geographic Satellite Imagery Provider (Esri World Imagery)
-  const imageryProvider = new Cesium.ArcGisMapServerImageryProvider({
+  // Esri World Imagery (high-resolution global satellite imagery)
+  const esriImagery = new Cesium.ArcGisMapServerImageryProvider({
     url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
   });
 
+  // Ellipsoid Terrain Provider (avoids 401 unauthenticated Ion asset requests)
+  const terrainProvider = new Cesium.EllipsoidTerrainProvider();
+
   viewer = new Cesium.Viewer('cesiumContainer', {
-    imageryProvider: imageryProvider,
+    imageryProvider: esriImagery,
     terrainProvider: terrainProvider,
     timeline: false,
     animation: false,
     sceneModePicker: false,
-    baseLayerPicker: true,
+    baseLayerPicker: false,
     geocoder: false,
     navigationHelpButton: false,
     homeButton: false,
@@ -363,8 +359,7 @@ async function initCesiumGlobe(){
     infoBox: false
   });
 
-  viewer.scene.globe.enableLighting = true;
-  viewer.scene.globe.depthTestAgainstTerrain = true;
+  viewer.scene.globe.depthTestAgainstTerrain = false;
 
   // Initial Camera Target: India + Indian Ocean
   flyToIndia();
