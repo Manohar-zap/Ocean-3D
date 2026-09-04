@@ -258,8 +258,12 @@
       <button class="close" id="closeProfile">✕</button>
       <h3 id="profileTitle">Platform</h3>
       <div class="meta" id="profileMeta"></div>
-      <canvas id="profileChart" width="278" height="220"></canvas>
-      <button class="action primary" id="btnCompare">Compare with model at this depth</button>
+      <div id="obsCard" style="font-size:12px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); padding:10px; display:flex; flex-direction:column; gap:5px;">
+        <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Coordinates</span><span id="obsCoords" class="mono">--</span></div>
+        <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Max Cast Depth</span><span id="obsMaxDepth" class="mono">--</span></div>
+        <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">3D Cursor Depth</span><span id="obsCursorDepth" class="mono" style="color:var(--accent); font-weight:600;">0 m</span></div>
+      </div>
+      <button class="action primary" id="btnCompare">Compare with model at 3D cursor depth</button>
       <div id="compareResult"></div>
     </div>
   </main>
@@ -738,24 +742,43 @@ async function loadObservations(){
   }
 }
 
-async function load3DProfileLine(platform_id, lat, lon, colorCss){
+async function load3DProfileLine(platform_id, defaultLat, defaultLon, colorCss){
   const res = await fetch(apiUrl(`/api/observations/${platform_id}/profile`));
   if(!res.ok) return;
   const data = await res.json();
 
   const coords = [];
+  const color = Cesium.Color.fromCssColorString(colorCss);
+
   data.profile.forEach(p => {
+    // Preserve Glider horizontal trajectory coordinates if present; fallback to default platform lat/lon
+    const lat = p.latitude ?? defaultLat;
+    const lon = p.longitude ?? defaultLon;
     const h = -p.depth * state.verticalExaggeration * 15.0;
     coords.push(lon, lat, h);
+
+    // 3D Point measurement sample node in Cesium scene
+    const samplePoint = viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(lon, lat, h),
+      point: {
+        pixelSize: 6,
+        color: color,
+        outlineColor: Cesium.Color.WHITE,
+        outlineWidth: 1.0
+      }
+    });
+    samplePoint.userData = { platform_id, sample: p };
+    profileEntities.push(samplePoint);
   });
 
   if(coords.length < 6) return;
 
+  // 3D Polyline trajectory path
   const poly = viewer.entities.add({
     polyline: {
       positions: Cesium.Cartesian3.fromDegreesArrayHeights(coords),
-      width: 2.5,
-      material: Cesium.Color.fromCssColorString(colorCss)
+      width: 3.0,
+      material: color
     }
   });
   profileEntities.push(poly);
@@ -766,8 +789,48 @@ async function refreshAll(){
 }
 
 // ---------------------------------------------------------------------
-// Profile Inspection & Model-Observation Comparison
+// 3D Profile Inspection, 3D Depth Cursor & Model Comparison
 // ---------------------------------------------------------------------
+let depthCursorEntity = null;
+
+function update3DDepthCursor(){
+  if(!state.selectedProfile) return;
+  const targetDepth = DEPTHS[state.depthIndex];
+  const rows = state.selectedProfile.profile.filter(r => r.variable === state.variable);
+  if(!rows.length) return;
+
+  const sample = rows.reduce((a,b) => Math.abs(b.depth-targetDepth) < Math.abs(a.depth-targetDepth) ? b : a);
+  const lat = sample.latitude ?? state.selectedProfile.lat ?? 18.0;
+  const lon = sample.longitude ?? state.selectedProfile.lon ?? 78.5;
+  const h = -sample.depth * state.verticalExaggeration * 15.0;
+
+  document.getElementById("obsCoords").textContent = `${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E`;
+  const maxD = Math.max(...state.selectedProfile.profile.map(p => p.depth));
+  document.getElementById("obsMaxDepth").textContent = `${maxD} m`;
+  document.getElementById("obsCursorDepth").textContent = `${sample.depth} m`;
+
+  // Render or move glowing 3D Depth Cursor Entity in Cesium scene
+  if(depthCursorEntity){
+    viewer.entities.remove(depthCursorEntity);
+  }
+
+  depthCursorEntity = viewer.entities.add({
+    position: Cesium.Cartesian3.fromDegrees(lon, lat, h),
+    point: {
+      pixelSize: 14,
+      color: Cesium.Color.fromCssColorString('#3fe0c5'),
+      outlineColor: Cesium.Color.WHITE,
+      outlineWidth: 2.0
+    },
+    label: {
+      text: `3D Cursor: ${sample.depth}m`,
+      font: '11px IBM Plex Mono',
+      pixelOffset: new Cesium.Cartesian2(0, -20),
+      fillColor: Cesium.Color.WHITE
+    }
+  });
+}
+
 async function openProfile(platform_id){
   const res = await fetch(apiUrl(`/api/observations/${platform_id}/profile`));
   if(!res.ok) return;
@@ -775,8 +838,9 @@ async function openProfile(platform_id){
   state.selectedProfile = data;
   document.getElementById("profileTitle").textContent = platform_id;
   document.getElementById("profileMeta").textContent =
-    `${data.platform_type.toUpperCase()} platform · depth-resolved vertical profile`;
-  drawProfileChart(data.profile.filter(r => r.variable === state.variable));
+    `${data.platform_type.toUpperCase()} platform · 3D depth profile active`;
+
+  update3DDepthCursor();
   document.getElementById("compareResult").style.display = "none";
   document.getElementById("profilePanel").classList.add("open");
 
@@ -786,42 +850,10 @@ async function openProfile(platform_id){
   }
 }
 
-document.getElementById("closeProfile").onclick = () =>
+document.getElementById("closeProfile").onclick = () => {
+  if(depthCursorEntity) viewer.entities.remove(depthCursorEntity);
   document.getElementById("profilePanel").classList.remove("open");
-
-function drawProfileChart(rows){
-  const canvas = document.getElementById("profileChart");
-  const ctx = canvas.getContext("2d");
-  ctx.clearRect(0,0,canvas.width, canvas.height);
-  if(!rows.length){
-    ctx.fillStyle = "#7c93a0"; ctx.font = "12px IBM Plex Sans";
-    ctx.fillText("No data for this variable at this platform", 10, 110);
-    return;
-  }
-  rows = [...rows].sort((a,b) => a.depth - b.depth);
-  const pad = 32;
-  const maxDepth = Math.max(...rows.map(r=>r.depth));
-  const vals = rows.map(r=>r.value);
-  const vmin = Math.min(...vals), vmax = Math.max(...vals);
-  const xOf = v => pad + (v - vmin)/Math.max(1e-9,(vmax-vmin)) * (canvas.width - pad*1.4);
-  const yOf = d => 14 + (d/Math.max(1,maxDepth)) * (canvas.height - 38);
-
-  ctx.strokeStyle = "#1a2f3c"; ctx.beginPath();
-  ctx.moveTo(pad, 12); ctx.lineTo(pad, canvas.height-22); ctx.stroke();
-
-  ctx.strokeStyle = "#3fe0c5"; ctx.lineWidth = 1.8; ctx.beginPath();
-  rows.forEach((r,i) => { const x=xOf(r.value), y=yOf(r.depth); i? ctx.lineTo(x,y): ctx.moveTo(x,y); });
-  ctx.stroke();
-
-  ctx.fillStyle = "#f2a65a";
-  rows.forEach(r => { ctx.beginPath(); ctx.arc(xOf(r.value), yOf(r.depth), 2.8, 0, 7); ctx.fill(); });
-
-  ctx.fillStyle = "#7c93a0"; ctx.font = "10px IBM Plex Mono";
-  ctx.fillText(`${vmin.toFixed(1)}`, pad-4, canvas.height-6);
-  ctx.fillText(`${vmax.toFixed(1)}`, canvas.width-36, canvas.height-6);
-  ctx.fillText(`0m`, 2, 16);
-  ctx.fillText(`${maxDepth}m`, 2, canvas.height-24);
-}
+};
 
 document.getElementById("btnCompare").onclick = async () => {
   if(!state.selectedProfile) return;
@@ -871,6 +903,7 @@ document.getElementById("exagSlider").oninput = async (e) => {
 document.getElementById("depthSlider").oninput = async (e) => {
   state.depthIndex = parseInt(e.target.value);
   document.getElementById("depthLabel").textContent = `${DEPTHS[state.depthIndex]} m`;
+  update3DDepthCursor();
   await refreshAll();
 };
 document.getElementById("timeSlider").oninput = async (e) => {
