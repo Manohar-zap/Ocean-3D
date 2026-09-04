@@ -147,7 +147,7 @@ class ModelNetCDFAdapter:
                                         time=_time_at(0),
                                         value=round(val, 3),
                                         unit=self.UNITS.get(var, "unknown"),
-                                        source_model="INCOIS-ROMS-real",
+                                        source_model="Demonstration NetCDF dataset",
                                         source_file=filepath,
                                     ))
         except Exception as exc:
