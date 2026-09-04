@@ -848,7 +848,7 @@ async function load3DProfileLine(platform_id, defaultLat, defaultLon, colorCss){
 
 async function refreshAll(){
   clearModelEntities();
-  await loadObservations();
+  await Promise.all([loadModelData(), loadBathymetry(), loadVectors(), loadObservations()]);
 }
 
 // ---------------------------------------------------------------------
