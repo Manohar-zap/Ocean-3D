@@ -134,6 +134,17 @@
   </header>
 
   <aside>
+    <div class="field">
+      <label>Global Region Navigator</label>
+      <select id="globalRegionSelect">
+        <option value="indian">Indian Ocean (Default Target)</option>
+        <option value="pacific">Pacific Ocean</option>
+        <option value="atlantic">Atlantic Ocean</option>
+        <option value="southern">Southern Ocean</option>
+        <option value="arctic">Arctic Ocean</option>
+      </select>
+    </div>
+
     <button class="action primary" id="btnFlyIndia">Fly to India & Indian Ocean</button>
     <button class="action" id="btnFlyHimalayas" style="margin-top:-6px;">Fly to Himalayas (3D Terrain Test)</button>
 
@@ -205,15 +216,23 @@
       <div id="provenanceCard" style="font-size:11.5px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); padding:8px 10px; display:flex; flex-direction:column; gap:4px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <span style="color:var(--text-dim);">Source</span>
-          <span id="provSource" class="mono" style="color:var(--accent); font-weight:600; font-size:11px;">INCOIS / Copernicus</span>
+          <span id="provSource" class="mono" style="color:var(--accent); font-weight:600; font-size:11px;">Copernicus / INCOIS</span>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <span style="color:var(--text-dim);">Status</span>
-          <span id="provStatus" class="mono" style="background:var(--accent-dim); color:var(--text); padding:2px 6px; border-radius:2px; font-size:10px;">CACHED REAL DATA</span>
+          <span id="provStatus" class="mono" style="background:var(--accent-dim); color:var(--text); padding:2px 6px; border-radius:2px; font-size:10px;">REAL DATA / CACHED</span>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <span style="color:var(--text-dim);">Product ID</span>
-          <span id="provProduct" class="mono" style="font-size:10px; color:var(--text);">INCOIS-ROMS-IND-01</span>
+          <span id="provProduct" class="mono" style="font-size:10px; color:var(--text);">GLOBAL_MULTIYEAR_PHY_001_030</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="color:var(--text-dim);">Spatial</span>
+          <span id="provSpatial" class="mono" style="font-size:10px; color:var(--accent);">GLOBAL OCEAN (-80° to 90°N)</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="color:var(--text-dim);">Vertical</span>
+          <span id="provVertical" class="mono" style="font-size:10px; color:var(--text-dim);">50 Depth Levels (0-5500m)</span>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <span style="color:var(--text-dim);">Retrieved</span>

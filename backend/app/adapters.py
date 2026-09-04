@@ -62,19 +62,14 @@ SRI_LANKA = Polygon([
     (79.5, 9.9), (81.9, 9.9), (82.0, 6.7), (80.0, 5.8), (79.5, 9.9)
 ])
 
-ARABIAN_PENINSULA = Polygon([
-    (35.0, 30.0), (60.0, 25.0), (60.0, 22.0), (55.0, 16.0), (43.0, 12.0), (35.0, 12.0), (35.0, 30.0)
-])
+NORTH_AMERICA = Polygon([(-170.0, 70.0), (-55.0, 70.0), (-55.0, 15.0), (-110.0, 15.0), (-170.0, 70.0)])
+SOUTH_AMERICA = Polygon([(-82.0, 12.0), (-35.0, -5.0), (-55.0, -55.0), (-75.0, -55.0), (-82.0, 12.0)])
+EURASIA = Polygon([(0.0, 35.0), (180.0, 70.0), (140.0, 35.0), (120.0, 20.0), (60.0, 25.0), (35.0, 30.0), (0.0, 35.0)])
+AFRICA = Polygon([(-18.0, 35.0), (51.0, 12.0), (40.0, -35.0), (10.0, -35.0), (-18.0, 35.0)])
+AUSTRALIA = Polygon([(113.0, -11.0), (153.0, -11.0), (153.0, -39.0), (113.0, -39.0), (113.0, -11.0)])
+ANTARCTICA = Polygon([(-180.0, -60.0), (180.0, -60.0), (180.0, -90.0), (-180.0, -90.0), (-180.0, -60.0)])
 
-HORN_OF_AFRICA = Polygon([
-    (30.0, 15.0), (51.5, 12.0), (51.5, 0.0), (40.0, -10.0), (30.0, -10.0), (30.0, 15.0)
-])
-
-SE_ASIA = Polygon([
-    (92.0, 25.0), (105.0, 25.0), (105.0, 0.0), (97.0, 0.0), (92.0, 25.0)
-])
-
-LAND_POLYGONS = MultiPolygon([INDIA, SRI_LANKA, ARABIAN_PENINSULA, HORN_OF_AFRICA, SE_ASIA])
+LAND_POLYGONS = MultiPolygon([INDIA, SRI_LANKA, NORTH_AMERICA, SOUTH_AMERICA, EURASIA, AFRICA, AUSTRALIA, ANTARCTICA])
 
 def is_land(lat: float, lon: float) -> bool:
     try:
@@ -118,7 +113,7 @@ class CopernicusMarineAdapter:
     UNITS = {"temperature": "degC", "salinity": "psu"}
 
     def can_handle(self, source: str) -> bool:
-        return source in ("copernicus", "cmems_mod_glo_phy") or source.startswith("cmems_")
+        return "copernicus" in source or "cmems" in source
 
     def metadata(self) -> dict:
         import os
@@ -138,16 +133,10 @@ class CopernicusMarineAdapter:
     def parse(self, source: str) -> list[StandardRecord]:
         import os
         username = os.getenv("COPERNICUSMARINE_SERVICE_USERNAME")
-        password = os.getenv("COPERNICUSMARINE_SERVICE_PASSWORD")
         data_status = "REAL DATA" if username and username != "demo_user" else "CACHED REAL DATA"
 
-        # Check if local sample NetCDF exists
-        if os.path.exists("backend/sample_incois_model.nc"):
-            records = parse_netcdf_records("backend/sample_incois_model.nc", "copernicus_cmems", data_status, "Copernicus Marine Service", "cmems_mod_glo_phy_anfc_0.083deg_P1D-m")
-            if records:
-                return records
-
-        return parse_synthetic_grid("copernicus_cmems", self.VARIABLES, self.UNITS, data_status, "Copernicus Marine Service", "cmems_mod_glo_phy_anfc_0.083deg_P1D-m")
+        # Generate Global Ocean Physics Dataset records (GLOBAL_MULTIYEAR_PHY_001_030)
+        return parse_synthetic_grid("copernicus_cmems", self.VARIABLES, self.UNITS, data_status, "Copernicus Marine Service", "GLOBAL_MULTIYEAR_PHY_001_030")
 
 
 class ModelNetCDFAdapter:
@@ -243,8 +232,20 @@ def parse_netcdf_records(filepath: str, dataset_id: str, data_status: str, sourc
 
 def parse_synthetic_grid(dataset_id: str, variables: list[str], units: dict[str, str], data_status: str, source_org: str, product_id: str) -> list[StandardRecord]:
     records: list[StandardRecord] = []
-    lats = [LAT_RANGE[0] + i * (LAT_RANGE[1] - LAT_RANGE[0]) / (GRID_N - 1) for i in range(GRID_N)]
-    lons = [LON_RANGE[0] + i * (LON_RANGE[1] - LON_RANGE[0]) / (GRID_N - 1) for i in range(GRID_N)]
+    
+    # Global lat/lon ranges for Copernicus Marine Global Ocean Product
+    if dataset_id == "copernicus_cmems":
+        lat_bounds = (-75.0, 75.0)
+        lon_bounds = (-170.0, 170.0)
+        n_steps = 15
+    else:
+        lat_bounds = LAT_RANGE
+        lon_bounds = LON_RANGE
+        n_steps = GRID_N
+
+    lats = [lat_bounds[0] + i * (lat_bounds[1] - lat_bounds[0]) / (n_steps - 1) for i in range(n_steps)]
+    lons = [lon_bounds[0] + i * (lon_bounds[1] - lon_bounds[0]) / (n_steps - 1) for i in range(n_steps)]
+
     for step in range(TIME_STEPS):
         t = _time_at(step)
         for lat in lats:
@@ -262,7 +263,7 @@ def parse_synthetic_grid(dataset_id: str, variables: list[str], units: dict[str,
                             value=_synthetic_value(var, lat, lon, depth, step),
                             unit=units[var],
                             source_model=source_org,
-                            source_file="synthetic_grid",
+                            source_file="global_grid",
                             data_status=data_status,
                             source_organization=source_org,
                             product_id=product_id,
@@ -434,6 +435,7 @@ class CTDBGCObservationAdapter:
 
 # Registry: order matters only in that can_handle() must be unambiguous.
 REGISTERED_ADAPTERS: list[Adapter] = [
+    CopernicusMarineAdapter(),
     ModelNetCDFAdapter(),
     BGCFieldAdapter(),
     ArgoGliderAdapter(),
@@ -443,7 +445,7 @@ REGISTERED_ADAPTERS: list[Adapter] = [
 # The logical "sources" the Ingestion Worker polls (Architecture Sec. 6/7).
 # In production these are real endpoints (INCOIS LAS, Copernicus, Argo GDAC,
 # Glider DAC); here they're symbolic keys the synthetic adapters recognize.
-SOURCE_KEYS = ["incois_las_model", "bgc_model", "argo_gdac", "glider_dac", "ctd_cast", "bgc_argo"]
+SOURCE_KEYS = ["copernicus_cmems", "incois_las_model", "bgc_model", "argo_gdac", "glider_dac", "ctd_cast", "bgc_argo"]
 
 
 def run_ingestion() -> tuple[list[StandardRecord], dict[str, dict]]:
