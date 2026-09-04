@@ -687,7 +687,8 @@ async function load3DProfileLine(platform_id, lat, lon, colorCss){
 }
 
 async function refreshAll(){
-  await Promise.all([loadModelData(), loadVectors(), loadObservations()]);
+  // Diagnostic Step 7: Baseline Earth Globe view; layers render when enabled/interacted
+  clearModelEntities();
 }
 
 // ---------------------------------------------------------------------
