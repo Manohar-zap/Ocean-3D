@@ -3,7 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>OCEAN 3D — Interactive Ocean Visualization</title>
+<title>OCEAN 3D — Geographic 3D Ocean Visualization Platform</title>
+
+<!-- CesiumJS Official Library -->
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
+<link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
@@ -25,7 +30,7 @@
     font-family:'IBM Plex Sans', system-ui, sans-serif; overflow:hidden; }
   .mono{ font-family:'IBM Plex Mono', monospace; }
 
-  #app{ display:grid; grid-template-columns: 270px 1fr; grid-template-rows: 52px 1fr 84px; height:100%; }
+  #app{ display:grid; grid-template-columns: 280px 1fr; grid-template-rows: 52px 1fr 84px; height:100%; }
 
   header{ grid-column: 1 / 3; grid-row: 1; display:flex; align-items:center;
     padding:0 18px; border-bottom:1px solid var(--line); background:var(--panel); gap:18px; }
@@ -39,7 +44,7 @@
   .modeswitch button.active{ background:var(--accent-dim); color:var(--text); }
 
   aside{ grid-column:1; grid-row:2/4; background:var(--panel); border-right:1px solid var(--line);
-    padding:16px; overflow-y:auto; display:flex; flex-direction:column; gap:16px; }
+    padding:16px; overflow-y:auto; display:flex; flex-direction:column; gap:16px; z-index:2; }
 
   .field label{ display:block; font-size:11px; color:var(--text-dim); margin-bottom:5px; }
   select, input[type=text]{ width:100%; background:var(--panel-2); border:1px solid var(--line);
@@ -65,14 +70,16 @@
   button.action.primary{ background:var(--accent-dim); border-color:var(--accent-dim); }
   button.action.primary:hover{ background:var(--accent); color:#04201b; }
 
-  main{ grid-column:2; grid-row:2; position:relative; }
-  #canvas-wrap{ position:absolute; inset:0; }
-  #hint{ position:absolute; top:12px; left:12px; font-size:11.5px; color:var(--text-dim); pointer-events:none; }
+  main{ grid-column:2; grid-row:2; position:relative; overflow:hidden; }
+  #cesiumContainer{ position:absolute; inset:0; }
+  #hint{ position:absolute; top:12px; left:12px; font-size:11.5px; color:var(--text-dim); pointer-events:none; z-index:3; background:rgba(7,16,25,0.7); padding:4px 8px; border-radius:3px; }
+  #coordsReadout{ position:absolute; bottom:12px; left:12px; font-size:11px; color:var(--text-dim); pointer-events:none; z-index:3; background:rgba(7,16,25,0.7); padding:4px 8px; border-radius:3px; }
+
   #loading{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     font-size:13px; color:var(--text-dim); background:var(--bg); z-index:5; }
 
   footer{ grid-column:1/3; grid-row:3; background:var(--panel); border-top:1px solid var(--line);
-    display:flex; align-items:center; padding:0 18px; gap:22px; }
+    display:flex; align-items:center; padding:0 18px; gap:22px; z-index:2; }
 
   .timebar{ flex:1; display:flex; align-items:center; gap:12px; }
   .timebar button{ background:var(--panel-2); border:1px solid var(--line); color:var(--accent);
@@ -85,7 +92,7 @@
   .cb-label{ font-size:11px; color:var(--text-dim); }
 
   /* Profile / compare side panel */
-  #profilePanel{ position:absolute; top:0; right:0; width:310px; height:100%; background:var(--panel);
+  #profilePanel{ position:absolute; top:0; right:0; width:320px; height:100%; background:var(--panel);
     border-left:1px solid var(--line); transform:translateX(100%); transition:transform .2s ease; z-index:6;
     display:flex; flex-direction:column; padding:16px; gap:12px; overflow-y:auto; }
   #profilePanel.open{ transform:translateX(0); }
@@ -105,8 +112,8 @@
   body.public .public-only{ display:block; }
   body.public .research-only{ display:none; }
 
-  ::-webkit-scrollbar{ width:8px; }
-  ::-webkit-scrollbar-thumb{ background:var(--line); border-radius:4px; }
+  /* Hide Cesium default credit bar for clean UI */
+  .cesium-viewer-bottom{ display:none !important; }
 </style>
 </head>
 <body>
@@ -114,8 +121,8 @@
 <div id="app">
   <header>
     <div class="wordmark">OCEAN <span class="unit">3D</span></div>
-    <div class="subtitle research-only">Web-based 3D ocean model + in-situ observation visualization — INCOIS demo build</div>
-    <div class="subtitle public-only">Explore live ocean conditions in 3D</div>
+    <div class="subtitle research-only">3D Geographic Ocean Visualization Platform — INCOIS / Copernicus Marine</div>
+    <div class="subtitle public-only">Explore live ocean conditions on a 3D Earth</div>
     <div class="modeswitch">
       <button id="btnResearch" class="active">Research</button>
       <button id="btnPublic">Public</button>
@@ -123,6 +130,8 @@
   </header>
 
   <aside>
+    <button class="action primary" id="btnFlyIndia">Fly to India & Indian Ocean</button>
+
     <div class="field research-only">
       <label>Backend API</label>
       <input id="apiBase" type="text" class="mono" value="http://localhost:8000" />
@@ -141,7 +150,7 @@
     <div class="field">
       <label>3D View Mode</label>
       <select id="viewModeSelect">
-        <option value="slice">Single Depth Surface</option>
+        <option value="slice">Single Depth Surface Plane</option>
         <option value="volume">Multi-Depth Water Column Stack</option>
       </select>
     </div>
@@ -157,17 +166,10 @@
         <label class="switch"><input type="checkbox" id="ovVectors"><span class="slider-toggle"></span></label></div>
       <div class="toggle-row"><span>Seabed Bathymetry (Demo Data)</span>
         <label class="switch"><input type="checkbox" id="ovBathymetry" checked><span class="slider-toggle"></span></label></div>
-      <div class="toggle-row"><span>Coastlines & EEZ</span>
-        <label class="switch"><input type="checkbox" id="ovCoastlines" checked><span class="slider-toggle"></span></label></div>
       <div class="toggle-row"><span>3D Isosurface (Preview / Planned)</span>
         <label class="switch"><input type="checkbox" id="ovIsosurface"><span class="slider-toggle"></span></label></div>
       <div class="toggle-row"><span>3D Profile Lines</span>
         <label class="switch"><input type="checkbox" id="ovProfileLines" checked><span class="slider-toggle"></span></label></div>
-    </div>
-
-    <div id="isoGroup" class="field" style="display:none;">
-      <label>Iso Threshold (<span id="isoValLabel">28.0</span>)</label>
-      <input type="range" id="isoSlider" min="0" max="35" step="0.5" value="28.0">
     </div>
 
     <div>
@@ -198,7 +200,7 @@
       <div id="provenanceCard" style="font-size:11.5px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); padding:8px 10px; display:flex; flex-direction:column; gap:4px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <span style="color:var(--text-dim);">Source</span>
-          <span id="provSource" class="mono" style="color:var(--accent); font-weight:600; font-size:11px;">INCOIS</span>
+          <span id="provSource" class="mono" style="color:var(--accent); font-weight:600; font-size:11px;">INCOIS / Copernicus</span>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <span style="color:var(--text-dim);">Status</span>
@@ -216,17 +218,16 @@
     </div>
 
     <div style="margin-top:auto; display:flex; flex-direction:column; gap:8px;">
-      <button class="action research-only" id="btnGuidedTour">Guided tour: depth sweep</button>
-      <button class="action public-only" id="btnGuidedTourPublic">Take the guided tour</button>
       <button class="action research-only" id="btnExport">Export current view as CSV</button>
       <div id="exportMsg" class="mono" style="font-size:11px; color:var(--text-dim);"></div>
     </div>
   </aside>
 
   <main>
-    <div id="canvas-wrap"></div>
-    <div id="hint">Drag to orbit · scroll to zoom · click a marker to inspect</div>
-    <div id="loading">Connecting to OCEAN 3D backend…</div>
+    <div id="cesiumContainer"></div>
+    <div id="hint">Drag to orbit Earth · scroll to zoom · click an observation platform to inspect</div>
+    <div id="coordsReadout" class="mono">India / Indian Ocean (0°N-25°N, 60°E-95°E)</div>
+    <div id="loading">Loading OCEAN 3D Cesium Globe…</div>
 
     <div id="profilePanel">
       <button class="close" id="closeProfile">✕</button>
@@ -258,25 +259,11 @@
   </footer>
 </div>
 
-<script type="importmap">
-{ "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-} }
-</script>
-
-<script type="module">
-import * as THREE from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-
-// ---------------------------------------------------------------------
-// Config / domain constants (mirrors backend synthetic-grid geography)
-// ---------------------------------------------------------------------
+<script>
+// Config & Constants
 const LAT_RANGE = [0, 25];
 const LON_RANGE = [60, 95];
 const DEPTHS = [0, 10, 25, 50, 75, 100, 150, 200, 300, 500, 750, 1000, 1500, 2000];
-const SCENE_HALF = 6.5;      // lat/lon mapped into [-SCENE_HALF, SCENE_HALF]
-const DEPTH_SCALE = 5.5;     // max visual depth extent (Y axis, negative = deeper)
 
 const PLAIN_LABELS = {
   temperature: "Sea temperature", salinity: "Salinity", current_u: "Current (east-west)",
@@ -298,20 +285,14 @@ let state = {
   verticalExaggeration: 1.0,
   showVectors: false,
   showBathymetry: true,
-  showCoastlines: true,
-  showIsosurface: false,
-  isoThreshold: 28.0,
   showProfileLines: true,
-  markers: {},          // platform_id -> {mesh, data}
+  markers: {},          // platform_id -> entity
   selectedProfile: null,
-  particles: [],
 };
 
 function apiUrl(path){ return state.apiBase.replace(/\/$/, "") + path; }
 
-// ---------------------------------------------------------------------
-// Colormap (turbo-ish): value in [0,1] -> [r,g,b] 0..255
-// ---------------------------------------------------------------------
+// Colormap (turbo-ish)
 function colormap(t){
   t = Math.min(1, Math.max(0, t));
   const stops = [
@@ -343,166 +324,80 @@ function drawColorbar(min, max){
 }
 
 // ---------------------------------------------------------------------
-// Three.js scene setup
+// Cesium Globe Initialization
 // ---------------------------------------------------------------------
-const wrap = document.getElementById("canvas-wrap");
-const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x071019, 0.024);
+let viewer = null;
 
-const camera = new THREE.PerspectiveCamera(50, wrap.clientWidth/wrap.clientHeight, 0.1, 200);
-camera.position.set(12, 10, 14);
+async function initCesiumGlobe(){
+  Cesium.Ion.defaultAccessToken = ''; // Open fallback token posture
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha:false });
-renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
-renderer.setSize(wrap.clientWidth, wrap.clientHeight);
-renderer.setClearColor(0x071019, 1);
-wrap.appendChild(renderer.domElement);
+  viewer = new Cesium.Viewer('cesiumContainer', {
+    imageryProvider: new Cesium.OpenStreetMapImageryProvider({
+      url: 'https://a.tile.openstreetmap.org/'
+    }),
+    terrainProvider: await Cesium.createWorldTerrainAsync().catch(() => new Cesium.EllipsoidTerrainProvider()),
+    timeline: false,
+    animation: false,
+    sceneModePicker: false,
+    baseLayerPicker: false,
+    geocoder: false,
+    navigationHelpButton: false,
+    homeButton: false,
+    fullscreenButton: false,
+    selectionIndicator: true,
+    infoBox: false
+  });
 
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, -1.8, 0);
-controls.enableDamping = true;
-controls.dampingFactor = 0.08;
+  // Enable depth testing against terrain
+  viewer.scene.globe.depthTestAgainstTerrain = true;
 
-scene.add(new THREE.AmbientLight(0x99bbdd, 1.2));
-const dl = new THREE.DirectionalLight(0xffffff, 0.7);
-dl.position.set(8, 12, 6);
-scene.add(dl);
+  // Fly initial camera over India & Indian Ocean
+  flyToIndia();
 
-// Groups for layered rendering
-const frameGroup = new THREE.Group(); scene.add(frameGroup);
-const surfaceGroup = new THREE.Group(); scene.add(surfaceGroup);
-const vectorGroup = new THREE.Group(); scene.add(vectorGroup);
-const bathymetryGroup = new THREE.Group(); scene.add(bathymetryGroup);
-const coastlineGroup = new THREE.Group(); scene.add(coastlineGroup);
-const isoGroup = new THREE.Group(); scene.add(isoGroup);
-const markerGroup = new THREE.Group(); scene.add(markerGroup);
-const profileLinesGroup = new THREE.Group(); scene.add(profileLinesGroup);
+  // Mouse hover coordinate readout
+  const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+  handler.setInputAction((movement) => {
+    const cartesian = viewer.camera.pickEllipsoid(movement.endPosition, viewer.scene.globe.ellipsoid);
+    if(cartesian){
+      const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+      const lon = Cesium.Math.toDegrees(cartographic.longitude).toFixed(2);
+      const lat = Cesium.Math.toDegrees(cartographic.latitude).toFixed(2);
+      document.getElementById("coordsReadout").textContent = `Position: ${lat}°N, ${lon}°E | India & Indian Ocean Workspace`;
+    }
+  }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-function latLonToXZ(lat, lon){
-  const x = ((lon - LON_RANGE[0]) / (LON_RANGE[1]-LON_RANGE[0]) - 0.5) * SCENE_HALF * 2;
-  const z = ((lat - LAT_RANGE[0]) / (LAT_RANGE[1]-LAT_RANGE[0]) - 0.5) * SCENE_HALF * 2;
-  return [x, z];
+  // Entity pick event (click observation platform)
+  handler.setInputAction((click) => {
+    const pickedObject = viewer.scene.pick(click.position);
+    if(Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.userData){
+      const platform_id = pickedObject.id.userData.platform_id;
+      if(platform_id) openProfile(platform_id);
+    }
+  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 }
-function depthToY(depth){
-  return -(depth / 2000) * DEPTH_SCALE * state.verticalExaggeration;
-}
 
-// Build 3D Frame & Depth Ruler
-function buildFrameAndRuler(){
-  frameGroup.clear();
-  const scaledDepthScale = DEPTH_SCALE * state.verticalExaggeration;
-
-  // Bounding Box Frame
-  const frameMat = new THREE.LineBasicMaterial({ color: 0x1a3a48, transparent:true, opacity:0.6 });
-  const boxGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(SCENE_HALF*2, scaledDepthScale, SCENE_HALF*2));
-  const boxLines = new THREE.LineSegments(boxGeo, frameMat);
-  boxLines.position.y = -scaledDepthScale/2;
-  frameGroup.add(boxLines);
-
-  // Surface Grid
-  const grid = new THREE.GridHelper(SCENE_HALF*2, 10, 0x24505f, 0x14262f);
-  frameGroup.add(grid);
-
-  // 3D Depth Ruler Ticks & Lines on Corner Axis
-  const cornerX = SCENE_HALF + 0.3;
-  const cornerZ = -SCENE_HALF;
-  const rulerMat = new THREE.LineBasicMaterial({ color: 0x3fe0c5, transparent:true, opacity:0.8 });
-  const rulerGeo = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(cornerX, 0, cornerZ),
-    new THREE.Vector3(cornerX, -scaledDepthScale, cornerZ)
-  ]);
-  frameGroup.add(new THREE.Line(rulerGeo, rulerMat));
-
-  // Ticks at major depth intervals
-  const rulerDepths = [0, 100, 200, 500, 1000, 2000];
-  rulerDepths.forEach(d => {
-    const y = depthToY(d);
-    const tickGeo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(cornerX, y, cornerZ),
-      new THREE.Vector3(cornerX + 0.3, y, cornerZ)
-    ]);
-    frameGroup.add(new THREE.Line(tickGeo, rulerMat));
+function flyToIndia(){
+  if(!viewer) return;
+  viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(78.0, 12.0, 3400000),
+    orientation: {
+      heading: Cesium.Math.toRadians(0.0),
+      pitch: Cesium.Math.toRadians(-72.0),
+      roll: 0.0
+    },
+    duration: 2.0
   });
 }
 
-// ---------------------------------------------------------------------
-// Coastlines & Bathymetry Construction
-// ---------------------------------------------------------------------
-function buildCoastlines(){
-  coastlineGroup.clear();
-  if(!state.showCoastlines) return;
-
-  // Indian Ocean peninsula / EEZ bounding polylines
-  const coastlinePoints = [
-    [8.0, 77.5], [10.0, 76.0], [13.0, 74.8], [15.5, 73.8], [19.0, 72.8],
-    [22.5, 69.5], [23.5, 68.5], [24.0, 69.0], [21.0, 72.5], [16.0, 81.0],
-    [13.0, 80.2], [10.0, 79.8], [8.0, 77.5]
-  ];
-  const pts = coastlinePoints.map(p => {
-    const [x, z] = latLonToXZ(p[0], p[1]);
-    return new THREE.Vector3(x, 0.02, z);
-  });
-
-  const geo = new THREE.BufferGeometry().setFromPoints(pts);
-  const mat = new THREE.LineBasicMaterial({ color: 0x3fe0c5, linewidth: 2 });
-  coastlineGroup.add(new THREE.Line(geo, mat));
-
-  // EEZ Border Polygon
-  const eezPoints = [
-    [2.0, 65.0], [2.0, 92.0], [22.0, 92.0], [22.0, 65.0], [2.0, 65.0]
-  ];
-  const eezPts = eezPoints.map(p => {
-    const [x, z] = latLonToXZ(p[0], p[1]);
-    return new THREE.Vector3(x, 0.01, z);
-  });
-  const eezGeo = new THREE.BufferGeometry().setFromPoints(eezPts);
-  const eezMat = new THREE.LineDashedMaterial({ color: 0x1f6e63, dashSize: 0.2, gapSize: 0.1 });
-  const line = new THREE.Line(eezGeo, eezMat);
-  line.computeLineDistances();
-  coastlineGroup.add(line);
-}
-
-function buildBathymetry(){
-  bathymetryGroup.clear();
-  if(!state.showBathymetry) return;
-
-  const N = 24;
-  const geo = new THREE.PlaneGeometry(SCENE_HALF*2, SCENE_HALF*2, N-1, N-1);
-  geo.rotateX(-Math.PI/2);
-
-  const pos = geo.attributes.position;
-  const colors = new Float32Array(pos.count * 3);
-
-  for(let i = 0; i < pos.count; i++){
-    const x = pos.getX(i);
-    const z = pos.getZ(i);
-    // Synthetic ridge topography (Ninety East Ridge + Continental Slope)
-    const ridge = Math.exp(-Math.pow(x - 2.0, 2) / 1.2) * 0.6;
-    const slope = Math.exp(-Math.pow(z + 3.0, 2) / 2.5) * 0.8;
-    const seabedDepth = 2000 - (ridge + slope) * 600;
-
-    pos.setY(i, depthToY(seabedDepth));
-
-    // Dark seabed colormap
-    const t = (seabedDepth - 1000) / 1000;
-    colors[i*3] = 0.02 + 0.05 * t;
-    colors[i*3+1] = 0.08 + 0.1 * t;
-    colors[i*3+2] = 0.12 + 0.15 * t;
-  }
-
-  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  geo.computeVertexNormals();
-
-  const mat = new THREE.MeshStandardMaterial({
-    vertexColors: true, roughness: 0.8, metalness: 0.2, side: THREE.DoubleSide
-  });
-  const mesh = new THREE.Mesh(geo, mat);
-  bathymetryGroup.add(mesh);
-}
+document.getElementById("btnFlyIndia").onclick = flyToIndia;
 
 // ---------------------------------------------------------------------
-// Data loading & Rendering
+// Model Data & Scientific 3D Layer Rendering on Globe
 // ---------------------------------------------------------------------
+let modelEntities = [];
+let vectorEntities = [];
+let profileEntities = [];
+
 async function loadCatalog(){
   const res = await fetch(apiUrl("/api/catalog"));
   const data = await res.json();
@@ -559,6 +454,7 @@ function currentBounds(){
 }
 
 async function loadModelData(){
+  clearModelEntities();
   if(state.viewMode === "slice"){
     await loadSingleSlice();
   } else {
@@ -566,8 +462,12 @@ async function loadModelData(){
   }
 }
 
+function clearModelEntities(){
+  modelEntities.forEach(e => viewer.entities.remove(e));
+  modelEntities = [];
+}
+
 async function loadSingleSlice(){
-  surfaceGroup.clear();
   const depth = DEPTHS[state.depthIndex];
   const time = state.times[state.timeIndex];
   const b = currentBounds();
@@ -578,17 +478,13 @@ async function loadSingleSlice(){
   if(!res.ok) return;
   const data = await res.json();
 
-  const mesh = buildTriangulatedSurface(data.points, depth, 0.92, true);
-  if(mesh) surfaceGroup.add(mesh);
-
+  renderCesiumSurfaceGrid(data.points, depth, 0.9);
   document.getElementById("timeLabel").textContent = (data.time || "").replace("T"," ").replace("Z","");
 }
 
 async function loadVolumeStack(){
-  surfaceGroup.clear();
   const time = state.times[state.timeIndex];
   const b = currentBounds();
-  const stackDepths = [0, 100, 200, 500, 1000];
   const url = apiUrl(`/api/model/volume?dataset_id=${state.dataset_id}&variable=${state.variable}`
     + `&depths=0,100,200,500,1000&time=${encodeURIComponent(time||"")}`
     + `&min_lat=${b.min_lat}&max_lat=${b.max_lat}&min_lon=${b.min_lon}&max_lon=${b.max_lon}`);
@@ -600,99 +496,59 @@ async function loadVolumeStack(){
   for(const [depthStr, pts] of Object.entries(data.layers)){
     const d = parseFloat(depthStr);
     const isActive = Math.abs(d - activeDepth) < 10;
-    const opacity = isActive ? 0.95 : 0.35;
-    const mesh = buildTriangulatedSurface(pts, d, opacity, isActive);
-    if(mesh) surfaceGroup.add(mesh);
+    renderCesiumSurfaceGrid(pts, d, isActive ? 0.92 : 0.35);
   }
 }
 
-// Build Continuous Triangulated Surface Mesh from Grid Points
-function buildTriangulatedSurface(points, depth, opacity = 0.9, isActive = true){
-  if(!points || !points.length) return null;
+// Render Continuous Surface Grid using Cesium Rectangle/Polygons
+function renderCesiumSurfaceGrid(points, depth, alpha = 0.9){
+  if(!points || !points.length) return;
 
   const ds = state.catalog.find(d => d.dataset_id === state.dataset_id);
   const [vmin, vmax] = ds ? ds.valid_range[state.variable] : [0, 30];
   drawColorbar(vmin, vmax);
 
-  // Group by unique lat/lon grid
-  const lats = sortedUnique(points.map(p => p.lat));
-  const lons = sortedUnique(points.map(p => p.lon));
-  const numLats = lats.length;
-  const numLons = lons.length;
+  const heightOffset = -depth * state.verticalExaggeration * 20.0; // depth meters -> height
 
-  if(numLats < 2 || numLons < 2) return null;
+  const lats = Array.from(new Set(points.map(p => p.lat))).sort((a,b) => a - b);
+  const lons = Array.from(new Set(points.map(p => p.lon))).sort((a,b) => a - b);
 
-  const valLookup = {};
-  points.forEach(p => { valLookup[`${p.lat}_${p.lon}`] = p.value; });
+  const valMap = {};
+  points.forEach(p => { valMap[`${p.lat}_${p.lon}`] = p.value; });
 
-  const numVertices = numLats * numLons;
-  const positions = new Float32Array(numVertices * 3);
-  const colors = new Float32Array(numVertices * 3);
+  const latStep = (lats[lats.length - 1] - lats[0]) / Math.max(1, lats.length - 1);
+  const lonStep = (lons[lons.length - 1] - lons[0]) / Math.max(1, lons.length - 1);
 
-  const yPos = depthToY(depth);
-
-  for(let i = 0; i < numLats; i++){
-    for(let j = 0; j < numLons; j++){
-      const idx = i * numLons + j;
+  for(let i = 0; i < lats.length; i++){
+    for(let j = 0; j < lons.length; j++){
       const lat = lats[i], lon = lons[j];
-      const [x, z] = latLonToXZ(lat, lon);
-      const val = valLookup[`${lat}_${lon}`] ?? vmin;
+      const val = valMap[`${lat}_${lon}`] ?? vmin;
 
-      positions[idx * 3] = x;
-      positions[idx * 3 + 1] = yPos;
-      positions[idx * 3 + 2] = z;
+      const norm = (val - vmin) / Math.max(1e-9, (vmax - vmin));
+      const [r, g, b] = colormap(norm);
 
-      const t = (val - vmin) / Math.max(1e-9, (vmax - vmin));
-      const [r, g, b] = colormap(t);
-      colors[idx * 3] = r;
-      colors[idx * 3 + 1] = g;
-      colors[idx * 3 + 2] = b;
+      const rectEntity = viewer.entities.add({
+        rectangle: {
+          coordinates: Cesium.Rectangle.fromDegrees(
+            lon - lonStep/2, lat - latStep/2,
+            lon + lonStep/2, lat + latStep/2
+          ),
+          height: heightOffset,
+          material: new Cesium.ColorMaterialProperty(
+            new Cesium.Color(r, g, b, alpha)
+          ),
+          outline: false
+        }
+      });
+      modelEntities.push(rectEntity);
     }
   }
-
-  // Triangulate Grid Cells
-  const indices = [];
-  for(let i = 0; i < numLats - 1; i++){
-    for(let j = 0; j < numLons - 1; j++){
-      const a = i * numLons + j;
-      const b = i * numLons + (j + 1);
-      const c = (i + 1) * numLons + j;
-      const d = (i + 1) * numLons + (j + 1);
-
-      indices.push(a, b, c);
-      indices.push(b, d, c);
-    }
-  }
-
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  geo.setIndex(indices);
-  geo.computeVertexNormals();
-
-  const mat = new THREE.MeshStandardMaterial({
-    vertexColors: true,
-    side: THREE.DoubleSide,
-    roughness: 0.35,
-    metalness: 0.1,
-    transparent: opacity < 0.99,
-    opacity: opacity,
-    wireframe: false
-  });
-
-  const mesh = new THREE.Mesh(geo, mat);
-  return mesh;
-
-  return mesh;
 }
 
-function sortedUnique(arr){
-  return Array.from(new Set(arr)).sort((a,b) => a - b);
-}
-
-// Render Current Vectors / Flow Field
+// Current Vectors on Globe
 async function loadVectors(){
-  vectorGroup.clear();
+  vectorEntities.forEach(e => viewer.entities.remove(e));
+  vectorEntities = [];
   if(!state.showVectors) return;
 
   const depth = DEPTHS[state.depthIndex];
@@ -711,31 +567,40 @@ async function loadVectors(){
   const vMap = {};
   dataV.points.forEach(p => { vMap[`${p.lat}_${p.lon}`] = p.value; });
 
-  const yPos = depthToY(depth);
+  const height = -depth * state.verticalExaggeration * 20.0 + 50.0;
 
   dataU.points.forEach(pu => {
-    const u = pu.value;
-    const v = vMap[`${pu.lat}_${pu.lon}`] || 0.0;
+    const u = pu.value, v = vMap[`${pu.lat}_${pu.lon}`] || 0.0;
     const speed = Math.sqrt(u*u + v*v);
     if(speed < 1e-4) return;
 
-    const [x, z] = latLonToXZ(pu.lat, pu.lon);
-    const dir = new THREE.Vector3(u, 0, v).normalize();
-    const len = Math.min(0.8, Math.max(0.15, speed * 2.0));
+    const endLat = pu.lat + v * 0.15;
+    const endLon = pu.lon + u * 0.15;
 
-    const arrow = new THREE.ArrowHelper(dir, new THREE.Vector3(x, yPos + 0.08, z), len, 0x3fe0c5, 0.12, 0.08);
-    vectorGroup.add(arrow);
+    const poly = viewer.entities.add({
+      polyline: {
+        positions: Cesium.Cartesian3.fromDegreesArrayHeights([
+          pu.lon, pu.lat, height,
+          endLon, endLat, height
+        ]),
+        width: 2.5,
+        material: Cesium.Color.fromCssColorString('#3fe0c5')
+      }
+    });
+    vectorEntities.push(poly);
   });
 }
 
 // ---------------------------------------------------------------------
 // Observations & 3D Vertical Profile Paths
 // ---------------------------------------------------------------------
-const PLATFORM_COLOR = { argo: 0xf2a65a, glider: 0x8ec9e0, ctd: 0xc58ee0, bgc: 0x8ee0a4 };
+const PLATFORM_COLOR = {
+  argo: '#f2a65a', glider: '#8ec9e0', ctd: '#c58ee0', bgc: '#8ee0a4'
+};
 
 async function loadObservations(){
-  markerGroup.clear();
-  profileLinesGroup.clear();
+  profileEntities.forEach(e => viewer.entities.remove(e));
+  profileEntities = [];
   state.markers = {};
 
   const toggles = [
@@ -751,74 +616,68 @@ async function loadObservations(){
     if(!res.ok) continue;
     const data = await res.json();
 
-    const geo = new THREE.SphereGeometry(0.14, 14, 14);
-    const mat = new THREE.MeshStandardMaterial({
-      color: PLATFORM_COLOR[ptype], emissive: PLATFORM_COLOR[ptype], emissiveIntensity: 0.4
-    });
+    const colorCss = PLATFORM_COLOR[ptype];
 
     for(const m of data.markers){
-      const [x, z] = latLonToXZ(m.lat, m.lon);
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(x, depthToY(m.depth) + 0.05, z);
-      mesh.userData.platform_id = m.platform_id;
-      markerGroup.add(mesh);
-      state.markers[m.platform_id] = { mesh, data: m };
+      // Surface Point Entity
+      const entity = viewer.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(m.lon, m.lat, 100.0),
+        point: {
+          pixelSize: 10,
+          color: Cesium.Color.fromCssColorString(colorCss),
+          outlineColor: Cesium.Color.BLACK,
+          outlineWidth: 1.5
+        },
+        label: {
+          text: m.platform_id,
+          font: '11px IBM Plex Mono',
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          pixelOffset: new Cesium.Cartesian2(0, -16),
+          fillColor: Cesium.Color.WHITE
+        }
+      });
+      entity.userData = { platform_id: m.platform_id };
+      profileEntities.push(entity);
+      state.markers[m.platform_id] = entity;
 
-      // Render 3D Vertical Polyline Profile Path descending through water column
+      // 3D Vertical Polyline Profile Path descending into ocean depth
       if(state.showProfileLines){
-        load3DProfileLine(m.platform_id, x, z, PLATFORM_COLOR[ptype]);
+        load3DProfileLine(m.platform_id, m.lat, m.lon, colorCss);
       }
     }
   }
 }
 
-async function load3DProfileLine(platform_id, x, z, colorHex){
+async function load3DProfileLine(platform_id, lat, lon, colorCss){
   const res = await fetch(apiUrl(`/api/observations/${platform_id}/profile`));
   if(!res.ok) return;
   const data = await res.json();
 
-  const points = data.profile.map(p => new THREE.Vector3(x, depthToY(p.depth), z));
-  if(points.length < 2) return;
-
-  const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-  const lineMat = new THREE.LineBasicMaterial({ color: colorHex, linewidth: 2, transparent: true, opacity: 0.8 });
-  const line = new THREE.Line(lineGeo, lineMat);
-  profileLinesGroup.add(line);
-
-  // Cast sample nodes along vertical line
-  const nodeGeo = new THREE.SphereGeometry(0.04, 8, 8);
-  const nodeMat = new THREE.MeshBasicMaterial({ color: colorHex });
-  points.forEach(pt => {
-    const node = new THREE.Mesh(nodeGeo, nodeMat);
-    node.position.copy(pt);
-    profileLinesGroup.add(node);
+  const coords = [];
+  data.profile.forEach(p => {
+    const h = -p.depth * state.verticalExaggeration * 20.0;
+    coords.push(lon, lat, h);
   });
+
+  if(coords.length < 6) return;
+
+  const poly = viewer.entities.add({
+    polyline: {
+      positions: Cesium.Cartesian3.fromDegreesArrayHeights(coords),
+      width: 2.5,
+      material: Cesium.Color.fromCssColorString(colorCss)
+    }
+  });
+  profileEntities.push(poly);
 }
 
 async function refreshAll(){
-  buildFrameAndRuler();
-  buildCoastlines();
-  buildBathymetry();
   await Promise.all([loadModelData(), loadVectors(), loadObservations()]);
 }
 
 // ---------------------------------------------------------------------
 // Picking & Profile Comparison Side-Panel
 // ---------------------------------------------------------------------
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
-
-renderer.domElement.addEventListener("click", (ev) => {
-  const rect = renderer.domElement.getBoundingClientRect();
-  mouse.x = ((ev.clientX - rect.left)/rect.width)*2 - 1;
-  mouse.y = -((ev.clientY - rect.top)/rect.height)*2 + 1;
-  raycaster.setFromCamera(mouse, camera);
-  const hits = raycaster.intersectObjects(markerGroup.children);
-  if(hits.length){
-    openProfile(hits[0].object.userData.platform_id);
-  }
-});
-
 async function openProfile(platform_id){
   const res = await fetch(apiUrl(`/api/observations/${platform_id}/profile`));
   if(!res.ok) return;
@@ -830,7 +689,14 @@ async function openProfile(platform_id){
   drawProfileChart(data.profile.filter(r => r.variable === state.variable));
   document.getElementById("compareResult").style.display = "none";
   document.getElementById("profilePanel").classList.add("open");
+
+  // Focus Cesium camera on selected platform
+  const entity = state.markers[platform_id];
+  if(entity){
+    viewer.flyTo(entity, { duration: 1.2 });
+  }
 }
+
 document.getElementById("closeProfile").onclick = () =>
   document.getElementById("profilePanel").classList.remove("open");
 
@@ -924,12 +790,6 @@ document.getElementById("timeSlider").oninput = async (e) => {
 document.getElementById("ovVectors").onchange = (e) => {
   state.showVectors = e.target.checked; loadVectors();
 };
-document.getElementById("ovBathymetry").onchange = (e) => {
-  state.showBathymetry = e.target.checked; buildBathymetry();
-};
-document.getElementById("ovCoastlines").onchange = (e) => {
-  state.showCoastlines = e.target.checked; buildCoastlines();
-};
 document.getElementById("ovProfileLines").onchange = (e) => {
   state.showProfileLines = e.target.checked; loadObservations();
 };
@@ -953,20 +813,6 @@ document.getElementById("btnPlay").onclick = () => {
     }, 1200);
   } else clearInterval(state.playTimer);
 };
-
-function guidedTour(){
-  let i = 0;
-  const slider = document.getElementById("depthSlider");
-  const t = setInterval(async () => {
-    slider.value = i; state.depthIndex = i;
-    document.getElementById("depthLabel").textContent = `${DEPTHS[i]} m`;
-    await refreshAll();
-    i++;
-    if(i >= DEPTHS.length){ clearInterval(t); }
-  }, 1000);
-}
-document.getElementById("btnGuidedTour").onclick = guidedTour;
-document.getElementById("btnGuidedTourPublic").onclick = guidedTour;
 
 document.getElementById("btnExport").onclick = () => {
   const depth = DEPTHS[state.depthIndex];
@@ -992,30 +838,17 @@ document.getElementById("btnResearch").onclick = () => setMode("research");
 document.getElementById("btnPublic").onclick = () => setMode("public");
 
 // ---------------------------------------------------------------------
-// Render loop / animation
+// Boot Sequence
 // ---------------------------------------------------------------------
-function animate(){
-  requestAnimationFrame(animate);
-  controls.update();
-  markerGroup.children.forEach(m => { m.rotation.y += 0.01; });
-  renderer.render(scene, camera);
-}
-animate();
-
-window.addEventListener("resize", () => {
-  camera.aspect = wrap.clientWidth/wrap.clientHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(wrap.clientWidth, wrap.clientHeight);
-});
-
-// Boot
 (async function boot(){
   try{
+    await initCesiumGlobe();
     await loadCatalog();
     document.getElementById("loading").style.display = "none";
   }catch(err){
+    console.error(err);
     document.getElementById("loading").textContent =
-      "Could not reach the OCEAN 3D backend. Start it with backend/run.sh, then set the API URL on the left and reload.";
+      "Could not initialize Cesium Globe or connect to OCEAN 3D backend. Ensure backend is running on port 8000.";
   }
 })();
 </script>
