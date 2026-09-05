@@ -9,6 +9,9 @@
 <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
 <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
 
+<!-- Three.js Library for Right-Panel 3D WebGL Water-Column Renderer -->
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+
 <script src="config.js"></script>
 
 <style>
@@ -270,9 +273,9 @@
         <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Quality Status</span><span id="obsQC" class="mono" style="color:var(--accent);">--</span></div>
       </div>
 
-      <div class="section-title" style="margin-top:6px;">3D Water-Column Profile</div>
-      <div id="waterColumnWrap" style="position:relative; width:100%; height:200px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;">
-        <canvas id="waterColumnCanvas" width="280" height="200"></canvas>
+      <div class="section-title" style="margin-top:6px;">3D Water-Column Analytical View</div>
+      <div id="waterColumnWrap" style="position:relative; width:100%; height:210px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;">
+        <div id="threeWaterColumnContainer" style="width:100%; height:100%;"></div>
       </div>
 
       <button class="action primary" id="btnCompare" style="margin-top:6px;">Compare with Model at Selected Depth</button>
@@ -311,7 +314,7 @@ const PLAIN_LABELS = {
   current_v: "Current (north-south)", oxygen: "Dissolved oxygen", chlorophyll: "Chlorophyll",
 };
 
-let state = {
+var state = {
   apiBase: document.getElementById("apiBase").value,
   mode: "research",
   catalog: null,
@@ -369,7 +372,7 @@ function drawColorbar(min, max){
 // ---------------------------------------------------------------------
 // Cesium Globe Initialization & World Terrain Provider
 // ---------------------------------------------------------------------
-let viewer = null;
+var viewer = null;
 
 async function initCesiumGlobe(){
   // Ion Token configuration
@@ -502,7 +505,7 @@ document.getElementById("btnFlyHimalayas").onclick = flyToHimalayas;
 // ---------------------------------------------------------------------
 // Scientific Ocean Layers on Cesium Globe
 // ---------------------------------------------------------------------
-let modelEntities = [];
+var modelEntities = [];
 let vectorEntities = [];
 let profileEntities = [];
 
@@ -914,18 +917,77 @@ function update3DDepthCursor(){
   renderRightPanelWaterColumn();
 }
 
-function renderRightPanelWaterColumn(){
-  const canvas = document.getElementById("waterColumnCanvas");
-  if(!canvas) return;
-  const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+let waterColumnScene, waterColumnCamera, waterColumnRenderer;
+let wcLayersGroup, wcProfileGroup, waterColumnCursorMesh;
 
-  if(!state.selectedProfile) {
-    ctx.fillStyle = "#7c93a0";
-    ctx.font = "11px IBM Plex Sans";
-    ctx.fillText("Select an observation marker to inspect 3D depth profile", 12, 100);
-    return;
+function initThreeWaterColumn(){
+  if(typeof THREE === 'undefined') return;
+  const container = document.getElementById("threeWaterColumnContainer");
+  if(!container || waterColumnRenderer) return;
+
+  const width = container.clientWidth || 280;
+  const height = container.clientHeight || 210;
+
+  try {
+    waterColumnScene = new THREE.Scene();
+    waterColumnScene.background = new THREE.Color(0x10212e);
+
+    waterColumnCamera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
+    waterColumnCamera.position.set(3.8, 2.8, 4.8);
+    waterColumnCamera.lookAt(0, -1.2, 0);
+
+    waterColumnRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    waterColumnRenderer.setSize(width, height);
+    waterColumnRenderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+    container.appendChild(waterColumnRenderer.domElement);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.3);
+    waterColumnScene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    dirLight.position.set(4, 6, 5);
+    waterColumnScene.add(dirLight);
+
+    wcLayersGroup = new THREE.Group();
+    waterColumnScene.add(wcLayersGroup);
+
+    wcProfileGroup = new THREE.Group();
+    waterColumnScene.add(wcProfileGroup);
+
+    function animateWC(){
+      requestAnimationFrame(animateWC);
+      if(waterColumnScene && waterColumnCamera && waterColumnRenderer){
+        wcLayersGroup.rotation.y += 0.005;
+        wcProfileGroup.rotation.y += 0.005;
+        waterColumnRenderer.render(waterColumnScene, waterColumnCamera);
+      }
+    }
+    animateWC();
+  } catch(e) {
+    console.warn("Three.js Water Column Renderer initialization error:", e);
   }
+}
+
+function renderRightPanelWaterColumn(){
+  if(typeof THREE === 'undefined') return;
+  if(!waterColumnRenderer) initThreeWaterColumn();
+  if(!waterColumnScene) return;
+
+  // Clear previous Three.js objects
+  while(wcLayersGroup.children.length > 0){
+    const obj = wcLayersGroup.children[0];
+    if(obj.geometry) obj.geometry.dispose();
+    if(obj.material) obj.material.dispose();
+    wcLayersGroup.remove(obj);
+  }
+  while(wcProfileGroup.children.length > 0){
+    const obj = wcProfileGroup.children[0];
+    if(obj.geometry) obj.geometry.dispose();
+    if(obj.material) obj.material.dispose();
+    wcProfileGroup.remove(obj);
+  }
+
+  if(!state.selectedProfile) return;
 
   const profileList = state.selectedProfile.profile || [];
   const targetDepth = DEPTHS[state.depthIndex];
@@ -935,92 +997,73 @@ function renderRightPanelWaterColumn(){
   const activeDepths = obsDepths.length ? obsDepths : [0, 50, 100, 250, 500, 1000, 2000];
   const maxD = Math.max(...activeDepths, 1000);
 
-  const minY = 24, maxY = 175;
-  const axisX = 45, layerWidth = 180;
-
-  // 1. Draw Depth Axis & Tick Labels
-  ctx.strokeStyle = "#1a2f3c";
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(axisX, 15);
-  ctx.lineTo(axisX, 185);
-  ctx.stroke();
-
-  ctx.fillStyle = "#7c93a0";
-  ctx.font = "10px IBM Plex Mono";
+  // 1. Build Stacked 3D Depth Planes in WebGL
+  const planeGeo = new THREE.PlaneGeometry(2.4, 2.4);
+  planeGeo.rotateX(-Math.PI / 2);
 
   activeDepths.forEach(d => {
-    const y = minY + (d / maxD) * (maxY - minY);
-    ctx.beginPath();
-    ctx.moveTo(axisX - 4, y);
-    ctx.lineTo(axisX + 4, y);
-    ctx.stroke();
-    ctx.fillText(`${d}m`, 4, y + 3);
-  });
-
-  // 2. Draw Stacked Isometric 3D Water-Column Depth Layers
-  activeDepths.forEach(d => {
-    const y = minY + (d / maxD) * (maxY - minY);
+    const y = - (d / maxD) * 3.2; // Depth increases DOWNWARD
     const isSelected = Math.abs(d - targetDepth) < 25;
 
-    // Get temperature sample for colormap
     const sample = profileList.find(p => Math.abs(p.depth - d) < 30);
     const val = sample ? sample.value : (28.0 - (d / maxD) * 22.0);
     const norm = Math.max(0, Math.min(1, (val - 4.0) / 26.0));
     const [r, g, b] = colormap(norm);
 
-    // Layer isometric rectangle
-    ctx.fillStyle = `rgba(${r*255|0}, ${g*255|0}, ${b*255|0}, ${isSelected ? 0.85 : 0.45})`;
-    ctx.strokeStyle = isSelected ? "#3fe0c5" : "#1a2f3c";
-    ctx.lineWidth = isSelected ? 2.0 : 1.0;
+    const mat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(r, g, b),
+      transparent: true,
+      opacity: isSelected ? 0.88 : 0.40,
+      side: THREE.DoubleSide,
+      roughness: 0.4
+    });
 
-    ctx.beginPath();
-    ctx.moveTo(axisX + 10, y - 4);
-    ctx.lineTo(axisX + layerWidth, y - 10);
-    ctx.lineTo(axisX + layerWidth - 12, y + 4);
-    ctx.lineTo(axisX + 10, y + 10);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+    const mesh = new THREE.Mesh(planeGeo, mat);
+    mesh.position.set(0, y, 0);
+    wcLayersGroup.add(mesh);
+
+    if(isSelected){
+      const wireGeo = new THREE.WireframeGeometry(planeGeo);
+      const wireMat = new THREE.LineBasicMaterial({ color: 0x3fe0c5, linewidth: 2 });
+      const wire = new THREE.LineSegments(wireGeo, wireMat);
+      wire.position.set(0, y, 0);
+      wcLayersGroup.add(wire);
+    }
   });
 
-  // 3. Draw Observation Vertical 3D Profile Trajectory Line
+  // 2. Build 3D Observation Trajectory Line & Points
   const profileSamples = profileList.filter(p => p.variable === state.variable || p.variable === "temperature");
   if(profileSamples.length){
-    ctx.strokeStyle = "#f2a65a";
-    ctx.lineWidth = 2.0;
-    ctx.beginPath();
+    const points = [];
+    const sphereGeo = new THREE.SphereGeometry(0.06, 12, 12);
+    const sphereMat = new THREE.MeshStandardMaterial({ color: 0xf2a65a, roughness: 0.2 });
 
-    profileSamples.forEach((p, i) => {
-      const py = minY + (p.depth / maxD) * (maxY - minY);
-      const px = axisX + 80;
-      if(i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    });
-    ctx.stroke();
-
-    // Sample node points
     profileSamples.forEach(p => {
-      const py = minY + (p.depth / maxD) * (maxY - minY);
-      const px = axisX + 80;
-      const isCursor = Math.abs(p.depth - targetDepth) < 25;
+      const y = - (p.depth / maxD) * 3.2;
+      const pt = new THREE.Vector3(0, y, 0);
+      points.push(pt);
 
-      ctx.fillStyle = isCursor ? "#3fe0c5" : "#f2a65a";
-      ctx.beginPath();
-      ctx.arc(px, py, isCursor ? 5.5 : 3.5, 0, 2 * Math.PI);
-      ctx.fill();
-
-      if(isCursor){
-        ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        // Target depth indicator
-        ctx.fillStyle = "#3fe0c5";
-        ctx.font = "bold 10px IBM Plex Mono";
-        ctx.fillText(`◄ ${p.depth}m (${p.value}${p.unit||''})`, px + 10, py + 3);
-      }
+      const node = new THREE.Mesh(sphereGeo, sphereMat);
+      node.position.copy(pt);
+      wcProfileGroup.add(node);
     });
+
+    if(points.length >= 2){
+      const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+      const lineMat = new THREE.LineBasicMaterial({ color: 0xf2a65a, linewidth: 3 });
+      const line = new THREE.Line(lineGeo, lineMat);
+      wcProfileGroup.add(line);
+    }
+
+    // 3. Render 3D Selected Depth Cursor Node in WebGL
+    const targetY = - (targetDepth / maxD) * 3.2;
+    const cursorGeo = new THREE.SphereGeometry(0.12, 16, 16);
+    const cursorMat = new THREE.MeshStandardMaterial({
+      color: 0x3fe0c5, emissive: 0x1f6e63, roughness: 0.1
+    });
+    waterColumnCursorMesh = new THREE.Mesh(cursorGeo, cursorMat);
+    waterColumnCursorMesh.position.set(0, targetY, 0);
+    wcProfileGroup.add(waterColumnCursorMesh);
   }
 }
 
