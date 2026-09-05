@@ -422,39 +422,40 @@ class ArgoGliderAdapter:
     def parse(self, source: str) -> list[StandardRecord]:
         self._source = source
         platform_type = "argo" if source == "argo_gdac" else "glider"
-        n_platforms = 14 if platform_type == "argo" else 6
+        n_platforms = 60 if platform_type == "argo" else 25
         rng = random.Random(42 if platform_type == "argo" else 99)
         records: list[StandardRecord] = []
 
         for p in range(n_platforms):
             platform_id = f"{platform_type.upper()}-{2900000 + p if platform_type=='argo' else 6000+p}"
             while True:
-                lat = LAT_RANGE[0] + rng.random() * (LAT_RANGE[1] - LAT_RANGE[0])
-                lon = LON_RANGE[0] + rng.random() * (LON_RANGE[1] - LON_RANGE[0])
-                if not is_land(lat, lon):
+                base_lat = LAT_RANGE[0] + rng.random() * (LAT_RANGE[1] - LAT_RANGE[0])
+                base_lon = LON_RANGE[0] + rng.random() * (LON_RANGE[1] - LON_RANGE[0])
+                if not is_land(base_lat, base_lon):
                     break
 
-            # a handful of profile times per platform, each a full depth profile
-            n_profiles = 3
-            for pi in range(n_profiles):
-                step = rng.randint(0, TIME_STEPS - 1)
+            drift_u = rng.uniform(-0.15, 0.15)
+            drift_v = rng.uniform(-0.15, 0.15)
+            steps = [0, 2, 4, 7]
+
+            for s_idx, step in enumerate(steps):
                 t = _time_at(step)
-                jitter_lat = lat + rng.uniform(-0.3, 0.3)
-                jitter_lon = lon + rng.uniform(-0.3, 0.3)
-                if is_land(jitter_lat, jitter_lon):
-                    jitter_lat, jitter_lon = lat, lon
+                lat = base_lat + drift_v * (step * 0.2)
+                lon = base_lon + drift_u * (step * 0.2)
+                if is_land(lat, lon):
+                    lat, lon = base_lat, base_lon
 
                 profile_depths = DEPTHS if platform_type == "argo" else DEPTHS[:9]
                 for depth in profile_depths:
                     for var in ("temperature", "salinity"):
-                        true_val = _synthetic_value(var, jitter_lat, jitter_lon, depth, step)
+                        true_val = _synthetic_value(var, lat, lon, depth, step)
                         noisy_val = round(true_val + rng.uniform(-0.25, 0.25), 3)
                         records.append(StandardRecord(
                             kind="observation",
                             dataset_id=source,
                             variable=var,
-                            latitude=round(jitter_lat, 4),
-                            longitude=round(jitter_lon, 4),
+                            latitude=round(lat, 4),
+                            longitude=round(lon, 4),
                             depth=depth,
                             time=t,
                             value=noisy_val,
@@ -462,7 +463,7 @@ class ArgoGliderAdapter:
                             platform_id=platform_id,
                             platform_type=platform_type,
                             quality_flag="good" if rng.random() > 0.05 else "suspect",
-                            source_file=f"{platform_id}_prof{pi}.nc" if platform_type == "argo" else f"{platform_id}_prof{pi}.asc",
+                            source_file=f"{platform_id}_prof{s_idx}.nc" if platform_type == "argo" else f"{platform_id}_prof{s_idx}.asc",
                             data_status="DEMONSTRATION DATA",
                             source_organization="Argo GDAC (demo)" if platform_type == "argo" else "Glider DAC (demo)",
                             product_id="ARGO-GDAC-IND-DEMO" if platform_type == "argo" else "GLIDER-DAC-IND-DEMO",
@@ -505,43 +506,52 @@ class CTDBGCObservationAdapter:
         variables = ["temperature", "salinity"] if platform_type == "ctd" else ["oxygen", "chlorophyll"]
         units = {"temperature": "degC", "salinity": "psu", "oxygen": "umol/kg", "chlorophyll": "mg/m3"}
         rng = random.Random(7 if platform_type == "ctd" else 21)
-        n_platforms = 8 if platform_type == "ctd" else 5
+        n_platforms = 30 if platform_type == "ctd" else 20
         records: list[StandardRecord] = []
 
         for p in range(n_platforms):
             platform_id = f"{platform_type.upper()}-{100+p}"
             while True:
-                lat = LAT_RANGE[0] + rng.random() * (LAT_RANGE[1] - LAT_RANGE[0])
-                lon = LON_RANGE[0] + rng.random() * (LON_RANGE[1] - LON_RANGE[0])
-                if not is_land(lat, lon):
+                base_lat = LAT_RANGE[0] + rng.random() * (LAT_RANGE[1] - LAT_RANGE[0])
+                base_lon = LON_RANGE[0] + rng.random() * (LON_RANGE[1] - LON_RANGE[0])
+                if not is_land(base_lat, base_lon):
                     break
 
-            step = rng.randint(0, TIME_STEPS - 1)
-            t = _time_at(step)
-            depths = DEPTHS[:10] if platform_type == "ctd" else DEPTHS[:7]
-            for depth in depths:
-                for var in variables:
-                    true_val = _synthetic_value(var, lat, lon, depth, step)
-                    noisy_val = round(true_val + rng.uniform(-0.2, 0.2) * (1 if var != "chlorophyll" else 0.05), 3)
-                    records.append(StandardRecord(
-                        kind="observation",
-                        dataset_id=source,
-                        variable=var,
-                        latitude=round(lat, 4),
-                        longitude=round(lon, 4),
-                        depth=depth,
-                        time=t,
-                        value=noisy_val,
-                        unit=units[var],
-                        platform_id=platform_id,
-                        platform_type=platform_type,
-                        quality_flag="good",
-                        source_file=f"{platform_id}.txt",
-                        data_status="DEMONSTRATION DATA",
-                        source_organization="INCOIS CTD (demo)" if platform_type == "ctd" else "BGC-Argo (demo)",
-                        product_id="INCOIS-CTD-IND-DEMO" if platform_type == "ctd" else "BGC-ARGO-IND-DEMO",
-                        retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
-                    ))
+            drift_u = rng.uniform(-0.12, 0.12)
+            drift_v = rng.uniform(-0.12, 0.12)
+            steps = [1, 4, 7]
+
+            for s_idx, step in enumerate(steps):
+                t = _time_at(step)
+                lat = base_lat + drift_v * (step * 0.15)
+                lon = base_lon + drift_u * (step * 0.15)
+                if is_land(lat, lon):
+                    lat, lon = base_lat, base_lon
+
+                depths = DEPTHS[:10] if platform_type == "ctd" else DEPTHS[:7]
+                for depth in depths:
+                    for var in variables:
+                        true_val = _synthetic_value(var, lat, lon, depth, step)
+                        noisy_val = round(true_val + rng.uniform(-0.2, 0.2) * (1 if var != "chlorophyll" else 0.05), 3)
+                        records.append(StandardRecord(
+                            kind="observation",
+                            dataset_id=source,
+                            variable=var,
+                            latitude=round(lat, 4),
+                            longitude=round(lon, 4),
+                            depth=depth,
+                            time=t,
+                            value=noisy_val,
+                            unit=units[var],
+                            platform_id=platform_id,
+                            platform_type=platform_type,
+                            quality_flag="good",
+                            source_file=f"{platform_id}_cast{s_idx}.txt",
+                            data_status="DEMONSTRATION DATA",
+                            source_organization="INCOIS CTD (demo)" if platform_type == "ctd" else "BGC-Argo (demo)",
+                            product_id="INCOIS-CTD-IND-DEMO" if platform_type == "ctd" else "BGC-ARGO-IND-DEMO",
+                            retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
+                        ))
         return records
 
 

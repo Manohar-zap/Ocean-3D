@@ -8,7 +8,7 @@ from __future__ import annotations
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
-from typing import Optional
+from typing import Optional, Any
 
 from .schemas import QueryFilters
 from .storage import store
@@ -176,35 +176,114 @@ def query_observations(
     min_depth: float = 0, max_depth: float = 6000,
     time_start: Optional[str] = None,
     time_end: Optional[str] = None,
+    recency: Optional[str] = Query("all", description="all | active | recent | stale"),
 ):
-    """Instrument observations for map/marker overlay (surface position per platform)."""
+    """Instrument observation tracker summary & map markers (latest position per platform)."""
     f = QueryFilters(platform_type=platform_type, variable=variable,
                       min_lat=min_lat, max_lat=max_lat, min_lon=min_lon, max_lon=max_lon,
                       min_depth=min_depth, max_depth=max_depth,
                       time_start=time_start, time_end=time_end)
     rows = query_service.observations(f)
 
-    # collapse to one marker per platform (shallowest sample) for map display;
-    # full depth resolution is fetched via /api/observations/{platform_id}/profile
-    by_platform: dict[str, dict] = {}
+    records_by_platform: dict[str, list] = {}
     for r in rows:
-        cur = by_platform.get(r.platform_id)
-        if cur is None or r.depth < cur["depth"]:
-            by_platform[r.platform_id] = {
-                "platform_id": r.platform_id,
-                "platform_type": r.platform_type,
-                "lat": r.latitude,
-                "lon": r.longitude,
+        records_by_platform.setdefault(r.platform_id, []).append(r)
+
+    markers: list[dict] = []
+    summary_counts = {"argo": 0, "glider": 0, "ctd": 0, "bgc": 0, "active": 0, "recent": 0, "stale": 0}
+    latest_update = ""
+
+    for pid, p_rows in records_by_platform.items():
+        p_rows_sorted = sorted(p_rows, key=lambda r: (r.time, -r.depth), reverse=True)
+        latest_r = p_rows_sorted[0]
+
+        time_str = latest_r.time
+        if time_str > latest_update:
+            latest_update = time_str
+
+        if time_str >= "2026-09-05":
+            status = "ACTIVE"
+            summary_counts["active"] += 1
+        elif time_str >= "2026-09-02":
+            status = "RECENT"
+            summary_counts["recent"] += 1
+        else:
+            status = "STALE"
+            summary_counts["stale"] += 1
+
+        ptype = latest_r.platform_type.lower() if latest_r.platform_type else "argo"
+        if ptype in summary_counts:
+            summary_counts[ptype] += 1
+
+        if recency == "active" and status != "ACTIVE":
+            continue
+        if recency == "recent" and status not in ("ACTIVE", "RECENT"):
+            continue
+        if recency == "stale" and status != "STALE":
+            continue
+
+        markers.append({
+            "platform_id": latest_r.platform_id,
+            "platform_type": latest_r.platform_type,
+            "lat": latest_r.latitude,
+            "lon": latest_r.longitude,
+            "depth": latest_r.depth,
+            "time": latest_r.time,
+            "status": status,
+            "variable": latest_r.variable,
+            "value": latest_r.value,
+            "unit": latest_r.unit,
+            "quality_flag": latest_r.quality_flag,
+            "data_status": getattr(latest_r, "data_status", "DEMONSTRATION DATA"),
+            "source_organization": getattr(latest_r, "source_organization", "In-situ Observation (demo)"),
+        })
+
+    return {
+        "count": len(markers),
+        "total_available": len(records_by_platform),
+        "summary": {
+            "argo": summary_counts["argo"],
+            "glider": summary_counts["glider"],
+            "ctd": summary_counts["ctd"],
+            "bgc": summary_counts["bgc"],
+            "active": summary_counts["active"],
+            "recent": summary_counts["recent"],
+            "stale": summary_counts["stale"],
+            "latest_update": latest_update or "2026-09-06T00:00:00Z",
+        },
+        "markers": markers,
+    }
+
+
+@app.get("/api/observations/{platform_id}/track")
+def platform_track(platform_id: str):
+    """Chronological historical surface drift track for a single observation platform."""
+    rows = query_service.profile(platform_id)
+    if not rows:
+        raise HTTPException(404, f"No track data for platform '{platform_id}'")
+
+    by_time: dict[str, Any] = {}
+    for r in rows:
+        cur = by_time.get(r.time)
+        if cur is None or r.depth < cur.depth:
+            by_time[r.time] = r
+
+    track_points = sorted(by_time.values(), key=lambda r: r.time)
+    ptype = rows[0].platform_type
+
+    return {
+        "platform_id": platform_id,
+        "platform_type": ptype,
+        "track": [
+            {
+                "latitude": r.latitude,
+                "longitude": r.longitude,
+                "timestamp": r.time,
                 "depth": r.depth,
-                "time": r.time,
-                "variable": r.variable,
-                "value": r.value,
-                "unit": r.unit,
-                "quality_flag": r.quality_flag,
-                "data_status": getattr(r, "data_status", "DEMONSTRATION DATA"),
-                "source_organization": getattr(r, "source_organization", "In-situ Observation (demo)"),
             }
-    return {"count": len(by_platform), "markers": list(by_platform.values())}
+            for r in track_points
+        ],
+    }
 
 
 @app.get("/api/observations/{platform_id}/profile")
@@ -217,12 +296,23 @@ def observation_profile(platform_id: str, variable: Optional[str] = None, time: 
         rows = [r for r in rows if r.time == time]
     if not rows:
         raise HTTPException(404, f"No profile data for platform '{platform_id}' with the given filters")
-    rows = sorted(rows, key=lambda r: r.depth)
+    rows = sorted(rows, key=lambda r: (r.time, r.depth))
+    
+    latest_time = rows[-1].time if rows else "2026-09-06T00:00:00Z"
+    if latest_time >= "2026-09-05":
+        status = "ACTIVE"
+    elif latest_time >= "2026-09-02":
+        status = "RECENT"
+    else:
+        status = "STALE"
+
     return {
         "platform_id": platform_id,
         "platform_type": rows[0].platform_type,
         "latitude": rows[0].latitude,
         "longitude": rows[0].longitude,
+        "latest_time": latest_time,
+        "platform_status": status,
         "data_status": getattr(rows[0], "data_status", "DEMONSTRATION DATA"),
         "source_organization": getattr(rows[0], "source_organization", "In-situ Observation (demo)"),
         "profile": [
