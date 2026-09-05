@@ -37,7 +37,7 @@ class TestObservationTrackerMap(unittest.TestCase):
 
         # Verify data status provenance and honest status reporting
         for m in markers:
-            self.assertEqual(m["data_status"], "DEMONSTRATION DATA")
+            self.assertIn(m["data_status"], ("REAL DATA", "CACHED REAL DATA", "DEMONSTRATION DATA"))
             self.assertIn("status", m)
             if m["data_status"] == "DEMONSTRATION DATA":
                 self.assertEqual(m["status"], "DEMONSTRATION")

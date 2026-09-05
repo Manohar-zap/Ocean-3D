@@ -19,6 +19,9 @@ from __future__ import annotations
 import os
 import math
 import random
+import json
+import urllib.request
+import urllib.parse
 from datetime import datetime, timedelta, timezone
 from typing import Protocol
 from .schemas import StandardRecord
@@ -397,22 +400,40 @@ class BGCFieldAdapter:
         return records
 
 
+ARGOVIS_BASE_URL = os.getenv("ARGOVIS_BASE_URL", "https://argovis-api.colorado.edu")
+ARGOVIS_CACHE_FILE = "sample_argovis_cached.json"
+
+
 class ArgoGliderAdapter:
-    """Stands in for the Argo GDAC / Glider DAC ASCII+NetCDF profile adapters."""
+    """Argo GDAC / Argovis API v2 adapter and Glider DAC in-situ profile adapter."""
 
     def can_handle(self, source: str) -> bool:
-        return source in ("argo_gdac", "glider_dac")
+        return source in ("argo_gdac", "glider_dac", "argovis")
 
     def metadata(self) -> dict:
-        platform = "argo" if self._source == "argo_gdac" else "glider"
+        platform = "argo" if self._source in ("argo_gdac", "argovis") else "glider"
+        api_key = os.getenv("ARGOVIS_API_KEY", "").strip()
+        has_key = bool(api_key and api_key != "your_argovis_api_key_here")
+        has_cache = (os.path.exists(ARGOVIS_CACHE_FILE) or os.path.exists(os.path.join("backend", ARGOVIS_CACHE_FILE))) if platform == "argo" else False
+
+        if platform == "argo":
+            if has_key:
+                data_status = "REAL DATA"
+            elif has_cache:
+                data_status = "CACHED REAL DATA"
+            else:
+                data_status = "DEMONSTRATION DATA"
+        else:
+            data_status = "DEMONSTRATION DATA"
+
         return {
-            "source_name": f"{platform.title()} in-situ profiles (synthetic demo)",
+            "source_name": f"{platform.title()} in-situ profiles ({data_status})",
             "variables": ["temperature", "salinity"],
             "units": {"temperature": "degC", "salinity": "psu"},
             "platform_type": platform,
-            "data_status": "DEMONSTRATION DATA",
-            "source_organization": "Argo GDAC / Glider DAC (demo)",
-            "product_id": f"{platform.upper()}-DAC-IND-DEMO",
+            "data_status": data_status,
+            "source_organization": "Argo GDAC / Argovis" if platform == "argo" else "Glider DAC (demo)",
+            "product_id": f"{platform.upper()}-DAC-IND",
             "retrieval_timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -421,7 +442,146 @@ class ArgoGliderAdapter:
 
     def parse(self, source: str) -> list[StandardRecord]:
         self._source = source
-        platform_type = "argo" if source == "argo_gdac" else "glider"
+        platform_type = "argo" if source in ("argo_gdac", "argovis") else "glider"
+
+        if platform_type == "argo":
+            api_key = os.getenv("ARGOVIS_API_KEY", "").strip()
+            # 1. Live Argovis API if key is set
+            if api_key and api_key != "your_argovis_api_key_here":
+                records = self._fetch_and_parse_argovis_live(api_key)
+                if records:
+                    return records
+
+            # 2. Cached Argovis Real Data if available
+            cached_records = self._parse_argovis_cached()
+            if cached_records:
+                return cached_records
+
+        # 3. Demonstration Tracker Dataset Fallback
+        return self._parse_demonstration_dataset(source, platform_type)
+
+    def _fetch_and_parse_argovis_live(self, api_key: str) -> list[StandardRecord]:
+        import json, urllib.request, urllib.parse
+        poly = [[60.0, 0.0], [60.0, 25.0], [95.0, 25.0], [95.0, 0.0], [60.0, 0.0]]
+        poly_str = json.dumps(poly)
+        url = f"{ARGOVIS_BASE_URL}/argo?polygon={urllib.parse.quote(poly_str)}&startDate=2026-03-01T00:00:00Z&endDate=2026-03-15T23:59:59Z"
+        req = urllib.request.Request(url, headers={
+            "x-argokey": api_key,
+            "User-Agent": "OCEAN3D-FastAPI/1.0"
+        })
+        try:
+            with urllib.request.urlopen(req, timeout=12) as response:
+                if response.status == 200:
+                    docs = json.loads(response.read().decode('utf-8'))
+                    if isinstance(docs, list) and docs:
+                        records = self._normalize_argovis_docs(docs, "REAL DATA")
+                        if records:
+                            self._save_cache(docs)
+                            return records
+        except Exception:
+            pass
+        return []
+
+    def _parse_argovis_cached(self) -> list[StandardRecord]:
+        import json
+        targets = [ARGOVIS_CACHE_FILE, os.path.join("backend", ARGOVIS_CACHE_FILE)]
+        for t in targets:
+            if os.path.exists(t):
+                try:
+                    with open(t, "r", encoding="utf-8") as f:
+                        docs = json.load(f)
+                    if isinstance(docs, list) and docs:
+                        return self._normalize_argovis_docs(docs, "CACHED REAL DATA")
+                except Exception:
+                    pass
+        return []
+
+    def _normalize_argovis_docs(self, docs: list[dict], data_status: str) -> list[StandardRecord]:
+        records: list[StandardRecord] = []
+        for doc in docs:
+            if not isinstance(doc, dict):
+                continue
+            pid_raw = str(doc.get("platform", doc.get("_id", "")))
+            if not pid_raw:
+                continue
+            clean_pid = pid_raw.split("_")[0]
+            platform_id = f"ARGO-{clean_pid}"
+
+            geo = doc.get("geolocation", {})
+            coords = geo.get("coordinates", [])
+            if len(coords) < 2:
+                continue
+            lon, lat = float(coords[0]), float(coords[1])
+            timestamp = doc.get("timestamp", doc.get("date", "2026-03-01T00:00:00Z"))
+
+            data_info = doc.get("data_info", {})
+            keys = data_info.get("data_keys", ["pres", "temp", "psal"])
+            data_rows = doc.get("data", [])
+
+            pres_idx = next((i for i, k in enumerate(keys) if "pres" in k.lower() or "depth" in k.lower()), 0)
+            temp_idx = next((i for i, k in enumerate(keys) if "temp" in k.lower()), 1 if len(keys) > 1 else None)
+            sal_idx = next((i for i, k in enumerate(keys) if "psal" in k.lower() or "sal" in k.lower()), 2 if len(keys) > 2 else None)
+
+            for row in data_rows:
+                if not isinstance(row, list) or len(row) <= pres_idx:
+                    continue
+                depth_val = row[pres_idx]
+                if depth_val is None:
+                    continue
+                depth = float(depth_val)
+
+                if temp_idx is not None and len(row) > temp_idx and row[temp_idx] is not None:
+                    records.append(StandardRecord(
+                        kind="observation",
+                        dataset_id="argo_gdac",
+                        variable="temperature",
+                        latitude=round(lat, 4),
+                        longitude=round(lon, 4),
+                        depth=round(depth, 1),
+                        time=timestamp,
+                        value=round(float(row[temp_idx]), 3),
+                        unit="degC",
+                        platform_id=platform_id,
+                        platform_type="argo",
+                        quality_flag="good",
+                        source_file=f"{platform_id}_argovis.json",
+                        data_status=data_status,
+                        source_organization="Argo GDAC / Argovis",
+                        product_id="ARGOVIS-V2-ARGO-IN-SITU",
+                        retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
+                    ))
+
+                if sal_idx is not None and len(row) > sal_idx and row[sal_idx] is not None:
+                    records.append(StandardRecord(
+                        kind="observation",
+                        dataset_id="argo_gdac",
+                        variable="salinity",
+                        latitude=round(lat, 4),
+                        longitude=round(lon, 4),
+                        depth=round(depth, 1),
+                        time=timestamp,
+                        value=round(float(row[sal_idx]), 3),
+                        unit="psu",
+                        platform_id=platform_id,
+                        platform_type="argo",
+                        quality_flag="good",
+                        source_file=f"{platform_id}_argovis.json",
+                        data_status=data_status,
+                        source_organization="Argo GDAC / Argovis",
+                        product_id="ARGOVIS-V2-ARGO-IN-SITU",
+                        retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
+                    ))
+        return records
+
+    def _save_cache(self, docs: list[dict]):
+        try:
+            target = ARGOVIS_CACHE_FILE if os.path.exists("backend") else os.path.join("backend", ARGOVIS_CACHE_FILE)
+            with open(target, "w", encoding="utf-8") as f:
+                json.dump(docs, f, indent=2)
+        except Exception:
+            pass
+
+    def _parse_demonstration_dataset(self, source: str, platform_type: str) -> list[StandardRecord]:
         n_platforms = 60 if platform_type == "argo" else 25
         rng = random.Random(42 if platform_type == "argo" else 99)
         records: list[StandardRecord] = []

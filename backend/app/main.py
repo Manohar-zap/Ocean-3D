@@ -332,35 +332,44 @@ def observation_profile(platform_id: str, variable: Optional[str] = None, time: 
     rows = query_service.profile(platform_id)
     if variable:
         rows = [r for r in rows if r.variable == variable]
-    if time:
-        rows = [r for r in rows if r.time == time]
     if not rows:
         raise HTTPException(404, f"No profile data for platform '{platform_id}' with the given filters")
-    rows = sorted(rows, key=lambda r: (r.time, r.depth))
-    
-    latest_time = rows[-1].time if rows else "2026-09-06T00:00:00Z"
-    if latest_time >= "2026-09-05":
-        status = "ACTIVE"
-    elif latest_time >= "2026-09-02":
-        status = "RECENT"
+
+    times = sorted({r.time for r in rows})
+    latest_time = time or times[-1]
+
+    cycle_rows = [r for r in rows if r.time == latest_time]
+    cycle_rows_sorted = sorted(cycle_rows, key=lambda r: r.depth)
+
+    if cycle_rows[0].data_status == "DEMONSTRATION DATA":
+        status = "DEMONSTRATION"
     else:
-        status = "STALE"
+        try:
+            obs_dt = datetime.fromisoformat(latest_time.replace("Z", "+00:00"))
+            now_dt = datetime.now(timezone.utc)
+            age_days = (now_dt - obs_dt).total_seconds() / 86400.0
+            if age_days <= 1.0: status = "ACTIVE"
+            elif age_days <= 7.0: status = "RECENT"
+            elif age_days <= 30.0: status = "STALE"
+            else: status = "OFFLINE"
+        except Exception:
+            status = "RECENT"
 
     return {
         "platform_id": platform_id,
-        "platform_type": rows[0].platform_type,
-        "latitude": rows[0].latitude,
-        "longitude": rows[0].longitude,
+        "platform_type": cycle_rows[0].platform_type,
+        "latitude": cycle_rows[0].latitude,
+        "longitude": cycle_rows[0].longitude,
         "latest_time": latest_time,
         "platform_status": status,
-        "data_status": getattr(rows[0], "data_status", "DEMONSTRATION DATA"),
-        "source_organization": getattr(rows[0], "source_organization", "In-situ Observation (demo)"),
+        "data_status": getattr(cycle_rows[0], "data_status", "DEMONSTRATION DATA"),
+        "source_organization": getattr(cycle_rows[0], "source_organization", "In-situ Observation (demo)"),
         "profile": [
             {"depth": r.depth, "latitude": r.latitude, "longitude": r.longitude,
              "variable": r.variable, "value": r.value, "unit": r.unit,
              "time": r.time, "quality_flag": r.quality_flag,
              "data_status": getattr(r, "data_status", "DEMONSTRATION DATA")}
-            for r in rows
+            for r in cycle_rows_sorted
         ],
     }
 
