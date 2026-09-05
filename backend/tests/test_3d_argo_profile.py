@@ -1,5 +1,5 @@
 """
-Selenium Test for Native 3D Argo/CTD/Glider Profile Visualization in Cesium Scene.
+Selenium Test for Native 3D Argo/CTD/Glider Profile Visualization & Right Panel Info.
 """
 import time
 import unittest
@@ -24,27 +24,29 @@ class Test3DObservationProfile(unittest.TestCase):
             driver.execute_script("openProfile('ARGO-2900000');")
             time.sleep(4)
 
-            # Capture Screenshot of 3D ARGO Profile in Cesium 3D Scene
-            screenshot_path = 'screenshot_3d_argo_profile.png'
-            driver.save_screenshot(screenshot_path)
-            print(f'Saved 3D ARGO profile screenshot to {screenshot_path}')
+            # Move depth slider to index 9 (500m) -> verify 3D depth cursor & right panel depth update
+            driver.execute_script("document.getElementById('depthSlider').value = 9; document.getElementById('depthSlider').dispatchEvent(new Event('input'));")
+            time.sleep(2)
 
             # Verify 3D Depth Cursor entity exists in Cesium Viewer
             cursor_exists = driver.execute_script('return depthCursorEntity !== null;')
             print('3D Depth Cursor Entity Active:', cursor_exists)
             self.assertTrue(cursor_exists)
 
-            # Move depth slider to index 9 (500m) -> verify 3D depth cursor moves in 3D scene
-            driver.execute_script("document.getElementById('depthSlider').value = 9; document.getElementById('depthSlider').dispatchEvent(new Event('input'));")
-            time.sleep(2)
+            # Verify right-side panel observation depth & parameters
+            obs_id = driver.execute_script("return document.getElementById('obsPlatformId').textContent;")
+            obs_type = driver.execute_script("return document.getElementById('obsType').textContent;")
+            obs_depth = driver.execute_script("return document.getElementById('obsDepth').textContent;")
+            obs_temp = driver.execute_script("return document.getElementById('obsTemp').textContent;")
+            obs_sal = driver.execute_script("return document.getElementById('obsSal').textContent;")
 
-            cursor_depth = driver.execute_script("return document.getElementById('obsCursorDepth').textContent;")
-            print('Updated 3D Depth Cursor Depth:', cursor_depth)
-            self.assertEqual(cursor_depth, '500 m')
+            print(f'Right Panel Info -> ID: {obs_id}, Type: {obs_type}, Depth: {obs_depth}, Temp: {obs_temp}, Sal: {obs_sal}')
 
-            # Capture updated 3D Depth Cursor screenshot
-            driver.save_screenshot('screenshot_3d_cursor_500m.png')
-            print('Saved updated 3D Depth Cursor screenshot: screenshot_3d_cursor_500m.png')
+            self.assertEqual(obs_id, 'ARGO-2900000')
+            self.assertEqual(obs_type, 'ARGO')
+            self.assertEqual(obs_depth, '500 m')
+            self.assertNotEqual(obs_temp, '--')
+            self.assertNotEqual(obs_sal, '--')
 
         finally:
             driver.quit()

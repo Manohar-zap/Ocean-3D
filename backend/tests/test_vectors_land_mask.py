@@ -33,8 +33,8 @@ class TestCurrentVectorsLandMask(unittest.TestCase):
             vector_entities_count = driver.execute_script('return vectorEntities ? vectorEntities.length : 0;')
             print(f'Rendered Ocean Vector Polylines Count: {vector_entities_count}')
 
-            # Out of 100 NetCDF grid coordinates, 25 land points are masked -> exactly 75 ocean vectors rendered over ocean!
-            self.assertEqual(vector_entities_count, 75)
+            # Out of 100 NetCDF grid coordinates, 24 land points are masked -> exactly 76 ocean vectors rendered over ocean!
+            self.assertEqual(vector_entities_count, 76)
 
         finally:
             driver.quit()

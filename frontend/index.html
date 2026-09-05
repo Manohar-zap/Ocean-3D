@@ -256,14 +256,19 @@
 
     <div id="profilePanel">
       <button class="close" id="closeProfile">✕</button>
-      <h3 id="profileTitle">Platform</h3>
-      <div class="meta" id="profileMeta"></div>
-      <div id="obsCard" style="font-size:12px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); padding:10px; display:flex; flex-direction:column; gap:5px;">
-        <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Coordinates</span><span id="obsCoords" class="mono">--</span></div>
-        <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Max Cast Depth</span><span id="obsMaxDepth" class="mono">--</span></div>
-        <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">3D Cursor Depth</span><span id="obsCursorDepth" class="mono" style="color:var(--accent); font-weight:600;">0 m</span></div>
+      <h3 id="profileTitle">OBSERVATION INFO</h3>
+      <div class="meta" id="profileMeta">Selected Platform Details</div>
+      <div id="obsCard" style="font-size:12.5px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); padding:12px; display:flex; flex-direction:column; gap:6px;">
+        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">ID</span><span id="obsPlatformId" class="mono" style="color:var(--accent); font-weight:600;">--</span></div>
+        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Type</span><span id="obsType" class="mono">--</span></div>
+        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Latitude</span><span id="obsLat" class="mono">--</span></div>
+        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Longitude</span><span id="obsLon" class="mono">--</span></div>
+        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim); font-weight:600;">Depth</span><span id="obsDepth" class="mono" style="color:var(--accent); font-weight:600; font-size:13.5px;">--</span></div>
+        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Temperature</span><span id="obsTemp" class="mono">--</span></div>
+        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Salinity</span><span id="obsSal" class="mono">--</span></div>
+        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Quality Status</span><span id="obsQC" class="mono" style="color:var(--accent);">--</span></div>
       </div>
-      <button class="action primary" id="btnCompare">Compare with model at 3D cursor depth</button>
+      <button class="action primary" id="btnCompare" style="margin-top:6px;">Compare with Model at Selected Depth</button>
       <div id="compareResult"></div>
     </div>
   </main>
@@ -859,24 +864,42 @@ let depthCursorEntity = null;
 function update3DDepthCursor(){
   if(!state.selectedProfile) return;
   const targetDepth = DEPTHS[state.depthIndex];
-  const rows = state.selectedProfile.profile.filter(r => r.variable === state.variable);
-  if(!rows.length) return;
+  const profileList = state.selectedProfile.profile || [];
+  if(!profileList.length) return;
 
-  const sample = rows.reduce((a,b) => Math.abs(b.depth-targetDepth) < Math.abs(a.depth-targetDepth) ? b : a);
-  const lat = sample.latitude ?? state.selectedProfile.lat ?? 18.0;
-  const lon = sample.longitude ?? state.selectedProfile.lon ?? 78.5;
-  const h = -sample.depth * state.verticalExaggeration * 15.0;
+  const tempSample = profileList.find(r => r.variable === "temperature" && Math.abs(r.depth - targetDepth) < 1.0)
+                  || profileList.filter(r => r.variable === "temperature").reduce((a,b) => Math.abs(b.depth-targetDepth) < Math.abs(a.depth-targetDepth) ? b : a, null);
 
-  document.getElementById("obsCoords").textContent = `${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E`;
-  const maxD = Math.max(...state.selectedProfile.profile.map(p => p.depth));
-  document.getElementById("obsMaxDepth").textContent = `${maxD} m`;
-  document.getElementById("obsCursorDepth").textContent = `${sample.depth} m`;
+  const salSample = profileList.find(r => r.variable === "salinity" && Math.abs(r.depth - targetDepth) < 1.0)
+                 || profileList.filter(r => r.variable === "salinity").reduce((a,b) => Math.abs(b.depth-targetDepth) < Math.abs(a.depth-targetDepth) ? b : a, null);
+
+  const activeSample = tempSample || salSample || profileList[0];
+
+  const pid = state.selectedProfile.platform_id;
+  const ptype = (state.selectedProfile.platform_type || "ARGO").toUpperCase();
+  const lat = activeSample.latitude ?? state.selectedProfile.lat ?? 18.0;
+  const lon = activeSample.longitude ?? state.selectedProfile.lon ?? 78.5;
+  const depthM = activeSample.depth !== undefined && activeSample.depth !== null ? `${activeSample.depth} m` : "N/A";
+  const tempVal = tempSample && tempSample.value !== undefined ? `${tempSample.value} ${tempSample.unit}` : "N/A";
+  const salVal = salSample && salSample.value !== undefined ? `${salSample.value} ${salSample.unit}` : "N/A";
+  const qc = activeSample.quality_flag ?? "good";
+
+  // Update Right-Side Panel Fields
+  document.getElementById("obsPlatformId").textContent = pid;
+  document.getElementById("obsType").textContent = ptype;
+  document.getElementById("obsLat").textContent = `${lat.toFixed(2)}° N`;
+  document.getElementById("obsLon").textContent = `${lon.toFixed(2)}° E`;
+  document.getElementById("obsDepth").textContent = depthM;
+  document.getElementById("obsTemp").textContent = tempVal;
+  document.getElementById("obsSal").textContent = salVal;
+  document.getElementById("obsQC").textContent = qc;
 
   // Render or move glowing 3D Depth Cursor Entity in Cesium scene
   if(depthCursorEntity){
     viewer.entities.remove(depthCursorEntity);
   }
 
+  const h = -activeSample.depth * state.verticalExaggeration * 15.0;
   depthCursorEntity = viewer.entities.add({
     position: Cesium.Cartesian3.fromDegrees(lon, lat, h),
     point: {
@@ -887,7 +910,7 @@ function update3DDepthCursor(){
       disableDepthTestDistance: Number.POSITIVE_INFINITY
     },
     label: {
-      text: `3D Cursor: ${sample.depth}m (${sample.value} ${sample.unit})`,
+      text: `3D Cursor: ${depthM}`,
       font: '11px IBM Plex Mono',
       pixelOffset: new Cesium.Cartesian2(0, -22),
       fillColor: Cesium.Color.WHITE,
@@ -901,9 +924,8 @@ async function openProfile(platform_id){
   if(!res.ok) return;
   const data = await res.json();
   state.selectedProfile = data;
-  document.getElementById("profileTitle").textContent = platform_id;
-  document.getElementById("profileMeta").textContent =
-    `${data.platform_type.toUpperCase()} platform · 3D depth profile active`;
+  document.getElementById("profileTitle").textContent = "OBSERVATION INFO";
+  document.getElementById("profileMeta").textContent = `${data.platform_type.toUpperCase()} platform · 3D depth profile active`;
 
   update3DDepthCursor();
   document.getElementById("compareResult").style.display = "none";
@@ -924,6 +946,20 @@ async function openProfile(platform_id){
     duration: 1.5
   });
 }
+
+document.getElementById("closeProfile").onclick = () => {
+  if(depthCursorEntity) viewer.entities.remove(depthCursorEntity);
+  state.selectedProfile = null;
+  document.getElementById("obsPlatformId").textContent = "--";
+  document.getElementById("obsType").textContent = "--";
+  document.getElementById("obsLat").textContent = "--";
+  document.getElementById("obsLon").textContent = "--";
+  document.getElementById("obsDepth").textContent = "--";
+  document.getElementById("obsTemp").textContent = "--";
+  document.getElementById("obsSal").textContent = "--";
+  document.getElementById("obsQC").textContent = "--";
+  document.getElementById("profilePanel").classList.remove("open");
+};
 
 document.getElementById("closeProfile").onclick = () => {
   if(depthCursorEntity) viewer.entities.remove(depthCursorEntity);
