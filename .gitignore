@@ -14,6 +14,7 @@ env/
 .env.local
 frontend/config.js
 *.png
+!frontend/assets/icons/*.png
 *.docx
 *.doc
 *.pdf

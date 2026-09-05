@@ -843,22 +843,32 @@ let depthCursorEntity = null;
 
 function update3DDepthCursor(){
   if(!state.selectedProfile) return;
-  const targetDepth = DEPTHS[state.depthIndex];
+  const requestedDepth = DEPTHS[state.depthIndex];
   const profileList = state.selectedProfile.profile || [];
   if(!profileList.length) return;
 
-  const tempSample = profileList.find(r => r.variable === "temperature" && Math.abs(r.depth - targetDepth) < 1.0)
-                  || profileList.filter(r => r.variable === "temperature").reduce((a,b) => Math.abs(b.depth-targetDepth) < Math.abs(a.depth-targetDepth) ? b : a, null);
+  // Find nearest actual profile sample to requested depth
+  const tempSamples = profileList.filter(r => r.variable === "temperature");
+  const salSamples = profileList.filter(r => r.variable === "salinity");
+  const candidateList = tempSamples.length ? tempSamples : profileList;
 
-  const salSample = profileList.find(r => r.variable === "salinity" && Math.abs(r.depth - targetDepth) < 1.0)
-                 || profileList.filter(r => r.variable === "salinity").reduce((a,b) => Math.abs(b.depth-targetDepth) < Math.abs(a.depth-targetDepth) ? b : a, null);
+  const activeSample = candidateList.reduce((a, b) =>
+    Math.abs(b.depth - requestedDepth) < Math.abs(a.depth - requestedDepth) ? b : a, candidateList[0]);
 
-  const activeSample = tempSample || salSample || profileList[0];
+  // Set state.selectedSample to the actual profile record
+  state.selectedSample = activeSample;
+
+  const tempSample = tempSamples.find(r => Math.abs(r.depth - activeSample.depth) < 1.0)
+                  || tempSamples.reduce((a,b) => Math.abs(b.depth-activeSample.depth) < Math.abs(a.depth-activeSample.depth) ? b : a, null);
+
+  const salSample = salSamples.find(r => Math.abs(r.depth - activeSample.depth) < 1.0)
+                 || salSamples.reduce((a,b) => Math.abs(b.depth-activeSample.depth) < Math.abs(a.depth-activeSample.depth) ? b : a, null);
 
   const pid = state.selectedProfile.platform_id;
   const ptype = (state.selectedProfile.platform_type || "ARGO").toUpperCase();
-  const lat = activeSample.latitude ?? state.selectedProfile.lat ?? 18.0;
-  const lon = activeSample.longitude ?? state.selectedProfile.lon ?? 78.5;
+  const lat = activeSample.latitude ?? state.selectedProfile.lat;
+  const lon = activeSample.longitude ?? state.selectedProfile.lon;
+
   const depthM = activeSample.depth !== undefined && activeSample.depth !== null ? `${activeSample.depth} m` : "N/A";
   const tempVal = tempSample && tempSample.value !== undefined ? `${tempSample.value} ${tempSample.unit}` : "N/A";
   const salVal = salSample && salSample.value !== undefined ? `${salSample.value} ${salSample.unit}` : "N/A";
@@ -867,8 +877,8 @@ function update3DDepthCursor(){
   // Update Right-Side Panel Fields
   document.getElementById("obsPlatformId").textContent = pid;
   document.getElementById("obsType").textContent = ptype;
-  document.getElementById("obsLat").textContent = `${lat.toFixed(2)}° N`;
-  document.getElementById("obsLon").textContent = `${lon.toFixed(2)}° E`;
+  document.getElementById("obsLat").textContent = (lat !== undefined && lat !== null) ? `${lat.toFixed(2)}° N` : "N/A";
+  document.getElementById("obsLon").textContent = (lon !== undefined && lon !== null) ? `${lon.toFixed(2)}° E` : "N/A";
   document.getElementById("obsDepth").textContent = depthM;
   document.getElementById("obsTemp").textContent = tempVal;
   document.getElementById("obsSal").textContent = salVal;
@@ -1003,7 +1013,7 @@ function renderRightPanelWaterColumn(){
   if(!state.selectedProfile) return;
 
   const profileList = state.selectedProfile.profile || [];
-  const targetDepth = DEPTHS[state.depthIndex];
+  const targetDepth = state.selectedSample ? state.selectedSample.depth : DEPTHS[state.depthIndex];
 
   // Dynamically derive depth levels directly from actual profile records
   const obsDepths = Array.from(new Set(profileList.map(p => p.depth))).sort((a,b) => a - b);
@@ -1019,12 +1029,17 @@ function renderRightPanelWaterColumn(){
     const isSelected = Math.abs(d - targetDepth) < 25;
 
     const sample = profileList.find(p => Math.abs(p.depth - d) < 30);
-    const val = sample ? sample.value : (28.0 - (d / maxD) * 22.0);
-    const norm = Math.max(0, Math.min(1, (val - 4.0) / 26.0));
-    const [r, g, b] = colormap(norm);
+
+    // No synthetic temperature fabrication - if no real sample value exists, use neutral uncolored slate
+    let colorObj = new THREE.Color(0x2a3e4d);
+    if(sample && sample.value !== undefined && sample.value !== null){
+      const norm = Math.max(0, Math.min(1, (sample.value - 4.0) / 26.0));
+      const [r, g, b] = colormap(norm);
+      colorObj = new THREE.Color(r, g, b);
+    }
 
     const mat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(r, g, b),
+      color: colorObj,
       transparent: true,
       opacity: isSelected ? 0.88 : 0.40,
       side: THREE.DoubleSide,
@@ -1097,19 +1112,21 @@ async function openProfile(platform_id){
   document.getElementById("profilePanel").classList.add("open");
 
   const sample = data.profile[0] || {};
-  const lat = sample.latitude ?? data.lat ?? 18.0;
-  const lon = sample.longitude ?? data.lon ?? 78.5;
+  const lat = sample.latitude ?? data.lat;
+  const lon = sample.longitude ?? data.lon;
 
-  // Fly camera to 3D oblique perspective focused on platform geographic location
-  viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(lon, lat - 0.4, 140000),
-    orientation: {
-      heading: Cesium.Math.toRadians(0.0),
-      pitch: Cesium.Math.toRadians(-35.0),
-      roll: 0.0
-    },
-    duration: 1.5
-  });
+  if(lat !== undefined && lat !== null && lon !== undefined && lon !== null){
+    // Fly camera to 3D oblique perspective focused on platform geographic location
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(lon, lat - 0.4, 140000),
+      orientation: {
+        heading: Cesium.Math.toRadians(0.0),
+        pitch: Cesium.Math.toRadians(-35.0),
+        roll: 0.0
+      },
+      duration: 1.5
+    });
+  }
 }
 
 document.getElementById("closeProfile").onclick = () => {
