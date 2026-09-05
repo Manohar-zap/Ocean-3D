@@ -258,16 +258,23 @@
       <button class="close" id="closeProfile">✕</button>
       <h3 id="profileTitle">OBSERVATION INFO</h3>
       <div class="meta" id="profileMeta">Selected Platform Details</div>
+
       <div id="obsCard" style="font-size:12.5px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); padding:12px; display:flex; flex-direction:column; gap:6px;">
         <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">ID</span><span id="obsPlatformId" class="mono" style="color:var(--accent); font-weight:600;">--</span></div>
         <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Type</span><span id="obsType" class="mono">--</span></div>
         <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Latitude</span><span id="obsLat" class="mono">--</span></div>
         <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Longitude</span><span id="obsLon" class="mono">--</span></div>
-        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim); font-weight:600;">Depth</span><span id="obsDepth" class="mono" style="color:var(--accent); font-weight:600; font-size:13.5px;">--</span></div>
+        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim); font-weight:600;">Selected Depth</span><span id="obsDepth" class="mono" style="color:var(--accent); font-weight:600; font-size:13.5px;">--</span></div>
         <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Temperature</span><span id="obsTemp" class="mono">--</span></div>
         <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Salinity</span><span id="obsSal" class="mono">--</span></div>
         <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Quality Status</span><span id="obsQC" class="mono" style="color:var(--accent);">--</span></div>
       </div>
+
+      <div class="section-title" style="margin-top:6px;">3D Water-Column Profile</div>
+      <div id="waterColumnWrap" style="position:relative; width:100%; height:200px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;">
+        <canvas id="waterColumnCanvas" width="280" height="200"></canvas>
+      </div>
+
       <button class="action primary" id="btnCompare" style="margin-top:6px;">Compare with Model at Selected Depth</button>
       <div id="compareResult"></div>
     </div>
@@ -917,6 +924,113 @@ function update3DDepthCursor(){
       disableDepthTestDistance: Number.POSITIVE_INFINITY
     }
   });
+
+  renderRightPanelWaterColumn();
+}
+
+function renderRightPanelWaterColumn(){
+  const canvas = document.getElementById("waterColumnCanvas");
+  if(!canvas) return;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if(!state.selectedProfile) {
+    ctx.fillStyle = "#7c93a0";
+    ctx.font = "11px IBM Plex Sans";
+    ctx.fillText("Select an observation marker to inspect 3D depth profile", 12, 100);
+    return;
+  }
+
+  const profileList = state.selectedProfile.profile || [];
+  const targetDepth = DEPTHS[state.depthIndex];
+  const activeDepths = [0, 50, 100, 250, 500, 1000, 2000];
+  const minY = 24, maxY = 175;
+  const axisX = 45, layerWidth = 180;
+
+  // 1. Draw Depth Axis & Tick Labels
+  ctx.strokeStyle = "#1a2f3c";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(axisX, 15);
+  ctx.lineTo(axisX, 185);
+  ctx.stroke();
+
+  ctx.fillStyle = "#7c93a0";
+  ctx.font = "10px IBM Plex Mono";
+
+  activeDepths.forEach(d => {
+    const y = minY + (d / 2000.0) * (maxY - minY);
+    ctx.beginPath();
+    ctx.moveTo(axisX - 4, y);
+    ctx.lineTo(axisX + 4, y);
+    ctx.stroke();
+    ctx.fillText(`${d}m`, 4, y + 3);
+  });
+
+  // 2. Draw Stacked Isometric 3D Water-Column Depth Layers
+  activeDepths.forEach(d => {
+    const y = minY + (d / 2000.0) * (maxY - minY);
+    const isSelected = Math.abs(d - targetDepth) < 25;
+
+    // Get temperature sample for colormap
+    const sample = profileList.find(p => Math.abs(p.depth - d) < 30);
+    const val = sample ? sample.value : (28.0 - (d / 2000.0) * 22.0);
+    const norm = Math.max(0, Math.min(1, (val - 4.0) / 26.0));
+    const [r, g, b] = colormap(norm);
+
+    // Layer isometric rectangle
+    ctx.fillStyle = `rgba(${r*255|0}, ${g*255|0}, ${b*255|0}, ${isSelected ? 0.85 : 0.45})`;
+    ctx.strokeStyle = isSelected ? "#3fe0c5" : "#1a2f3c";
+    ctx.lineWidth = isSelected ? 2.0 : 1.0;
+
+    ctx.beginPath();
+    ctx.moveTo(axisX + 10, y - 4);
+    ctx.lineTo(axisX + layerWidth, y - 10);
+    ctx.lineTo(axisX + layerWidth - 12, y + 4);
+    ctx.lineTo(axisX + 10, y + 10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  });
+
+  // 3. Draw Observation Vertical 3D Profile Trajectory Line
+  const profileSamples = profileList.filter(p => p.variable === state.variable || p.variable === "temperature");
+  if(profileSamples.length){
+    ctx.strokeStyle = "#f2a65a";
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+
+    profileSamples.forEach((p, i) => {
+      const py = minY + (p.depth / 2000.0) * (maxY - minY);
+      const px = axisX + 80;
+      if(i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    });
+    ctx.stroke();
+
+    // Sample node points
+    profileSamples.forEach(p => {
+      const py = minY + (p.depth / 2000.0) * (maxY - minY);
+      const px = axisX + 80;
+      const isCursor = Math.abs(p.depth - targetDepth) < 25;
+
+      ctx.fillStyle = isCursor ? "#3fe0c5" : "#f2a65a";
+      ctx.beginPath();
+      ctx.arc(px, py, isCursor ? 5.5 : 3.5, 0, 2 * Math.PI);
+      ctx.fill();
+
+      if(isCursor){
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Target depth indicator
+        ctx.fillStyle = "#3fe0c5";
+        ctx.font = "bold 10px IBM Plex Mono";
+        ctx.fillText(`◄ ${p.depth}m (${p.value}${p.unit||''})`, px + 10, py + 3);
+      }
+    });
+  }
 }
 
 async function openProfile(platform_id){
