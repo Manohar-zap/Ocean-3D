@@ -410,6 +410,10 @@ class ArgoGliderAdapter:
             "variables": ["temperature", "salinity"],
             "units": {"temperature": "degC", "salinity": "psu"},
             "platform_type": platform,
+            "data_status": "DEMONSTRATION DATA",
+            "source_organization": "Argo GDAC / Glider DAC (demo)",
+            "product_id": f"{platform.upper()}-DAC-IND-DEMO",
+            "retrieval_timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     def __init__(self):
@@ -424,8 +428,12 @@ class ArgoGliderAdapter:
 
         for p in range(n_platforms):
             platform_id = f"{platform_type.upper()}-{2900000 + p if platform_type=='argo' else 6000+p}"
-            lat = LAT_RANGE[0] + rng.random() * (LAT_RANGE[1] - LAT_RANGE[0])
-            lon = LON_RANGE[0] + rng.random() * (LON_RANGE[1] - LON_RANGE[0])
+            while True:
+                lat = LAT_RANGE[0] + rng.random() * (LAT_RANGE[1] - LAT_RANGE[0])
+                lon = LON_RANGE[0] + rng.random() * (LON_RANGE[1] - LON_RANGE[0])
+                if not is_land(lat, lon):
+                    break
+
             # a handful of profile times per platform, each a full depth profile
             n_profiles = 3
             for pi in range(n_profiles):
@@ -433,6 +441,9 @@ class ArgoGliderAdapter:
                 t = _time_at(step)
                 jitter_lat = lat + rng.uniform(-0.3, 0.3)
                 jitter_lon = lon + rng.uniform(-0.3, 0.3)
+                if is_land(jitter_lat, jitter_lon):
+                    jitter_lat, jitter_lon = lat, lon
+
                 profile_depths = DEPTHS if platform_type == "argo" else DEPTHS[:9]
                 for depth in profile_depths:
                     for var in ("temperature", "salinity"):
@@ -452,6 +463,10 @@ class ArgoGliderAdapter:
                             platform_type=platform_type,
                             quality_flag="good" if rng.random() > 0.05 else "suspect",
                             source_file=f"{platform_id}_prof{pi}.nc" if platform_type == "argo" else f"{platform_id}_prof{pi}.asc",
+                            data_status="DEMONSTRATION DATA",
+                            source_organization="Argo GDAC (demo)" if platform_type == "argo" else "Glider DAC (demo)",
+                            product_id="ARGO-GDAC-IND-DEMO" if platform_type == "argo" else "GLIDER-DAC-IND-DEMO",
+                            retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
                         ))
         return records
 
@@ -464,14 +479,22 @@ class CTDBGCObservationAdapter:
 
     def metadata(self) -> dict:
         if self._source == "ctd_cast":
-            return {"source_name": "Shipboard CTD casts (synthetic demo)",
+            return {"source_name": "Shipboard CTD casts (DEMONSTRATION DATA)",
                      "variables": ["temperature", "salinity"],
                      "units": {"temperature": "degC", "salinity": "psu"},
-                     "platform_type": "ctd"}
-        return {"source_name": "BGC-Argo floats (synthetic demo)",
+                     "platform_type": "ctd",
+                     "data_status": "DEMONSTRATION DATA",
+                     "source_organization": "INCOIS CTD (demo)",
+                     "product_id": "INCOIS-CTD-IND-DEMO",
+                     "retrieval_timestamp": datetime.now(timezone.utc).isoformat()}
+        return {"source_name": "BGC-Argo floats (DEMONSTRATION DATA)",
                 "variables": ["oxygen", "chlorophyll"],
                 "units": {"oxygen": "umol/kg", "chlorophyll": "mg/m3"},
-                "platform_type": "bgc"}
+                "platform_type": "bgc",
+                "data_status": "DEMONSTRATION DATA",
+                "source_organization": "BGC-Argo (demo)",
+                "product_id": "BGC-ARGO-IND-DEMO",
+                "retrieval_timestamp": datetime.now(timezone.utc).isoformat()}
 
     def __init__(self):
         self._source = "ctd_cast"
@@ -487,8 +510,12 @@ class CTDBGCObservationAdapter:
 
         for p in range(n_platforms):
             platform_id = f"{platform_type.upper()}-{100+p}"
-            lat = LAT_RANGE[0] + rng.random() * (LAT_RANGE[1] - LAT_RANGE[0])
-            lon = LON_RANGE[0] + rng.random() * (LON_RANGE[1] - LON_RANGE[0])
+            while True:
+                lat = LAT_RANGE[0] + rng.random() * (LAT_RANGE[1] - LAT_RANGE[0])
+                lon = LON_RANGE[0] + rng.random() * (LON_RANGE[1] - LON_RANGE[0])
+                if not is_land(lat, lon):
+                    break
+
             step = rng.randint(0, TIME_STEPS - 1)
             t = _time_at(step)
             depths = DEPTHS[:10] if platform_type == "ctd" else DEPTHS[:7]
@@ -510,6 +537,10 @@ class CTDBGCObservationAdapter:
                         platform_type=platform_type,
                         quality_flag="good",
                         source_file=f"{platform_id}.txt",
+                        data_status="DEMONSTRATION DATA",
+                        source_organization="INCOIS CTD (demo)" if platform_type == "ctd" else "BGC-Argo (demo)",
+                        product_id="INCOIS-CTD-IND-DEMO" if platform_type == "ctd" else "BGC-ARGO-IND-DEMO",
+                        retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
                     ))
         return records
 

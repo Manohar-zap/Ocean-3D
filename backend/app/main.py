@@ -201,6 +201,8 @@ def query_observations(
                 "value": r.value,
                 "unit": r.unit,
                 "quality_flag": r.quality_flag,
+                "data_status": getattr(r, "data_status", "DEMONSTRATION DATA"),
+                "source_organization": getattr(r, "source_organization", "In-situ Observation (demo)"),
             }
     return {"count": len(by_platform), "markers": list(by_platform.values())}
 
@@ -221,10 +223,13 @@ def observation_profile(platform_id: str, variable: Optional[str] = None, time: 
         "platform_type": rows[0].platform_type,
         "latitude": rows[0].latitude,
         "longitude": rows[0].longitude,
+        "data_status": getattr(rows[0], "data_status", "DEMONSTRATION DATA"),
+        "source_organization": getattr(rows[0], "source_organization", "In-situ Observation (demo)"),
         "profile": [
             {"depth": r.depth, "latitude": r.latitude, "longitude": r.longitude,
              "variable": r.variable, "value": r.value, "unit": r.unit,
-             "time": r.time, "quality_flag": r.quality_flag}
+             "time": r.time, "quality_flag": r.quality_flag,
+             "data_status": getattr(r, "data_status", "DEMONSTRATION DATA")}
             for r in rows
         ],
     }

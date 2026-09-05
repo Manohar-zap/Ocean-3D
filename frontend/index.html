@@ -271,6 +271,7 @@
         <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Temperature</span><span id="obsTemp" class="mono">--</span></div>
         <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Salinity</span><span id="obsSal" class="mono">--</span></div>
         <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Quality Status</span><span id="obsQC" class="mono" style="color:var(--accent);">--</span></div>
+        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Data Status</span><span id="obsDataStatus" class="mono" style="color:var(--accent);">--</span></div>
       </div>
 
       <div class="section-title" style="margin-top:6px;">3D Water-Column Analytical View</div>
@@ -873,6 +874,7 @@ function update3DDepthCursor(){
   const tempVal = tempSample && tempSample.value !== undefined ? `${tempSample.value} ${tempSample.unit}` : "N/A";
   const salVal = salSample && salSample.value !== undefined ? `${salSample.value} ${salSample.unit}` : "N/A";
   const qc = activeSample.quality_flag ?? "good";
+  const ds = state.selectedProfile.data_status || activeSample.data_status || "DEMONSTRATION DATA";
 
   // Update Right-Side Panel Fields
   document.getElementById("obsPlatformId").textContent = pid;
@@ -883,6 +885,7 @@ function update3DDepthCursor(){
   document.getElementById("obsTemp").textContent = tempVal;
   document.getElementById("obsSal").textContent = salVal;
   document.getElementById("obsQC").textContent = qc;
+  document.getElementById("obsDataStatus").textContent = ds;
 
   // Highlight the single platform geographic icon on the globe for pid, restore others
   Object.keys(state.markers).forEach(k => {
@@ -1132,16 +1135,16 @@ async function openProfile(platform_id){
 document.getElementById("closeProfile").onclick = () => {
   if(state.selectedProfile && state.markers[state.selectedProfile.platform_id]){
     const mEntity = state.markers[state.selectedProfile.platform_id];
-    if(mEntity && mEntity.point){
-      const baseColor = mEntity.userData && mEntity.userData.baseColorCss ? mEntity.userData.baseColorCss : '#f2a65a';
-      mEntity.point.pixelSize = 10;
-      mEntity.point.color = Cesium.Color.fromCssColorString(baseColor);
-      mEntity.point.outlineColor = Cesium.Color.BLACK;
-      mEntity.point.outlineWidth = 1.5;
+    if(mEntity){
+      if(mEntity.billboard){
+        mEntity.billboard.width = 28;
+        mEntity.billboard.height = 28;
+      }
       if(mEntity.label) mEntity.label.show = false;
     }
   }
   state.selectedProfile = null;
+  state.selectedSample = null;
   depthCursorEntity = null;
   document.getElementById("obsPlatformId").textContent = "--";
   document.getElementById("obsType").textContent = "--";
@@ -1151,6 +1154,7 @@ document.getElementById("closeProfile").onclick = () => {
   document.getElementById("obsTemp").textContent = "--";
   document.getElementById("obsSal").textContent = "--";
   document.getElementById("obsQC").textContent = "--";
+  document.getElementById("obsDataStatus").textContent = "--";
   document.getElementById("profilePanel").classList.remove("open");
 };
 
