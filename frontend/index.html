@@ -929,7 +929,12 @@ function renderRightPanelWaterColumn(){
 
   const profileList = state.selectedProfile.profile || [];
   const targetDepth = DEPTHS[state.depthIndex];
-  const activeDepths = [0, 50, 100, 250, 500, 1000, 2000];
+
+  // Dynamically derive depth levels directly from actual profile records
+  const obsDepths = Array.from(new Set(profileList.map(p => p.depth))).sort((a,b) => a - b);
+  const activeDepths = obsDepths.length ? obsDepths : [0, 50, 100, 250, 500, 1000, 2000];
+  const maxD = Math.max(...activeDepths, 1000);
+
   const minY = 24, maxY = 175;
   const axisX = 45, layerWidth = 180;
 
@@ -945,7 +950,7 @@ function renderRightPanelWaterColumn(){
   ctx.font = "10px IBM Plex Mono";
 
   activeDepths.forEach(d => {
-    const y = minY + (d / 2000.0) * (maxY - minY);
+    const y = minY + (d / maxD) * (maxY - minY);
     ctx.beginPath();
     ctx.moveTo(axisX - 4, y);
     ctx.lineTo(axisX + 4, y);
@@ -955,12 +960,12 @@ function renderRightPanelWaterColumn(){
 
   // 2. Draw Stacked Isometric 3D Water-Column Depth Layers
   activeDepths.forEach(d => {
-    const y = minY + (d / 2000.0) * (maxY - minY);
+    const y = minY + (d / maxD) * (maxY - minY);
     const isSelected = Math.abs(d - targetDepth) < 25;
 
     // Get temperature sample for colormap
     const sample = profileList.find(p => Math.abs(p.depth - d) < 30);
-    const val = sample ? sample.value : (28.0 - (d / 2000.0) * 22.0);
+    const val = sample ? sample.value : (28.0 - (d / maxD) * 22.0);
     const norm = Math.max(0, Math.min(1, (val - 4.0) / 26.0));
     const [r, g, b] = colormap(norm);
 
@@ -987,7 +992,7 @@ function renderRightPanelWaterColumn(){
     ctx.beginPath();
 
     profileSamples.forEach((p, i) => {
-      const py = minY + (p.depth / 2000.0) * (maxY - minY);
+      const py = minY + (p.depth / maxD) * (maxY - minY);
       const px = axisX + 80;
       if(i === 0) ctx.moveTo(px, py);
       else ctx.lineTo(px, py);
@@ -996,7 +1001,7 @@ function renderRightPanelWaterColumn(){
 
     // Sample node points
     profileSamples.forEach(p => {
-      const py = minY + (p.depth / 2000.0) * (maxY - minY);
+      const py = minY + (p.depth / maxD) * (maxY - minY);
       const px = axisX + 80;
       const isCursor = Math.abs(p.depth - targetDepth) < 25;
 

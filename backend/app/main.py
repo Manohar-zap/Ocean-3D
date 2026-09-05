@@ -219,8 +219,11 @@ def observation_profile(platform_id: str, variable: Optional[str] = None, time: 
     return {
         "platform_id": platform_id,
         "platform_type": rows[0].platform_type,
+        "latitude": rows[0].latitude,
+        "longitude": rows[0].longitude,
         "profile": [
-            {"depth": r.depth, "variable": r.variable, "value": r.value, "unit": r.unit,
+            {"depth": r.depth, "latitude": r.latitude, "longitude": r.longitude,
+             "variable": r.variable, "value": r.value, "unit": r.unit,
              "time": r.time, "quality_flag": r.quality_flag}
             for r in rows
         ],
