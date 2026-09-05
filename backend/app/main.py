@@ -8,6 +8,7 @@ from __future__ import annotations
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
+from datetime import datetime, timezone
 from typing import Optional, Any
 
 from .schemas import QueryFilters
@@ -197,19 +198,34 @@ def query_observations(
         p_rows_sorted = sorted(p_rows, key=lambda r: (r.time, -r.depth), reverse=True)
         latest_r = p_rows_sorted[0]
 
+        ds = getattr(latest_r, "data_status", "DEMONSTRATION DATA")
         time_str = latest_r.time
         if time_str > latest_update:
             latest_update = time_str
 
-        if time_str >= "2026-09-05":
-            status = "ACTIVE"
-            summary_counts["active"] += 1
-        elif time_str >= "2026-09-02":
-            status = "RECENT"
-            summary_counts["recent"] += 1
-        else:
-            status = "STALE"
+        if ds == "DEMONSTRATION DATA":
+            status = "DEMONSTRATION"
             summary_counts["stale"] += 1
+        else:
+            try:
+                obs_dt = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
+                now_dt = datetime.now(timezone.utc)
+                age_days = (now_dt - obs_dt).total_seconds() / 86400.0
+                if age_days <= 1.0:
+                    status = "ACTIVE"
+                    summary_counts["active"] += 1
+                elif age_days <= 7.0:
+                    status = "RECENT"
+                    summary_counts["recent"] += 1
+                elif age_days <= 30.0:
+                    status = "STALE"
+                    summary_counts["stale"] += 1
+                else:
+                    status = "OFFLINE"
+                    summary_counts["stale"] += 1
+            except Exception:
+                status = "RECENT"
+                summary_counts["recent"] += 1
 
         ptype = latest_r.platform_type.lower() if latest_r.platform_type else "argo"
         if ptype in summary_counts:
@@ -219,7 +235,7 @@ def query_observations(
             continue
         if recency == "recent" and status not in ("ACTIVE", "RECENT"):
             continue
-        if recency == "stale" and status != "STALE":
+        if recency == "stale" and status not in ("STALE", "OFFLINE", "DEMONSTRATION"):
             continue
 
         markers.append({
@@ -234,7 +250,7 @@ def query_observations(
             "value": latest_r.value,
             "unit": latest_r.unit,
             "quality_flag": latest_r.quality_flag,
-            "data_status": getattr(latest_r, "data_status", "DEMONSTRATION DATA"),
+            "data_status": ds,
             "source_organization": getattr(latest_r, "source_organization", "In-situ Observation (demo)"),
         })
 
@@ -253,6 +269,30 @@ def query_observations(
         },
         "markers": markers,
     }
+
+
+@app.get("/api/observations/platforms/latest")
+def latest_platforms():
+    """Return latest surface position record per observation platform (FR-038-040)."""
+    rows = query_service.observations(QueryFilters())
+    by_platform: dict[str, Any] = {}
+    for r in rows:
+        cur = by_platform.get(r.platform_id)
+        if cur is None or r.time > cur["timestamp"]:
+            ds = getattr(r, "data_status", "DEMONSTRATION DATA")
+            status = "DEMONSTRATION" if ds == "DEMONSTRATION DATA" else "ACTIVE"
+            by_platform[r.platform_id] = {
+                "platform_id": r.platform_id,
+                "platform_type": r.platform_type,
+                "latitude": r.latitude,
+                "longitude": r.longitude,
+                "depth": r.depth,
+                "timestamp": r.time,
+                "status": status,
+                "data_status": ds,
+                "source_organization": getattr(r, "source_organization", "In-situ Observation (demo)"),
+            }
+    return {"count": len(by_platform), "platforms": list(by_platform.values())}
 
 
 @app.get("/api/observations/{platform_id}/track")

@@ -217,8 +217,12 @@
           <span>TOTAL PLATFORMS</span>
           <span id="cntTotal" class="mono" style="color:var(--accent);">0</span>
         </div>
-        <div style="font-size:10px; color:var(--text-dim); margin-top:2px;">
-          Latest Update: <span id="lblLatestUpdate" class="mono" style="color:var(--text);">--</span>
+        <div style="font-size:10px; color:var(--text-dim); margin-top:2px; display:flex; justify-content:space-between;">
+          <span>Latest Update: <span id="lblLatestUpdate" class="mono" style="color:var(--text);">--</span></span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px; font-size:10px;">
+          <span style="color:var(--text-dim);">Data Source</span>
+          <span id="lblTrackerMode" class="mono" style="color:var(--accent); font-weight:600;">DEMONSTRATION MODE</span>
         </div>
       </div>
     </div>
@@ -855,6 +859,10 @@ async function loadObservations(){
     document.getElementById("cntBgc").textContent = data.summary.bgc || 0;
     document.getElementById("cntTotal").textContent = data.count || 0;
     document.getElementById("lblLatestUpdate").textContent = (data.summary.latest_update || "").replace("T", " ").replace("Z", " UTC");
+
+    const sampleMarker = data.markers && data.markers[0];
+    const isDemo = !sampleMarker || sampleMarker.data_status === "DEMONSTRATION DATA";
+    document.getElementById("lblTrackerMode").textContent = isDemo ? "DEMONSTRATION MODE" : "CACHED REAL DATA";
   }
 
   const toggles = {

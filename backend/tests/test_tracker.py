@@ -35,11 +35,27 @@ class TestObservationTrackerMap(unittest.TestCase):
         has_fallback = any(m["lat"] == 18.0 and m["lon"] == 78.5 for m in markers)
         self.assertFalse(has_fallback)
 
-        # Verify data status provenance
+        # Verify data status provenance and honest status reporting
         for m in markers:
             self.assertEqual(m["data_status"], "DEMONSTRATION DATA")
             self.assertIn("status", m)
-            self.assertIn(m["status"], ("ACTIVE", "RECENT", "STALE"))
+            if m["data_status"] == "DEMONSTRATION DATA":
+                self.assertEqual(m["status"], "DEMONSTRATION")
+            else:
+                self.assertIn(m["status"], ("ACTIVE", "RECENT", "STALE", "OFFLINE"))
+
+    def test_latest_platforms_endpoint(self):
+        res = self.client.get("/api/observations/platforms/latest")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertIn("platforms", data)
+        self.assertGreater(data["count"], 0)
+        p = data["platforms"][0]
+        self.assertIn("platform_id", p)
+        self.assertIn("latitude", p)
+        self.assertIn("longitude", p)
+        self.assertIn("timestamp", p)
+        self.assertIn("data_status", p)
 
     def test_platform_track_endpoint(self):
         # Pick ARGO-2900000
