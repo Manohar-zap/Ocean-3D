@@ -444,7 +444,8 @@ async function initCesiumGlobe(){
   // Initial Camera Target: India + Indian Ocean
   flyToIndia();
 
-  // Hover Readout
+  // Hover Readout & Observation Platform Label Display
+  let hoveredEntity = null;
   const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
   handler.setInputAction((movement) => {
     const cartesian = viewer.camera.pickEllipsoid(movement.endPosition, viewer.scene.globe.ellipsoid);
@@ -454,6 +455,21 @@ async function initCesiumGlobe(){
       const lat = Cesium.Math.toDegrees(cartographic.latitude).toFixed(2);
       const height = (viewer.camera.positionCartographic.height / 1000.0).toFixed(0);
       document.getElementById("coordsReadout").textContent = `Position: ${lat}°N, ${lon}°E | Altitude: ${height} km | India & Indian Ocean Globe`;
+    }
+
+    const pickedObject = viewer.scene.pick(movement.endPosition);
+    if(Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.userData && pickedObject.id.userData.platform_id) {
+      const entity = pickedObject.id;
+      if(hoveredEntity && hoveredEntity !== entity && (!state.selectedProfile || state.selectedProfile.platform_id !== hoveredEntity.userData.platform_id)) {
+        if(hoveredEntity.label) hoveredEntity.label.show = false;
+      }
+      hoveredEntity = entity;
+      if(hoveredEntity.label) hoveredEntity.label.show = true;
+    } else {
+      if(hoveredEntity && (!state.selectedProfile || state.selectedProfile.platform_id !== hoveredEntity.userData.platform_id)) {
+        if(hoveredEntity.label) hoveredEntity.label.show = false;
+      }
+      hoveredEntity = null;
     }
   }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
@@ -754,10 +770,17 @@ async function loadVectors(){
 }
 
 // ---------------------------------------------------------------------
-// Observations & 3D Vertical Profile Paths
+// Observations & Floating Platform Icons
 // ---------------------------------------------------------------------
 const PLATFORM_COLOR = {
   argo: '#f2a65a', glider: '#8ec9e0', ctd: '#c58ee0', bgc: '#8ee0a4'
+};
+
+const PLATFORM_ICON = {
+  argo: 'assets/icons/argo_float.png',
+  glider: 'assets/icons/glider.png',
+  ctd: 'assets/icons/ctd.png',
+  bgc: 'assets/icons/bgc.png'
 };
 
 async function loadObservations(){
@@ -779,79 +802,33 @@ async function loadObservations(){
     const data = await res.json();
 
     const colorCss = PLATFORM_COLOR[ptype];
+    const iconUrl = PLATFORM_ICON[ptype] || 'assets/icons/argo_float.png';
 
     for(const m of data.markers){
-      // Surface Point
+      const isSelected = !!(state.selectedProfile && state.selectedProfile.platform_id === m.platform_id);
+      // Single Floating Platform Icon on Cesium Globe
       const entity = viewer.entities.add({
         position: Cesium.Cartesian3.fromDegrees(m.lon, m.lat, 100.0),
-        point: {
-          pixelSize: 10,
-          color: Cesium.Color.fromCssColorString(colorCss),
-          outlineColor: Cesium.Color.BLACK,
-          outlineWidth: 1.5
+        billboard: {
+          image: iconUrl,
+          width: isSelected ? 38 : 28,
+          height: isSelected ? 38 : 28,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM
         },
         label: {
           text: m.platform_id,
-          font: '11px IBM Plex Mono',
+          font: 'bold 11px IBM Plex Mono',
           style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-          pixelOffset: new Cesium.Cartesian2(0, -16),
-          fillColor: Cesium.Color.WHITE
+          pixelOffset: new Cesium.Cartesian2(0, -32),
+          fillColor: Cesium.Color.WHITE,
+          show: isSelected
         }
       });
-      entity.userData = { platform_id: m.platform_id };
+      entity.userData = { platform_id: m.platform_id, platform_type: ptype, baseColorCss: colorCss, iconUrl: iconUrl };
       profileEntities.push(entity);
       state.markers[m.platform_id] = entity;
-
-      // 3D Vertical Polyline Profile Path descending through water column
-      if(state.showProfileLines){
-        load3DProfileLine(m.platform_id, m.lat, m.lon, colorCss);
-      }
     }
   }
-}
-
-async function load3DProfileLine(platform_id, defaultLat, defaultLon, colorCss){
-  const res = await fetch(apiUrl(`/api/observations/${platform_id}/profile`));
-  if(!res.ok) return;
-  const data = await res.json();
-
-  const coords = [];
-  const color = Cesium.Color.fromCssColorString(colorCss);
-
-  data.profile.forEach(p => {
-    // Preserve Glider horizontal trajectory coordinates if present; fallback to default platform lat/lon
-    const lat = p.latitude ?? defaultLat;
-    const lon = p.longitude ?? defaultLon;
-    const h = -p.depth * state.verticalExaggeration * 15.0;
-    coords.push(lon, lat, h);
-
-    // 3D Measurement Sample Node in Cesium scene
-    const samplePoint = viewer.entities.add({
-      position: Cesium.Cartesian3.fromDegrees(lon, lat, h),
-      point: {
-        pixelSize: 8,
-        color: color,
-        outlineColor: Cesium.Color.WHITE,
-        outlineWidth: 1.0,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY
-      }
-    });
-    samplePoint.userData = { platform_id, sample: p };
-    profileEntities.push(samplePoint);
-  });
-
-  if(coords.length < 6) return;
-
-  // 3D Polyline trajectory path
-  const poly = viewer.entities.add({
-    polyline: {
-      positions: Cesium.Cartesian3.fromDegreesArrayHeights(coords),
-      width: 4.0,
-      material: color,
-      disableDepthTestDistance: Number.POSITIVE_INFINITY
-    }
-  });
-  profileEntities.push(poly);
 }
 
 async function refreshAll(){
@@ -860,7 +837,7 @@ async function refreshAll(){
 }
 
 // ---------------------------------------------------------------------
-// 3D Profile Inspection, 3D Depth Cursor & Model Comparison
+// 3D Profile Inspection & Model Comparison
 // ---------------------------------------------------------------------
 let depthCursorEntity = null;
 
@@ -897,28 +874,41 @@ function update3DDepthCursor(){
   document.getElementById("obsSal").textContent = salVal;
   document.getElementById("obsQC").textContent = qc;
 
-  // Render or move glowing 3D Depth Cursor Entity in Cesium scene
-  if(depthCursorEntity){
-    viewer.entities.remove(depthCursorEntity);
-  }
-
-  const h = -activeSample.depth * state.verticalExaggeration * 15.0;
-  depthCursorEntity = viewer.entities.add({
-    position: Cesium.Cartesian3.fromDegrees(lon, lat, h),
-    point: {
-      pixelSize: 14,
-      color: Cesium.Color.fromCssColorString('#3fe0c5'),
-      outlineColor: Cesium.Color.WHITE,
-      outlineWidth: 2.0,
-      disableDepthTestDistance: Number.POSITIVE_INFINITY
+  // Highlight the single platform geographic icon on the globe for pid, restore others
+  Object.keys(state.markers).forEach(k => {
+    const mEntity = state.markers[k];
+    if(!mEntity) return;
+    const isTarget = (k === pid);
+    if(mEntity.billboard) {
+      mEntity.billboard.width = isTarget ? 38 : 28;
+      mEntity.billboard.height = isTarget ? 38 : 28;
+    }
+    if(mEntity.label) {
+      mEntity.label.show = isTarget;
     }
   });
+
+  // depthCursorEntity points to the single selected platform marker on the globe
+  depthCursorEntity = state.markers[pid] || null;
 
   renderRightPanelWaterColumn();
 }
 
 let waterColumnScene, waterColumnCamera, waterColumnRenderer;
 let wcLayersGroup, wcProfileGroup, waterColumnCursorMesh;
+let wcIsDragging = false;
+let wcPrevMouse = { x: 0, y: 0 };
+let wcSpherical = { radius: 6.2, theta: 0.6, phi: 1.1 };
+const wcTarget = new THREE.Vector3(0, -1.2, 0);
+
+function updateWCCamera(){
+  if(!waterColumnCamera) return;
+  const x = wcTarget.x + wcSpherical.radius * Math.sin(wcSpherical.phi) * Math.sin(wcSpherical.theta);
+  const y = wcTarget.y + wcSpherical.radius * Math.cos(wcSpherical.phi);
+  const z = wcTarget.z + wcSpherical.radius * Math.sin(wcSpherical.phi) * Math.cos(wcSpherical.theta);
+  waterColumnCamera.position.set(x, y, z);
+  waterColumnCamera.lookAt(wcTarget);
+}
 
 function initThreeWaterColumn(){
   if(typeof THREE === 'undefined') return;
@@ -933,8 +923,7 @@ function initThreeWaterColumn(){
     waterColumnScene.background = new THREE.Color(0x10212e);
 
     waterColumnCamera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
-    waterColumnCamera.position.set(3.8, 2.8, 4.8);
-    waterColumnCamera.lookAt(0, -1.2, 0);
+    updateWCCamera();
 
     waterColumnRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     waterColumnRenderer.setSize(width, height);
@@ -954,11 +943,35 @@ function initThreeWaterColumn(){
     wcProfileGroup = new THREE.Group();
     waterColumnScene.add(wcProfileGroup);
 
+    // Mouse drag orbit & wheel zoom controls for user-controlled 3D view
+    container.addEventListener('mousedown', (e) => {
+      wcIsDragging = true;
+      wcPrevMouse = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if(!wcIsDragging || !waterColumnCamera) return;
+      const dx = e.clientX - wcPrevMouse.x;
+      const dy = e.clientY - wcPrevMouse.y;
+      wcSpherical.theta -= dx * 0.008;
+      wcSpherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, wcSpherical.phi - dy * 0.008));
+      updateWCCamera();
+      wcPrevMouse = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('mouseup', () => { wcIsDragging = false; });
+
+    container.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      if(!waterColumnCamera) return;
+      wcSpherical.radius = Math.max(2.0, Math.min(15.0, wcSpherical.radius + e.deltaY * 0.005));
+      updateWCCamera();
+    }, { passive: false });
+
+    // Render loop renders scene state - NO auto-rotation
     function animateWC(){
       requestAnimationFrame(animateWC);
       if(waterColumnScene && waterColumnCamera && waterColumnRenderer){
-        wcLayersGroup.rotation.y += 0.005;
-        wcProfileGroup.rotation.y += 0.005;
         waterColumnRenderer.render(waterColumnScene, waterColumnCamera);
       }
     }
@@ -1075,6 +1088,10 @@ async function openProfile(platform_id){
   document.getElementById("profileTitle").textContent = "OBSERVATION INFO";
   document.getElementById("profileMeta").textContent = `${data.platform_type.toUpperCase()} platform · 3D depth profile active`;
 
+  // Position 3D camera at default stationary viewing angle
+  wcSpherical = { radius: 6.2, theta: 0.6, phi: 1.1 };
+  updateWCCamera();
+
   update3DDepthCursor();
   document.getElementById("compareResult").style.display = "none";
   document.getElementById("profilePanel").classList.add("open");
@@ -1083,7 +1100,7 @@ async function openProfile(platform_id){
   const lat = sample.latitude ?? data.lat ?? 18.0;
   const lon = sample.longitude ?? data.lon ?? 78.5;
 
-  // Fly camera to 3D oblique perspective focused on platform 3D vertical profile
+  // Fly camera to 3D oblique perspective focused on platform geographic location
   viewer.camera.flyTo({
     destination: Cesium.Cartesian3.fromDegrees(lon, lat - 0.4, 140000),
     orientation: {
@@ -1096,8 +1113,19 @@ async function openProfile(platform_id){
 }
 
 document.getElementById("closeProfile").onclick = () => {
-  if(depthCursorEntity) viewer.entities.remove(depthCursorEntity);
+  if(state.selectedProfile && state.markers[state.selectedProfile.platform_id]){
+    const mEntity = state.markers[state.selectedProfile.platform_id];
+    if(mEntity && mEntity.point){
+      const baseColor = mEntity.userData && mEntity.userData.baseColorCss ? mEntity.userData.baseColorCss : '#f2a65a';
+      mEntity.point.pixelSize = 10;
+      mEntity.point.color = Cesium.Color.fromCssColorString(baseColor);
+      mEntity.point.outlineColor = Cesium.Color.BLACK;
+      mEntity.point.outlineWidth = 1.5;
+      if(mEntity.label) mEntity.label.show = false;
+    }
+  }
   state.selectedProfile = null;
+  depthCursorEntity = null;
   document.getElementById("obsPlatformId").textContent = "--";
   document.getElementById("obsType").textContent = "--";
   document.getElementById("obsLat").textContent = "--";
@@ -1106,11 +1134,6 @@ document.getElementById("closeProfile").onclick = () => {
   document.getElementById("obsTemp").textContent = "--";
   document.getElementById("obsSal").textContent = "--";
   document.getElementById("obsQC").textContent = "--";
-  document.getElementById("profilePanel").classList.remove("open");
-};
-
-document.getElementById("closeProfile").onclick = () => {
-  if(depthCursorEntity) viewer.entities.remove(depthCursorEntity);
   document.getElementById("profilePanel").classList.remove("open");
 };
 
