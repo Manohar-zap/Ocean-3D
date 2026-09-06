@@ -1,56 +1,61 @@
-# Migration Plan: Replace CesiumJS with Three.js GLSL Globe and Integrate ETOPO Terrain & Ocean Features
+# Implementation Plan: Complete Debug & Fix of Ocean-3D Visualization
 
-Migrate the Ocean-3D frontend from CesiumJS 1.114 to a standalone Three.js (r128) single-sphere GLSL shader globe with real NOAA ETOPO1 heightmap vertex displacement, and absorb the ETOPO heightmap server functionality into the FastAPI backend (`backend/app/main.py`), incorporating all six mandatory engineering requirements.
+Fix all 25 identified problems, focusing on geographic correctness, proper 3D hierarchy, and functional data controls.
 
-## User Review Required / Decisions
+## Diagnosis of Major Bugs
 
-> [!IMPORTANT]
-> - **Region Navigation Decision:** The "Fly to Himalayas" button and region select (Indian, Pacific, Atlantic, Southern, Arctic Ocean) **are in scope** and will be rebuilt as smooth OrbitControls camera position/target transitions targeting lat/lon positions on the Three.js sphere.
-> - **UI Shell Preservation:** When porting scene/shader/heightmap logic from `gloab/index2_corrected.html`, **only the script logic** is imported. `frontend/index.html`'s existing glassmorphic research/public UI panels, timebar, depth slider, and profile panel are fully preserved.
-> - **Performance & Batched Geometry:** Observation markers and current-vector arrows will use batched/instanced geometry (`InstancedMesh` or optimized buffer geometries / instanced points) to prevent object pollution and ensure high framerates.
-> - **Robust Path Resolution:** Terrain endpoints (`/api/terrain/heightmap`, `/api/terrain/heightmap-meta`) resolve `.f32` and `.json` paths relative to `Path(__file__).resolve()` to eliminate CWD dependence.
-> - **Config Cleanup:** `CESIUM_ION_TOKEN` will be removed from `frontend/config.js` and `.env.example` / `.env`.
-> - **Regression Tests:** Automated pytest tests will cover profile lat/lon inclusion, explicit `dataset_id` comparison parameter, and terrain endpoint smoke tests.
+### 1. Earth Rotation / Orbit Bug
+- **Root Cause:** In `frontend/index.html`, the `terrainMesh` (Earth) and `waterMesh` are rotated by `-0.25` radians (Lines 460, 520) to align the texture, but the data layers (`modelGroup`, `observationGroup`, etc.) are added to the `scene` at the origin without this rotation. This causes a geographic mismatch. Furthermore, `OrbitControls` targets `(0,0,0)` but independent object rotations make interaction feel disjointed.
+- **Fix:** Move all components into a single `globeGroup` at `(0,0,0)`. Rotate the *group* once if needed, or better, fix the `latLonToVector3` math to align with the default texture projection.
+
+### 2. Geographic Displacement
+- **Root Cause:** Multiple coordinate conversion logics or misalignment between `SphereGeometry` UVs and the `Blue Marble` texture.
+- **Fix:** Establish a single `latLonToVector3` utility aligned with the texture (0° lon at X+).
+
+### 3. Rectangular Tiles / Grid
+- **Root Cause:** Gridded data is being rendered as flat entities or incorrectly projected.
+- **Fix:** Every cell/vertex will be mapped to the sphere surface using `latLonToVector3`. **Confirmed:** We will NOT just change parent groups; every data point will be individually curved onto the sphere.
 
 ## Proposed Changes
 
+### Frontend (`frontend/index.html`)
+
+#### [MODIFY] Scene Hierarchy & Performance
+- Refactor all globe-related meshes and groups into a single `globeGroup` parent.
+- **GPU Memory:** Implement recursive `disposeGroup(group)` and call it in `refreshAll()` before every update.
+
+#### [MODIFY] Canonical Math Utility
+- Implement `latLonToVector3(lat, lon, radius)`:
+  - Latitude 0, Longitude 0 -> (R, 0, 0)
+  - Latitude 90 (N) -> (0, R, 0)
+  - Longitude 90 (E) -> (0, 0, -R) (matching Three.js standard spherical mapping).
+- Align `SphereGeometry` rotation to this math (removing the `-0.25` hack).
+
+#### [MODIFY] Data Controls (Sliders/Selectors)
+- **Depth Slider:** Implement snapping to nearest available depth from `DEPTHS` constant.
+- **UI Readout:** Display "Selected: [Val]m / Data: [Actual]m" when slider is moved.
+- **Time Slider:** Connect to fetch and display the correct timestamp from backend.
+- **Variable Selector:** Dynamic colorbar scale (min/max) based on dataset metadata.
+
+#### [MODIFY] Interactivity & Profile Panel
+- Fix platform selection using `userData.platformIds` on `InstancedMesh`.
+- Update `openProfile` to display coordinates and profile data from the real API response.
+
 ### Backend (`backend/app/`)
-
-#### [MODIFY] [main.py](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/app/main.py)
-- Add GET `/api/terrain/heightmap` streaming `gloab/data/etopo1_2048x1024.f32` (resolved robustly via `Path(__file__)`) as `application/octet-stream`.
-- Add GET `/api/terrain/heightmap-meta` serving `gloab/data/etopo1_2048x1024.json` as JSON.
-- Fix bug 1: Add `"latitude": r.latitude, "longitude": r.longitude` to observation profile response items in `/api/observations/{platform_id}/profile`.
-- Fix bug 2: Add optional `dataset_id` query parameter to `/api/compare` and thread it through to `comparison_service.compare()`.
-
-#### [MODIFY] [services.py](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/app/services.py)
-- Update `ComparisonService.compare()` to accept optional `dataset_id` parameter to resolve dataset ambiguity for shared variables.
-
-#### [NEW / MODIFY] Tests (`backend/tests/`)
-- Add tests for profile lat/lon, compare with `dataset_id`, and terrain endpoints smoke test.
-
-### Frontend (`frontend/`)
-
-#### [MODIFY] [config.js](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/frontend/config.js)
-- Remove `CESIUM_ION_TOKEN`.
-
-#### [MODIFY] [index.html](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/frontend/index.html)
-- Remove CesiumJS CDN scripts, `widgets.css`, and Cesium initialization code.
-- Import Three.js r128 and OrbitControls.
-- Integrate Three.js globe setup, GLSL shaders, and `loadLocalHeightmap()` fetching from `http://localhost:8000/api/terrain/heightmap`.
-- Implement lat/lon -> sphere-vertex/UV conversion helpers matching ETOPO grid convention (row 0 = north, col 0 = -180°).
-- Re-wire model slices (`/api/model`), volume stacks (`/api/model/volume`), ocean current vectors (`current_u`/`current_v` using batched line geometries or instanced meshes), observation markers (batched meshes/points), 3D profile paths (`/api/observations/{id}/profile`), depth cursor, comparison panel (`/api/compare`), CSV export (`/api/export`), and region fly-to controls.
-
-### Cleanup (`gloab/`)
-
-#### [DELETE] [etopo_heightmap_server.py](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/gloab/etopo_heightmap_server.py)
-- Retire standalone heightmap server script.
+- Verified `/api/model` and `/api/observations` fields (lat, lon, depth, value, platform_id) match frontend expectations.
 
 ## Verification Plan
 
-### Automated Tests
-- Run `pytest` to execute existing and new regression tests (profile lat/lon, compare dataset_id, terrain smoke test).
+### Acceptance Tests (Manual via Browser)
+1. **Globe rotation**: Drag Earth. Verify it rotates around its center.
+2. **Zoom**: Scroll. Verify Earth stays centered.
+3. **India position**: Click "Fly to India". Verify India is centered.
+4. **Instrument coordinates**: Click a marker. Verify coordinates in the panel match its geographical location.
+5. **Depth Snapping**: Move depth slider. Verify it snaps to the closest discrete level (e.g. 0, 10, 25...).
+6. **Variable Switch**: Change to Oxygen. Verify colorbar scale and labels update.
+7. **Marker click**: Click Argo marker. Verify real profile chart and metadata appear.
 
-### Manual Verification
-- Start FastAPI backend (`uvicorn app.main:app --port 8000`).
-- Open `frontend/index.html` in browser.
-- Verify Three.js globe renders real ETOPO1 terrain and water shader, controls work smoothly, markers and vectors render efficiently using batched geometry.
+## Fabricated Data Audit
+- `Math.random()`: Used only for `Starfield` (visual background).
+- Hardcoded Coords: `REGION_TARGETS` only (correct for camera navigation).
+- All ocean data is driven by `/api/` endpoints (with synthetic fallback in backend if real data is missing).

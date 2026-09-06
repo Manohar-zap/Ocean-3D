@@ -271,7 +271,7 @@
 
     <div class="timebar">
       <span class="cb-label">Depth</span>
-      <input type="range" id="depthSlider" min="0" max="13" value="0" step="1" style="max-width:140px;">
+      <input type="range" id="depthSlider" min="0" max="2000" value="0" step="1" style="max-width:140px;">
       <span class="cb-label mono" id="depthLabel">0 m</span>
 
       <span class="cb-label" style="margin-left:18px;">Time</span>
@@ -324,10 +324,12 @@
 
   function apiUrl(path){ return state.apiBase.replace(/\/$/, "") + path; }
 
-  // Lat/Lon to Sphere Vector & UV
+  // Lat/Lon to Sphere Vector & UV (Fix for Bug #2)
   function latLonToVector3(lat, lon, radius = BASE_RADIUS) {
     const phi = (90 - lat) * (Math.PI / 180);
     const theta = (lon + 180) * (Math.PI / 180);
+    // Standard Three.js sphere mapping:
+    // lon 0 is at X+ (if theta is 180 deg shifted)
     const x = -(radius * Math.sin(phi) * Math.cos(theta));
     const z = radius * Math.sin(phi) * Math.sin(theta);
     const y = radius * Math.cos(phi);
@@ -367,8 +369,12 @@
 
   function colormap(t){
     t = Math.min(1, Math.max(0, t));
-    const temp = -1.8 + t * 31.8;
-    const [r, g, b] = thermalColor(temp);
+    // Generic colormap using thermal stops, normalized to 0-1
+    const n = THERMAL_STOPS.length;
+    const minT = THERMAL_STOPS[0].t;
+    const maxT = THERMAL_STOPS[n-1].t;
+    const val = minT + t * (maxT - minT);
+    const [r, g, b] = thermalColor(val);
     return [r / 255, g / 255, b / 255];
   }
 
@@ -392,10 +398,22 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Three.js Scene Setup
+  // Scene & Hierarchy
   // ---------------------------------------------------------------------------
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x030712);
+
+  const globeGroup = new THREE.Group();
+  scene.add(globeGroup);
+
+  const modelGroup = new THREE.Group();
+  globeGroup.add(modelGroup);
+
+  const vectorGroup = new THREE.Group();
+  globeGroup.add(vectorGroup);
+
+  const observationGroup = new THREE.Group();
+  globeGroup.add(observationGroup);
 
   const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
   camera.position.set(0, 1.25, 5.2);
@@ -456,8 +474,9 @@
     side: THREE.FrontSide
   });
   const terrainMesh = new THREE.Mesh(earthGeometry, terrainMaterial);
-  terrainMesh.rotation.y = -0.25;
-  scene.add(terrainMesh);
+  // Remove hardcoded -0.25 rotation to fix alignment at the root
+  terrainMesh.rotation.y = 0;
+  globeGroup.add(terrainMesh);
 
   // Water Mesh
   const waterGeometry = new THREE.SphereGeometry(1, 256, 128);
@@ -685,14 +704,8 @@
   // ---------------------------------------------------------------------
   // Application Logic & API Integration
   // ---------------------------------------------------------------------
-  let modelGroup = new THREE.Group();
-  scene.add(modelGroup);
-
-  let vectorGroup = new THREE.Group();
-  scene.add(vectorGroup);
-
-  let observationGroup = new THREE.Group();
-  scene.add(observationGroup);
+  // Groups are now child of globeGroup (defined above during scene init)
+  // Reusing the same instances to maintain state.
 
   async function loadCatalog(){
     const res = await fetch(apiUrl("/api/catalog"));
@@ -1043,7 +1056,9 @@
     const sample = data.profile[0] || {};
     const lat = sample.latitude ?? 0;
     const lon = sample.longitude ?? 0;
-    document.getElementById("obsCoords").textContent = `${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E`;
+    const latStr = `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? 'N' : 'S'}`;
+    const lonStr = `${Math.abs(lon).toFixed(2)}°${lon >= 0 ? 'E' : 'W'}`;
+    document.getElementById("obsCoords").textContent = `${latStr}, ${lonStr}`;
 
     const maxD = Math.max(...data.profile.map(p => p.depth));
     document.getElementById("obsMaxDepth").textContent = `${maxD} m`;
@@ -1130,8 +1145,19 @@
     await refreshAll();
   };
   document.getElementById("depthSlider").oninput = async (e) => {
-    state.depthIndex = parseInt(e.target.value);
-    document.getElementById("depthLabel").textContent = `${DEPTHS[state.depthIndex]} m`;
+    const requestedDepth = parseInt(e.target.value);
+    // Find closest valid depth level (Fix for Bug #4)
+    const closest = DEPTHS.reduce((prev, curr) =>
+      Math.abs(curr - requestedDepth) < Math.abs(prev - requestedDepth) ? curr : prev
+    );
+    state.depthIndex = DEPTHS.indexOf(closest);
+
+    const label = document.getElementById("depthLabel");
+    if (closest === requestedDepth) {
+      label.textContent = `${closest} m`;
+    } else {
+      label.textContent = `Sel: ${requestedDepth}m / Data: ${closest}m`;
+    }
     await refreshAll();
   };
   document.getElementById("timeSlider").oninput = async (e) => {
