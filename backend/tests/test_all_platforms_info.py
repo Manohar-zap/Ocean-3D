@@ -20,8 +20,17 @@ class TestAllPlatformsRightPanel(unittest.TestCase):
             driver.get('http://localhost:5500')
             time.sleep(5)
 
-            platforms = ['ARGO-2900001', 'GLIDER-6000', 'CTD-100', 'BGC-100']
-            for pid in platforms:
+            target_types = ['argo', 'glider', 'ctd', 'bgc']
+            pids = []
+            for t in target_types:
+                found_id = driver.execute_script(f"""
+                    let entity = profileEntities.find(e => e.userData && e.userData.platform_type === '{t}');
+                    return entity ? entity.userData.platform_id : null;
+                """)
+                if found_id:
+                    pids.append(found_id)
+
+            for pid in pids:
                 driver.execute_script(f"openProfile('{pid}');")
                 time.sleep(2)
 

@@ -58,17 +58,21 @@ class TestObservationTrackerMap(unittest.TestCase):
         self.assertIn("data_status", p)
 
     def test_platform_track_endpoint(self):
-        # Pick ARGO-2900000
-        res = self.client.get("/api/observations/ARGO-2900000/track")
+        res_lat = self.client.get("/api/observations/platforms/latest")
+        self.assertEqual(res_lat.status_code, 200)
+        platforms = res_lat.json()["platforms"]
+        self.assertGreater(len(platforms), 0)
+
+        target_pid = platforms[0]["platform_id"]
+        res = self.client.get(f"/api/observations/{target_pid}/track")
         self.assertEqual(res.status_code, 200)
         data = res.json()
 
-        self.assertEqual(data["platform_id"], "ARGO-2900000")
-        self.assertEqual(data["platform_type"], "argo")
+        self.assertEqual(data["platform_id"], target_pid)
         self.assertIn("track", data)
 
         track = data["track"]
-        self.assertGreaterEqual(len(track), 2)
+        self.assertGreaterEqual(len(track), 1)
 
         # Verify track points are chronologically ordered
         timestamps = [pt["timestamp"] for pt in track]

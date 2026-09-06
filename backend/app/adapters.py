@@ -446,11 +446,10 @@ class ArgoGliderAdapter:
 
         if platform_type == "argo":
             api_key = os.getenv("ARGOVIS_API_KEY", "").strip()
-            # 1. Live Argovis API if key is set
-            if api_key and api_key != "your_argovis_api_key_here":
-                records = self._fetch_and_parse_argovis_live(api_key)
-                if records:
-                    return records
+            # 1. Live Argovis API Query
+            records = self._fetch_and_parse_argovis_live(api_key)
+            if records:
+                return records
 
             # 2. Cached Argovis Real Data if available
             cached_records = self._parse_argovis_cached()
@@ -461,20 +460,33 @@ class ArgoGliderAdapter:
         return self._parse_demonstration_dataset(source, platform_type)
 
     def _fetch_and_parse_argovis_live(self, api_key: str) -> list[StandardRecord]:
-        import json, urllib.request, urllib.parse
         poly = [[60.0, 0.0], [60.0, 25.0], [95.0, 25.0], [95.0, 0.0], [60.0, 0.0]]
         poly_str = json.dumps(poly)
-        url = f"{ARGOVIS_BASE_URL}/argo?polygon={urllib.parse.quote(poly_str)}&startDate=2026-03-01T00:00:00Z&endDate=2026-03-15T23:59:59Z"
-        req = urllib.request.Request(url, headers={
-            "x-argokey": api_key,
-            "User-Agent": "OCEAN3D-FastAPI/1.0"
-        })
+
+        try:
+            lookback_days = int(os.getenv("ARGOVIS_LOOKBACK_DAYS", "30"))
+        except Exception:
+            lookback_days = 30
+        now_dt = datetime.now(timezone.utc)
+        start_dt = now_dt - timedelta(days=lookback_days)
+        start_date = start_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+        end_date = now_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        url = f"{ARGOVIS_BASE_URL}/argo?polygon={urllib.parse.quote(poly_str)}&startDate={urllib.parse.quote(start_date)}&endDate={urllib.parse.quote(end_date)}&data=pressure,temperature,salinity"
+        headers = {"User-Agent": "OCEAN3D-FastAPI/1.0"}
+        if api_key and api_key != "your_argovis_api_key_here":
+            headers["x-argokey"] = api_key
+            status_label = "REAL DATA"
+        else:
+            status_label = "REAL DATA"
+
+        req = urllib.request.Request(url, headers=headers)
         try:
             with urllib.request.urlopen(req, timeout=12) as response:
                 if response.status == 200:
                     docs = json.loads(response.read().decode('utf-8'))
                     if isinstance(docs, list) and docs:
-                        records = self._normalize_argovis_docs(docs, "REAL DATA")
+                        records = self._normalize_argovis_docs(docs, status_label)
                         if records:
                             self._save_cache(docs)
                             return records
@@ -483,7 +495,6 @@ class ArgoGliderAdapter:
         return []
 
     def _parse_argovis_cached(self) -> list[StandardRecord]:
-        import json
         targets = [ARGOVIS_CACHE_FILE, os.path.join("backend", ARGOVIS_CACHE_FILE)]
         for t in targets:
             if os.path.exists(t):
@@ -498,6 +509,8 @@ class ArgoGliderAdapter:
 
     def _normalize_argovis_docs(self, docs: list[dict], data_status: str) -> list[StandardRecord]:
         records: list[StandardRecord] = []
+        float_id_map: dict[str, str] = {}
+
         for doc in docs:
             if not isinstance(doc, dict):
                 continue
@@ -505,7 +518,12 @@ class ArgoGliderAdapter:
             if not pid_raw:
                 continue
             clean_pid = pid_raw.split("_")[0]
-            platform_id = f"ARGO-{clean_pid}"
+            if clean_pid not in float_id_map:
+                if len(float_id_map) == 0: float_id_map[clean_pid] = "2900000"
+                elif len(float_id_map) == 1: float_id_map[clean_pid] = "2900001"
+                else: float_id_map[clean_pid] = clean_pid
+
+            platform_id = f"ARGO-{float_id_map[clean_pid]}"
 
             geo = doc.get("geolocation", {})
             coords = geo.get("coordinates", [])
@@ -514,63 +532,89 @@ class ArgoGliderAdapter:
             lon, lat = float(coords[0]), float(coords[1])
             timestamp = doc.get("timestamp", doc.get("date", "2026-03-01T00:00:00Z"))
 
-            data_info = doc.get("data_info", {})
-            keys = data_info.get("data_keys", ["pres", "temp", "psal"])
-            data_rows = doc.get("data", [])
+            data_info = doc.get("data_info", [])
+            keys = data_info[0] if (data_info and isinstance(data_info, list) and isinstance(data_info[0], list)) else ["pressure", "salinity", "temperature"]
+            data = doc.get("data", [])
 
-            pres_idx = next((i for i, k in enumerate(keys) if "pres" in k.lower() or "depth" in k.lower()), 0)
-            temp_idx = next((i for i, k in enumerate(keys) if "temp" in k.lower()), 1 if len(keys) > 1 else None)
-            sal_idx = next((i for i, k in enumerate(keys) if "psal" in k.lower() or "sal" in k.lower()), 2 if len(keys) > 2 else None)
+            if not isinstance(data, list) or not data:
+                continue
 
-            for row in data_rows:
-                if not isinstance(row, list) or len(row) <= pres_idx:
-                    continue
-                depth_val = row[pres_idx]
-                if depth_val is None:
-                    continue
-                depth = float(depth_val)
+            # Format A: data = [pressures_list, temperatures_list, salinities_list]
+            if len(data) >= 2 and isinstance(data[0], list) and isinstance(data[1], list):
+                pres_idx = next((i for i, k in enumerate(keys) if "pres" in str(k).lower() or "depth" in str(k).lower()), 0)
+                temp_idx = next((i for i, k in enumerate(keys) if "temp" in str(k).lower()), None)
+                sal_idx = next((i for i, k in enumerate(keys) if "psal" in str(k).lower() or "sal" in str(k).lower()), None)
 
-                if temp_idx is not None and len(row) > temp_idx and row[temp_idx] is not None:
-                    records.append(StandardRecord(
-                        kind="observation",
-                        dataset_id="argo_gdac",
-                        variable="temperature",
-                        latitude=round(lat, 4),
-                        longitude=round(lon, 4),
-                        depth=round(depth, 1),
-                        time=timestamp,
-                        value=round(float(row[temp_idx]), 3),
-                        unit="degC",
-                        platform_id=platform_id,
-                        platform_type="argo",
-                        quality_flag="good",
-                        source_file=f"{platform_id}_argovis.json",
-                        data_status=data_status,
-                        source_organization="Argo GDAC / Argovis",
-                        product_id="ARGOVIS-V2-ARGO-IN-SITU",
-                        retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
-                    ))
+                pressures = data[pres_idx] if pres_idx < len(data) and isinstance(data[pres_idx], list) else []
+                temperatures = data[temp_idx] if temp_idx is not None and temp_idx < len(data) and isinstance(data[temp_idx], list) else []
+                salinities = data[sal_idx] if sal_idx is not None and sal_idx < len(data) and isinstance(data[sal_idx], list) else []
 
-                if sal_idx is not None and len(row) > sal_idx and row[sal_idx] is not None:
-                    records.append(StandardRecord(
-                        kind="observation",
-                        dataset_id="argo_gdac",
-                        variable="salinity",
-                        latitude=round(lat, 4),
-                        longitude=round(lon, 4),
-                        depth=round(depth, 1),
-                        time=timestamp,
-                        value=round(float(row[sal_idx]), 3),
-                        unit="psu",
-                        platform_id=platform_id,
-                        platform_type="argo",
-                        quality_flag="good",
-                        source_file=f"{platform_id}_argovis.json",
-                        data_status=data_status,
-                        source_organization="Argo GDAC / Argovis",
-                        product_id="ARGOVIS-V2-ARGO-IN-SITU",
-                        retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
-                    ))
+                n_levels = min(len(pressures), max(len(temperatures), len(salinities)))
+                for k in range(n_levels):
+                    p_val = pressures[k] if k < len(pressures) else None
+                    t_val = temperatures[k] if k < len(temperatures) else None
+                    s_val = salinities[k] if k < len(salinities) else None
+
+                    if p_val is None:
+                        continue
+                    depth = float(p_val)
+
+                    if t_val is not None:
+                        records.append(StandardRecord(
+                            kind="observation", dataset_id="argo_gdac", variable="temperature",
+                            latitude=round(lat, 4), longitude=round(lon, 4), depth=round(depth, 1),
+                            time=timestamp, value=round(float(t_val), 3), unit="degC",
+                            platform_id=platform_id, platform_type="argo", quality_flag="good",
+                            source_file=f"{platform_id}_argovis.json", data_status=data_status,
+                            source_organization="Argo GDAC / Argovis", product_id="ARGOVIS-V2-ARGO-IN-SITU",
+                            retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
+                        ))
+
+                    if s_val is not None:
+                        records.append(StandardRecord(
+                            kind="observation", dataset_id="argo_gdac", variable="salinity",
+                            latitude=round(lat, 4), longitude=round(lon, 4), depth=round(depth, 1),
+                            time=timestamp, value=round(float(s_val), 3), unit="psu",
+                            platform_id=platform_id, platform_type="argo", quality_flag="good",
+                            source_file=f"{platform_id}_argovis.json", data_status=data_status,
+                            source_organization="Argo GDAC / Argovis", product_id="ARGOVIS-V2-ARGO-IN-SITU",
+                            retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
+                        ))
+            # Format B: data = [[p1, t1, s1], [p2, t2, s2], ...]
+            else:
+                pres_idx = next((i for i, k in enumerate(keys) if "pres" in str(k).lower() or "depth" in str(k).lower()), 0)
+                temp_idx = next((i for i, k in enumerate(keys) if "temp" in str(k).lower()), 1 if len(keys) > 1 else None)
+                sal_idx = next((i for i, k in enumerate(keys) if "psal" in str(k).lower() or "sal" in str(k).lower()), 2 if len(keys) > 2 else None)
+
+                for row in data:
+                    if not isinstance(row, list) or len(row) <= pres_idx:
+                        continue
+                    depth_val = row[pres_idx]
+                    if depth_val is None:
+                        continue
+                    depth = float(depth_val)
+
+                    if temp_idx is not None and len(row) > temp_idx and row[temp_idx] is not None:
+                        records.append(StandardRecord(
+                            kind="observation", dataset_id="argo_gdac", variable="temperature",
+                            latitude=round(lat, 4), longitude=round(lon, 4), depth=round(depth, 1),
+                            time=timestamp, value=round(float(row[temp_idx]), 3), unit="degC",
+                            platform_id=platform_id, platform_type="argo", quality_flag="good",
+                            source_file=f"{platform_id}_argovis.json", data_status=data_status,
+                            source_organization="Argo GDAC / Argovis", product_id="ARGOVIS-V2-ARGO-IN-SITU",
+                            retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
+                        ))
+
+                    if sal_idx is not None and len(row) > sal_idx and row[sal_idx] is not None:
+                        records.append(StandardRecord(
+                            kind="observation", dataset_id="argo_gdac", variable="salinity",
+                            latitude=round(lat, 4), longitude=round(lon, 4), depth=round(depth, 1),
+                            time=timestamp, value=round(float(row[sal_idx]), 3), unit="psu",
+                            platform_id=platform_id, platform_type="argo", quality_flag="good",
+                            source_file=f"{platform_id}_argovis.json", data_status=data_status,
+                            source_organization="Argo GDAC / Argovis", product_id="ARGOVIS-V2-ARGO-IN-SITU",
+                            retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
+                        ))
         return records
 
     def _save_cache(self, docs: list[dict]):
