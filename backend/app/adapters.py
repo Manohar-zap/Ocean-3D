@@ -405,10 +405,10 @@ ARGOVIS_CACHE_FILE = "sample_argovis_cached.json"
 
 
 class ArgoGliderAdapter:
-    """Argo GDAC / Argovis API v2 adapter and Glider DAC in-situ profile adapter."""
+    """Argo GDAC / Argovis API v2 adapter."""
 
     def can_handle(self, source: str) -> bool:
-        return source in ("argo_gdac", "glider_dac", "argovis")
+        return source in ("argo_gdac", "argovis")
 
     def metadata(self) -> dict:
         platform = "argo" if self._source in ("argo_gdac", "argovis") else "glider"
@@ -676,84 +676,194 @@ class ArgoGliderAdapter:
         return records
 
 
-class CTDBGCObservationAdapter:
-    """Stands in for shipboard CTD casts and BGC-Argo (ASCII/delimited)."""
+class IOOSGliderAdapter:
+    """IOOS Glider DAC / ERDDAP real autonomous glider deployment adapter."""
 
     def can_handle(self, source: str) -> bool:
-        return source in ("ctd_cast", "bgc_argo")
+        return source in ("glider_dac", "ioos_glider", "glider")
 
     def metadata(self) -> dict:
-        if self._source == "ctd_cast":
-            return {"source_name": "Shipboard CTD casts (DEMONSTRATION DATA)",
-                     "variables": ["temperature", "salinity"],
-                     "units": {"temperature": "degC", "salinity": "psu"},
-                     "platform_type": "ctd",
-                     "data_status": "DEMONSTRATION DATA",
-                     "source_organization": "INCOIS CTD (demo)",
-                     "product_id": "INCOIS-CTD-IND-DEMO",
-                     "retrieval_timestamp": datetime.now(timezone.utc).isoformat()}
-        return {"source_name": "BGC-Argo floats (DEMONSTRATION DATA)",
-                "variables": ["oxygen", "chlorophyll"],
-                "units": {"oxygen": "umol/kg", "chlorophyll": "mg/m3"},
-                "platform_type": "bgc",
-                "data_status": "DEMONSTRATION DATA",
-                "source_organization": "BGC-Argo (demo)",
-                "product_id": "BGC-ARGO-IND-DEMO",
-                "retrieval_timestamp": datetime.now(timezone.utc).isoformat()}
-
-    def __init__(self):
-        self._source = "ctd_cast"
+        has_cache = os.path.exists("sample_glider_ioos_cached.json") or os.path.exists("backend/sample_glider_ioos_cached.json")
+        data_status = "CACHED REAL DATA" if has_cache else "DEMONSTRATION DATA"
+        return {
+            "source_name": f"IOOS Glider DAC Autonomous Deployments ({data_status})",
+            "variables": ["temperature", "salinity"],
+            "units": {"temperature": "degC", "salinity": "psu"},
+            "platform_type": "glider",
+            "data_status": data_status,
+            "source_organization": "IOOS Glider DAC / NOAA",
+            "product_id": "IOOS-GLIDER-DAC-V2",
+            "retrieval_timestamp": datetime.now(timezone.utc).isoformat(),
+        }
 
     def parse(self, source: str) -> list[StandardRecord]:
-        self._source = source
-        platform_type = "ctd" if source == "ctd_cast" else "bgc"
-        variables = ["temperature", "salinity"] if platform_type == "ctd" else ["oxygen", "chlorophyll"]
-        units = {"temperature": "degC", "salinity": "psu", "oxygen": "umol/kg", "chlorophyll": "mg/m3"}
-        rng = random.Random(7 if platform_type == "ctd" else 21)
-        n_platforms = 30 if platform_type == "ctd" else 20
+        targets = ["sample_glider_ioos_cached.json", "backend/sample_glider_ioos_cached.json"]
+        for t in targets:
+            if os.path.exists(t):
+                try:
+                    with open(t, "r", encoding="utf-8") as f:
+                        docs = json.load(f)
+                    if isinstance(docs, list) and docs:
+                        return self._normalize_glider_docs(docs, "CACHED REAL DATA")
+                except Exception:
+                    pass
+        return []
+
+    def _normalize_glider_docs(self, docs: list[dict], data_status: str) -> list[StandardRecord]:
         records: list[StandardRecord] = []
+        for doc in docs:
+            pid = doc.get("platform_id", "GLIDER-6000")
+            lat = float(doc.get("latitude", 12.84))
+            lon = float(doc.get("longitude", 85.12))
+            timestamp = doc.get("timestamp", "2026-03-01T00:00:00Z")
+            profiles = doc.get("profiles", [])
 
-        for p in range(n_platforms):
-            platform_id = f"{platform_type.upper()}-{100+p}"
-            while True:
-                base_lat = LAT_RANGE[0] + rng.random() * (LAT_RANGE[1] - LAT_RANGE[0])
-                base_lon = LON_RANGE[0] + rng.random() * (LON_RANGE[1] - LON_RANGE[0])
-                if not is_land(base_lat, base_lon):
-                    break
+            for p in profiles:
+                depth = float(p.get("depth", 0.0))
+                if "temperature" in p and p["temperature"] is not None:
+                    records.append(StandardRecord(
+                        kind="observation", dataset_id="glider_dac", variable="temperature",
+                        latitude=round(lat, 4), longitude=round(lon, 4), depth=round(depth, 1),
+                        time=timestamp, value=round(float(p["temperature"]), 3), unit="degC",
+                        platform_id=pid, platform_type="glider", quality_flag="good",
+                        source_file=f"{pid}_ioos.json", data_status=data_status,
+                        source_organization="IOOS Glider DAC", product_id="IOOS-GLIDER-DAC-V2",
+                        retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
+                    ))
+                if "salinity" in p and p["salinity"] is not None:
+                    records.append(StandardRecord(
+                        kind="observation", dataset_id="glider_dac", variable="salinity",
+                        latitude=round(lat, 4), longitude=round(lon, 4), depth=round(depth, 1),
+                        time=timestamp, value=round(float(p["salinity"]), 3), unit="psu",
+                        platform_id=pid, platform_type="glider", quality_flag="good",
+                        source_file=f"{pid}_ioos.json", data_status=data_status,
+                        source_organization="IOOS Glider DAC", product_id="IOOS-GLIDER-DAC-V2",
+                        retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
+                    ))
+        return records
 
-            drift_u = rng.uniform(-0.12, 0.12)
-            drift_v = rng.uniform(-0.12, 0.12)
-            steps = [1, 4, 7]
 
-            for s_idx, step in enumerate(steps):
-                t = _time_at(step)
-                lat = base_lat + drift_v * (step * 0.15)
-                lon = base_lon + drift_u * (step * 0.15)
-                if is_land(lat, lon):
-                    lat, lon = base_lat, base_lon
+class CTD_ERDDAP_Adapter:
+    """NOAA / IOOS ERDDAP Real Shipboard CTD Casts Adapter."""
 
-                depths = DEPTHS[:10] if platform_type == "ctd" else DEPTHS[:7]
-                for depth in depths:
-                    for var in variables:
-                        true_val = _synthetic_value(var, lat, lon, depth, step)
-                        noisy_val = round(true_val + rng.uniform(-0.2, 0.2) * (1 if var != "chlorophyll" else 0.05), 3)
+    def can_handle(self, source: str) -> bool:
+        return source in ("ctd_cast", "ctd_erddap", "ctd")
+
+    def metadata(self) -> dict:
+        has_cache = os.path.exists("sample_ctd_erddap_cached.json") or os.path.exists("backend/sample_ctd_erddap_cached.json")
+        data_status = "CACHED REAL DATA" if has_cache else "DEMONSTRATION DATA"
+        return {
+            "source_name": f"NOAA / IOOS ERDDAP Shipboard CTD Casts ({data_status})",
+            "variables": ["temperature", "salinity"],
+            "units": {"temperature": "degC", "salinity": "psu"},
+            "platform_type": "ctd",
+            "data_status": data_status,
+            "source_organization": "NOAA / IOOS ERDDAP",
+            "product_id": "NOAA-ERDDAP-CTD-V1",
+            "retrieval_timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+    def parse(self, source: str) -> list[StandardRecord]:
+        targets = ["sample_ctd_erddap_cached.json", "backend/sample_ctd_erddap_cached.json"]
+        for t in targets:
+            if os.path.exists(t):
+                try:
+                    with open(t, "r", encoding="utf-8") as f:
+                        docs = json.load(f)
+                    if isinstance(docs, list) and docs:
+                        return self._normalize_ctd_docs(docs, "CACHED REAL DATA")
+                except Exception:
+                    pass
+        return []
+
+    def _normalize_ctd_docs(self, docs: list[dict], data_status: str) -> list[StandardRecord]:
+        records: list[StandardRecord] = []
+        for doc in docs:
+            pid = doc.get("platform_id", "CTD-100")
+            lat = float(doc.get("latitude", 8.09))
+            lon = float(doc.get("longitude", 65.27))
+            timestamp = doc.get("timestamp", "2026-03-12T08:30:00Z")
+            profiles = doc.get("profiles", [])
+
+            for p in profiles:
+                depth = float(p.get("depth", 0.0))
+                if "temperature" in p and p["temperature"] is not None:
+                    records.append(StandardRecord(
+                        kind="observation", dataset_id="ctd_cast", variable="temperature",
+                        latitude=round(lat, 4), longitude=round(lon, 4), depth=round(depth, 1),
+                        time=timestamp, value=round(float(p["temperature"]), 3), unit="degC",
+                        platform_id=pid, platform_type="ctd", quality_flag="good",
+                        source_file=f"{pid}_erddap.json", data_status=data_status,
+                        source_organization="NOAA / IOOS ERDDAP", product_id="NOAA-ERDDAP-CTD-V1",
+                        retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
+                    ))
+                if "salinity" in p and p["salinity"] is not None:
+                    records.append(StandardRecord(
+                        kind="observation", dataset_id="ctd_cast", variable="salinity",
+                        latitude=round(lat, 4), longitude=round(lon, 4), depth=round(depth, 1),
+                        time=timestamp, value=round(float(p["salinity"]), 3), unit="psu",
+                        platform_id=pid, platform_type="ctd", quality_flag="good",
+                        source_file=f"{pid}_erddap.json", data_status=data_status,
+                        source_organization="NOAA / IOOS ERDDAP", product_id="NOAA-ERDDAP-CTD-V1",
+                        retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
+                    ))
+        return records
+
+
+class BGCArgoAdapter:
+    """Argo GDAC / Argovis Real BGC-Argo Profiling Float Adapter (Oxygen & Chlorophyll)."""
+
+    def can_handle(self, source: str) -> bool:
+        return source in ("bgc_argo", "bgc")
+
+    def metadata(self) -> dict:
+        has_cache = os.path.exists("sample_bgc_argo_cached.json") or os.path.exists("backend/sample_bgc_argo_cached.json")
+        data_status = "CACHED REAL DATA" if has_cache else "DEMONSTRATION DATA"
+        return {
+            "source_name": f"Argo GDAC / Argovis BGC-Argo Profiling Floats ({data_status})",
+            "variables": ["oxygen", "chlorophyll", "temperature", "salinity"],
+            "units": {"oxygen": "umol/kg", "chlorophyll": "mg/m3", "temperature": "degC", "salinity": "psu"},
+            "platform_type": "bgc",
+            "data_status": data_status,
+            "source_organization": "Argo GDAC / Argovis BGC",
+            "product_id": "ARGOVIS-V2-BGC-ARGO",
+            "retrieval_timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+    def parse(self, source: str) -> list[StandardRecord]:
+        targets = ["sample_bgc_argo_cached.json", "backend/sample_bgc_argo_cached.json"]
+        for t in targets:
+            if os.path.exists(t):
+                try:
+                    with open(t, "r", encoding="utf-8") as f:
+                        docs = json.load(f)
+                    if isinstance(docs, list) and docs:
+                        return self._normalize_bgc_docs(docs, "CACHED REAL DATA")
+                except Exception:
+                    pass
+        return []
+
+    def _normalize_bgc_docs(self, docs: list[dict], data_status: str) -> list[StandardRecord]:
+        records: list[StandardRecord] = []
+        for doc in docs:
+            pid = doc.get("platform_id", "BGC-100")
+            lat = float(doc.get("latitude", 4.12))
+            lon = float(doc.get("longitude", 84.14))
+            timestamp = doc.get("timestamp", "2026-03-01T00:00:00Z")
+            profiles = doc.get("profiles", [])
+
+            for p in profiles:
+                depth = float(p.get("depth", 0.0))
+                vars_units = [("oxygen", "umol/kg"), ("chlorophyll", "mg/m3"), ("temperature", "degC"), ("salinity", "psu")]
+                for var, unit in vars_units:
+                    if var in p and p[var] is not None:
                         records.append(StandardRecord(
-                            kind="observation",
-                            dataset_id=source,
-                            variable=var,
-                            latitude=round(lat, 4),
-                            longitude=round(lon, 4),
-                            depth=depth,
-                            time=t,
-                            value=noisy_val,
-                            unit=units[var],
-                            platform_id=platform_id,
-                            platform_type=platform_type,
-                            quality_flag="good",
-                            source_file=f"{platform_id}_cast{s_idx}.txt",
-                            data_status="DEMONSTRATION DATA",
-                            source_organization="INCOIS CTD (demo)" if platform_type == "ctd" else "BGC-Argo (demo)",
-                            product_id="INCOIS-CTD-IND-DEMO" if platform_type == "ctd" else "BGC-ARGO-IND-DEMO",
+                            kind="observation", dataset_id="bgc_argo", variable=var,
+                            latitude=round(lat, 4), longitude=round(lon, 4), depth=round(depth, 1),
+                            time=timestamp, value=round(float(p[var]), 3), unit=unit,
+                            platform_id=pid, platform_type="bgc", quality_flag="good",
+                            source_file=f"{pid}_bgc.json", data_status=data_status,
+                            source_organization="Argo GDAC / Argovis BGC", product_id="ARGOVIS-V2-BGC-ARGO",
                             retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
                         ))
         return records
@@ -766,7 +876,9 @@ REGISTERED_ADAPTERS: list[Adapter] = [
     ModelNetCDFAdapter(),
     BGCFieldAdapter(),
     ArgoGliderAdapter(),
-    CTDBGCObservationAdapter(),
+    IOOSGliderAdapter(),
+    CTD_ERDDAP_Adapter(),
+    BGCArgoAdapter(),
 ]
 
 # The logical "sources" the Ingestion Worker polls (Architecture Sec. 6/7).

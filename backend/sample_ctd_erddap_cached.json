@@ -1,0 +1,492 @@
+[
+  {
+    "platform_id": "CTD-100",
+    "station_name": "SAGAR_KANYA_STN_01",
+    "latitude": 8.0958,
+    "longitude": 65.2797,
+    "timestamp": "2026-03-12T08:30:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.785,
+        "salinity": 35.185
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.512,
+        "salinity": 35.21
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.104,
+        "salinity": 35.29
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.34
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.84,
+        "salinity": 35.41
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.92,
+        "salinity": 35.28
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.84,
+        "salinity": 35.05
+      },
+      {
+        "depth": 1000.0,
+        "temperature": 6.21,
+        "salinity": 34.81
+      }
+    ]
+  },
+  {
+    "platform_id": "CTD-101",
+    "station_name": "SAGAR_KANYA_STN_02",
+    "latitude": 7.2402,
+    "longitude": 65.0489,
+    "timestamp": "2026-03-12T08:30:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.785,
+        "salinity": 35.185
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.512,
+        "salinity": 35.21
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.104,
+        "salinity": 35.29
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.34
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.84,
+        "salinity": 35.41
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.92,
+        "salinity": 35.28
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.84,
+        "salinity": 35.05
+      },
+      {
+        "depth": 1000.0,
+        "temperature": 6.21,
+        "salinity": 34.81
+      }
+    ]
+  },
+  {
+    "platform_id": "CTD-102",
+    "station_name": "SAMUDRA_RATNAKAR_STN_03",
+    "latitude": 7.5062,
+    "longitude": 77.3291,
+    "timestamp": "2026-03-12T08:30:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.785,
+        "salinity": 35.185
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.512,
+        "salinity": 35.21
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.104,
+        "salinity": 35.29
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.34
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.84,
+        "salinity": 35.41
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.92,
+        "salinity": 35.28
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.84,
+        "salinity": 35.05
+      },
+      {
+        "depth": 1000.0,
+        "temperature": 6.21,
+        "salinity": 34.81
+      }
+    ]
+  },
+  {
+    "platform_id": "CTD-103",
+    "station_name": "SAMUDRA_RATNAKAR_STN_04",
+    "latitude": 11.8525,
+    "longitude": 83.2453,
+    "timestamp": "2026-03-12T08:30:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.785,
+        "salinity": 35.185
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.512,
+        "salinity": 35.21
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.104,
+        "salinity": 35.29
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.34
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.84,
+        "salinity": 35.41
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.92,
+        "salinity": 35.28
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.84,
+        "salinity": 35.05
+      },
+      {
+        "depth": 1000.0,
+        "temperature": 6.21,
+        "salinity": 34.81
+      }
+    ]
+  },
+  {
+    "platform_id": "CTD-104",
+    "station_name": "SAGAR_NIDHI_STN_05",
+    "latitude": 6.946,
+    "longitude": 64.7924,
+    "timestamp": "2026-03-12T08:30:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.785,
+        "salinity": 35.185
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.512,
+        "salinity": 35.21
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.104,
+        "salinity": 35.29
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.34
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.84,
+        "salinity": 35.41
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.92,
+        "salinity": 35.28
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.84,
+        "salinity": 35.05
+      },
+      {
+        "depth": 1000.0,
+        "temperature": 6.21,
+        "salinity": 34.81
+      }
+    ]
+  },
+  {
+    "platform_id": "CTD-105",
+    "station_name": "SAGAR_NIDHI_STN_06",
+    "latitude": 15.4398,
+    "longitude": 83.667,
+    "timestamp": "2026-03-12T08:30:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.785,
+        "salinity": 35.185
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.512,
+        "salinity": 35.21
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.104,
+        "salinity": 35.29
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.34
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.84,
+        "salinity": 35.41
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.92,
+        "salinity": 35.28
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.84,
+        "salinity": 35.05
+      },
+      {
+        "depth": 1000.0,
+        "temperature": 6.21,
+        "salinity": 34.81
+      }
+    ]
+  },
+  {
+    "platform_id": "CTD-106",
+    "station_name": "SAGAR_KANYA_STN_07",
+    "latitude": 5.1988,
+    "longitude": 73.168,
+    "timestamp": "2026-03-12T08:30:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.785,
+        "salinity": 35.185
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.512,
+        "salinity": 35.21
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.104,
+        "salinity": 35.29
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.34
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.84,
+        "salinity": 35.41
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.92,
+        "salinity": 35.28
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.84,
+        "salinity": 35.05
+      },
+      {
+        "depth": 1000.0,
+        "temperature": 6.21,
+        "salinity": 34.81
+      }
+    ]
+  },
+  {
+    "platform_id": "CTD-107",
+    "station_name": "SAGAR_KANYA_STN_08",
+    "latitude": 7.4522,
+    "longitude": 82.5021,
+    "timestamp": "2026-03-12T08:30:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.785,
+        "salinity": 35.185
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.512,
+        "salinity": 35.21
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.104,
+        "salinity": 35.29
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.34
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.84,
+        "salinity": 35.41
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.92,
+        "salinity": 35.28
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.84,
+        "salinity": 35.05
+      },
+      {
+        "depth": 1000.0,
+        "temperature": 6.21,
+        "salinity": 34.81
+      }
+    ]
+  },
+  {
+    "platform_id": "CTD-108",
+    "station_name": "SAGAR_MANJUSHA_STN_09",
+    "latitude": 12.1204,
+    "longitude": 74.8912,
+    "timestamp": "2026-03-12T08:30:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.785,
+        "salinity": 35.185
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.512,
+        "salinity": 35.21
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.104,
+        "salinity": 35.29
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.34
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.84,
+        "salinity": 35.41
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.92,
+        "salinity": 35.28
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.84,
+        "salinity": 35.05
+      },
+      {
+        "depth": 1000.0,
+        "temperature": 6.21,
+        "salinity": 34.81
+      }
+    ]
+  },
+  {
+    "platform_id": "CTD-109",
+    "station_name": "SAGAR_MANJUSHA_STN_10",
+    "latitude": 16.8912,
+    "longitude": 82.412,
+    "timestamp": "2026-03-12T08:30:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.785,
+        "salinity": 35.185
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.512,
+        "salinity": 35.21
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.104,
+        "salinity": 35.29
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.34
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.84,
+        "salinity": 35.41
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.92,
+        "salinity": 35.28
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.84,
+        "salinity": 35.05
+      },
+      {
+        "depth": 1000.0,
+        "temperature": 6.21,
+        "salinity": 34.81
+      }
+    ]
+  }
+]

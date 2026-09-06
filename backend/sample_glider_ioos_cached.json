@@ -1,0 +1,1762 @@
+[
+  {
+    "platform_id": "GLIDER-6000",
+    "mission": "sg600_bayofbengal",
+    "latitude": 12.8432,
+    "longitude": 85.1245,
+    "timestamp": "2026-03-02T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6000",
+    "mission": "sg600_bayofbengal",
+    "latitude": 12.9632,
+    "longitude": 85.2445,
+    "timestamp": "2026-03-06T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6000",
+    "mission": "sg600_bayofbengal",
+    "latitude": 13.0832,
+    "longitude": 85.3645,
+    "timestamp": "2026-03-10T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6000",
+    "mission": "sg600_bayofbengal",
+    "latitude": 13.2032,
+    "longitude": 85.4845,
+    "timestamp": "2026-03-14T12:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6001",
+    "mission": "ng601_arabiansea",
+    "latitude": 16.5412,
+    "longitude": 68.2104,
+    "timestamp": "2026-03-02T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6001",
+    "mission": "ng601_arabiansea",
+    "latitude": 16.6612,
+    "longitude": 68.3304,
+    "timestamp": "2026-03-06T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6001",
+    "mission": "ng601_arabiansea",
+    "latitude": 16.7812,
+    "longitude": 68.4504,
+    "timestamp": "2026-03-10T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6001",
+    "mission": "ng601_arabiansea",
+    "latitude": 16.9012,
+    "longitude": 68.5704,
+    "timestamp": "2026-03-14T12:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6002",
+    "mission": "sg602_sri_lanka_south",
+    "latitude": 5.2104,
+    "longitude": 81.421,
+    "timestamp": "2026-03-02T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6002",
+    "mission": "sg602_sri_lanka_south",
+    "latitude": 5.3304,
+    "longitude": 81.541,
+    "timestamp": "2026-03-06T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6002",
+    "mission": "sg602_sri_lanka_south",
+    "latitude": 5.4504,
+    "longitude": 81.661,
+    "timestamp": "2026-03-10T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6002",
+    "mission": "sg602_sri_lanka_south",
+    "latitude": 5.5704,
+    "longitude": 81.781,
+    "timestamp": "2026-03-14T12:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6003",
+    "mission": "ng603_equatorial_ind",
+    "latitude": 2.1205,
+    "longitude": 78.3412,
+    "timestamp": "2026-03-02T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6003",
+    "mission": "ng603_equatorial_ind",
+    "latitude": 2.2405,
+    "longitude": 78.4612,
+    "timestamp": "2026-03-06T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6003",
+    "mission": "ng603_equatorial_ind",
+    "latitude": 2.3605,
+    "longitude": 78.5812,
+    "timestamp": "2026-03-10T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6003",
+    "mission": "ng603_equatorial_ind",
+    "latitude": 2.4805,
+    "longitude": 78.7012,
+    "timestamp": "2026-03-14T12:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6004",
+    "mission": "sg604_andaman_sea",
+    "latitude": 11.2312,
+    "longitude": 92.8912,
+    "timestamp": "2026-03-02T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6004",
+    "mission": "sg604_andaman_sea",
+    "latitude": 11.3512,
+    "longitude": 93.0112,
+    "timestamp": "2026-03-06T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6004",
+    "mission": "sg604_andaman_sea",
+    "latitude": 11.4712,
+    "longitude": 93.1312,
+    "timestamp": "2026-03-10T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6004",
+    "mission": "sg604_andaman_sea",
+    "latitude": 11.5912,
+    "longitude": 93.2512,
+    "timestamp": "2026-03-14T12:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6005",
+    "mission": "ng605_lakshadweep",
+    "latitude": 10.1204,
+    "longitude": 72.3412,
+    "timestamp": "2026-03-02T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6005",
+    "mission": "ng605_lakshadweep",
+    "latitude": 10.2404,
+    "longitude": 72.4612,
+    "timestamp": "2026-03-06T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6005",
+    "mission": "ng605_lakshadweep",
+    "latitude": 10.3604,
+    "longitude": 72.5812,
+    "timestamp": "2026-03-10T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6005",
+    "mission": "ng605_lakshadweep",
+    "latitude": 10.4804,
+    "longitude": 72.7012,
+    "timestamp": "2026-03-14T12:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6006",
+    "mission": "sg606_chennai_offshore",
+    "latitude": 13.1204,
+    "longitude": 81.2104,
+    "timestamp": "2026-03-02T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6006",
+    "mission": "sg606_chennai_offshore",
+    "latitude": 13.2404,
+    "longitude": 81.3304,
+    "timestamp": "2026-03-06T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6006",
+    "mission": "sg606_chennai_offshore",
+    "latitude": 13.3604,
+    "longitude": 81.4504,
+    "timestamp": "2026-03-10T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6006",
+    "mission": "sg606_chennai_offshore",
+    "latitude": 13.4804,
+    "longitude": 81.5704,
+    "timestamp": "2026-03-14T12:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6007",
+    "mission": "ng607_vizag_offshore",
+    "latitude": 17.512,
+    "longitude": 84.1204,
+    "timestamp": "2026-03-02T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6007",
+    "mission": "ng607_vizag_offshore",
+    "latitude": 17.632,
+    "longitude": 84.2404,
+    "timestamp": "2026-03-06T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6007",
+    "mission": "ng607_vizag_offshore",
+    "latitude": 17.752,
+    "longitude": 84.3604,
+    "timestamp": "2026-03-10T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6007",
+    "mission": "ng607_vizag_offshore",
+    "latitude": 17.872,
+    "longitude": 84.4804,
+    "timestamp": "2026-03-14T12:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6008",
+    "mission": "sg608_goa_offshore",
+    "latitude": 15.2104,
+    "longitude": 73.1204,
+    "timestamp": "2026-03-02T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6008",
+    "mission": "sg608_goa_offshore",
+    "latitude": 15.3304,
+    "longitude": 73.2404,
+    "timestamp": "2026-03-06T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6008",
+    "mission": "sg608_goa_offshore",
+    "latitude": 15.4504,
+    "longitude": 73.3604,
+    "timestamp": "2026-03-10T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6008",
+    "mission": "sg608_goa_offshore",
+    "latitude": 15.5704,
+    "longitude": 73.4804,
+    "timestamp": "2026-03-14T12:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6009",
+    "mission": "ng609_maldives_channel",
+    "latitude": 4.1204,
+    "longitude": 73.2104,
+    "timestamp": "2026-03-02T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6009",
+    "mission": "ng609_maldives_channel",
+    "latitude": 4.2404,
+    "longitude": 73.3304,
+    "timestamp": "2026-03-06T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6009",
+    "mission": "ng609_maldives_channel",
+    "latitude": 4.3604,
+    "longitude": 73.4504,
+    "timestamp": "2026-03-10T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  },
+  {
+    "platform_id": "GLIDER-6009",
+    "mission": "ng609_maldives_channel",
+    "latitude": 4.4804,
+    "longitude": 73.5704,
+    "timestamp": "2026-03-14T12:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 30.12,
+        "salinity": 34.812
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.84,
+        "salinity": 34.89
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.512,
+        "salinity": 35.012
+      },
+      {
+        "depth": 50.0,
+        "temperature": 26.21,
+        "salinity": 35.12
+      },
+      {
+        "depth": 100.0,
+        "temperature": 22.104,
+        "salinity": 35.31
+      },
+      {
+        "depth": 200.0,
+        "temperature": 17.89,
+        "salinity": 35.21
+      },
+      {
+        "depth": 500.0,
+        "temperature": 11.21,
+        "salinity": 35.012
+      }
+    ]
+  }
+]

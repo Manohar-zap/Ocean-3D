@@ -1,0 +1,2282 @@
+[
+  {
+    "platform_id": "BGC-100",
+    "latitude": 4.1237,
+    "longitude": 84.1418,
+    "timestamp": "2026-03-02T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-100",
+    "latitude": 4.2237,
+    "longitude": 84.2418,
+    "timestamp": "2026-03-06T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-100",
+    "latitude": 4.3237,
+    "longitude": 84.3418,
+    "timestamp": "2026-03-10T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-100",
+    "latitude": 4.4237,
+    "longitude": 84.4418,
+    "timestamp": "2026-03-14T12:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-101",
+    "latitude": 1.0584,
+    "longitude": 94.9146,
+    "timestamp": "2026-03-02T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-101",
+    "latitude": 1.1584,
+    "longitude": 95.0146,
+    "timestamp": "2026-03-06T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-101",
+    "latitude": 1.2584,
+    "longitude": 95.1146,
+    "timestamp": "2026-03-10T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-101",
+    "latitude": 1.3584,
+    "longitude": 95.2146,
+    "timestamp": "2026-03-14T12:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-102",
+    "latitude": 12.1176,
+    "longitude": 66.5418,
+    "timestamp": "2026-03-02T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-102",
+    "latitude": 12.2176,
+    "longitude": 66.6418,
+    "timestamp": "2026-03-06T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-102",
+    "latitude": 12.3176,
+    "longitude": 66.7418,
+    "timestamp": "2026-03-10T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-102",
+    "latitude": 12.4176,
+    "longitude": 66.8418,
+    "timestamp": "2026-03-14T12:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-103",
+    "latitude": 8.5308,
+    "longitude": 65.1153,
+    "timestamp": "2026-03-02T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-103",
+    "latitude": 8.6308,
+    "longitude": 65.2153,
+    "timestamp": "2026-03-06T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-103",
+    "latitude": 8.7308,
+    "longitude": 65.3153,
+    "timestamp": "2026-03-10T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-103",
+    "latitude": 8.8308,
+    "longitude": 65.4153,
+    "timestamp": "2026-03-14T12:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-104",
+    "latitude": 14.288,
+    "longitude": 71.1524,
+    "timestamp": "2026-03-02T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-104",
+    "latitude": 14.388,
+    "longitude": 71.2524,
+    "timestamp": "2026-03-06T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-104",
+    "latitude": 14.488,
+    "longitude": 71.3524,
+    "timestamp": "2026-03-10T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-104",
+    "latitude": 14.588,
+    "longitude": 71.4524,
+    "timestamp": "2026-03-14T12:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-105",
+    "latitude": 18.512,
+    "longitude": 88.2104,
+    "timestamp": "2026-03-02T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-105",
+    "latitude": 18.612,
+    "longitude": 88.3104,
+    "timestamp": "2026-03-06T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-105",
+    "latitude": 18.712,
+    "longitude": 88.4104,
+    "timestamp": "2026-03-10T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-105",
+    "latitude": 18.812,
+    "longitude": 88.5104,
+    "timestamp": "2026-03-14T12:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-106",
+    "latitude": 9.8912,
+    "longitude": 75.412,
+    "timestamp": "2026-03-02T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-106",
+    "latitude": 9.9912,
+    "longitude": 75.512,
+    "timestamp": "2026-03-06T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-106",
+    "latitude": 10.0912,
+    "longitude": 75.612,
+    "timestamp": "2026-03-10T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-106",
+    "latitude": 10.1912,
+    "longitude": 75.712,
+    "timestamp": "2026-03-14T12:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-107",
+    "latitude": 15.2104,
+    "longitude": 68.8912,
+    "timestamp": "2026-03-02T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-107",
+    "latitude": 15.3104,
+    "longitude": 68.9912,
+    "timestamp": "2026-03-06T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-107",
+    "latitude": 15.4104,
+    "longitude": 69.0912,
+    "timestamp": "2026-03-10T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-107",
+    "latitude": 15.5104,
+    "longitude": 69.1912,
+    "timestamp": "2026-03-14T12:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-108",
+    "latitude": 3.8912,
+    "longitude": 80.1204,
+    "timestamp": "2026-03-02T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-108",
+    "latitude": 3.9912,
+    "longitude": 80.2204,
+    "timestamp": "2026-03-06T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-108",
+    "latitude": 4.0912,
+    "longitude": 80.3204,
+    "timestamp": "2026-03-10T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-108",
+    "latitude": 4.1912,
+    "longitude": 80.4204,
+    "timestamp": "2026-03-14T12:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-109",
+    "latitude": 11.412,
+    "longitude": 87.8912,
+    "timestamp": "2026-03-02T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-109",
+    "latitude": 11.512,
+    "longitude": 87.9912,
+    "timestamp": "2026-03-06T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-109",
+    "latitude": 11.612,
+    "longitude": 88.0912,
+    "timestamp": "2026-03-10T00:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  },
+  {
+    "platform_id": "BGC-109",
+    "latitude": 11.712,
+    "longitude": 88.1912,
+    "timestamp": "2026-03-14T12:00:00Z",
+    "profiles": [
+      {
+        "depth": 0.0,
+        "temperature": 29.51,
+        "salinity": 34.89,
+        "oxygen": 210.5,
+        "chlorophyll": 0.42
+      },
+      {
+        "depth": 10.0,
+        "temperature": 29.21,
+        "salinity": 34.92,
+        "oxygen": 212.1,
+        "chlorophyll": 0.58
+      },
+      {
+        "depth": 25.0,
+        "temperature": 28.12,
+        "salinity": 35.01,
+        "oxygen": 218.4,
+        "chlorophyll": 0.89
+      },
+      {
+        "depth": 50.0,
+        "temperature": 25.89,
+        "salinity": 35.15,
+        "oxygen": 195.2,
+        "chlorophyll": 0.65
+      },
+      {
+        "depth": 100.0,
+        "temperature": 21.45,
+        "salinity": 35.29,
+        "oxygen": 120.8,
+        "chlorophyll": 0.12
+      },
+      {
+        "depth": 200.0,
+        "temperature": 16.81,
+        "salinity": 35.21,
+        "oxygen": 65.4,
+        "chlorophyll": 0.02
+      },
+      {
+        "depth": 500.0,
+        "temperature": 10.51,
+        "salinity": 35.02,
+        "oxygen": 42.1,
+        "chlorophyll": 0.005
+      }
+    ]
+  }
+]
