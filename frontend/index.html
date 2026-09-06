@@ -862,9 +862,11 @@
     const valMap = {};
     points.forEach(p => { valMap[`${p.lat}_${p.lon}`] = p.value; });
 
-    // Size tiles to match grid spacing (Requirement 4)
-    const tileSize = 0.04 * (BASE_RADIUS / 2.0);
-    const geom = new THREE.PlaneGeometry(tileSize, tileSize);
+    // Calculate tile size from real grid spacing (Requirement 4 fixed)
+    const arcLength = (angle) => (angle * Math.PI / 180) * BASE_RADIUS;
+    const width = arcLength(lonStep);
+    const height = arcLength(latStep);
+    const geom = new THREE.PlaneGeometry(width * 1.1, height * 1.1); // 10% overlap to prevent gaps
     const mat = new THREE.MeshBasicMaterial({ transparent: true, opacity: alpha, side: THREE.DoubleSide });
 
     const validPoints = points.filter(p => {
@@ -1267,6 +1269,13 @@
 
   drawColorbar(0, 30);
   loadLocalHeightmap();
+
+  // Expose for verification and debugging (Requirement 22)
+  window._scene = {
+    globeGroup, modelGroup, vectorGroup, observationGroup,
+    terrainMesh, waterMesh, waterMaterial, state, DEPTHS,
+    openProfile, refreshAll
+  };
 
 })();
 </script>
