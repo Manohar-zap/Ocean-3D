@@ -1,61 +1,55 @@
-# Implementation Plan: Complete Debug & Fix of Ocean-3D Visualization
+# Implementation Plan: physically Accurate 3D Water Drain & Scientific Grid Mapping
 
-Fix all 25 identified problems, focusing on geographic correctness, proper 3D hierarchy, and functional data controls.
+Transform the static globe into a dynamic 3D ocean explorer with a physically accurate "water drain" effect and high-fidelity model data mapping.
 
-## Diagnosis of Major Bugs
+## User Review Required
 
-### 1. Earth Rotation / Orbit Bug
-- **Root Cause:** In `frontend/index.html`, the `terrainMesh` (Earth) and `waterMesh` are rotated by `-0.25` radians (Lines 460, 520) to align the texture, but the data layers (`modelGroup`, `observationGroup`, etc.) are added to the `scene` at the origin without this rotation. This causes a geographic mismatch. Furthermore, `OrbitControls` targets `(0,0,0)` but independent object rotations make interaction feel disjointed.
-- **Fix:** Move all components into a single `globeGroup` at `(0,0,0)`. Rotate the *group* once if needed, or better, fix the `latLonToVector3` math to align with the default texture projection.
-
-### 2. Geographic Displacement
-- **Root Cause:** Multiple coordinate conversion logics or misalignment between `SphereGeometry` UVs and the `Blue Marble` texture.
-- **Fix:** Establish a single `latLonToVector3` utility aligned with the texture (0° lon at X+).
-
-### 3. Rectangular Tiles / Grid
-- **Root Cause:** Gridded data is being rendered as flat entities or incorrectly projected.
-- **Fix:** Every cell/vertex will be mapped to the sphere surface using `latLonToVector3`. **Confirmed:** We will NOT just change parent groups; every data point will be individually curved onto the sphere.
+> [!IMPORTANT]
+> - **Drained Water Surface:** The `waterMesh` shell will physically decrease in radius as depth increases (`radius = R - scaledDepth`).
+> - **ETOPO Sign Convention:** The shader will use `if (elevation > -selectedDepth) discard;`. This ensures land (positive elevation) and shallow seabed (elevation between 0 and -selectedDepth) are revealed as "dry" ground.
+> - **Grid Tile Logic:** "Square Blocks" will be replaced by oriented tiles (`PlaneGeometry`) sized to match the real grid spacing.
+> - **Bathymetry Masking for Data:** Model data points will be CPU-masked. If the local seabed elevation is shallower than the data depth (`elevation > -depth`), the data point will not be rendered to prevent it from floating above dry ground or being buried in land.
 
 ## Proposed Changes
 
 ### Frontend (`frontend/index.html`)
 
-#### [MODIFY] Scene Hierarchy & Performance
-- Refactor all globe-related meshes and groups into a single `globeGroup` parent.
-- **GPU Memory:** Implement recursive `disposeGroup(group)` and call it in `refreshAll()` before every update.
+#### [MODIFY] True 3D Water Drain (Shader & Scene)
+- **State:** `state.selectedDepth` will be the snapped value from `DEPTHS`.
+- **Sinking Surface:** In `refreshAll()`, update `waterMesh.scale` using `BASE_RADIUS * (1 - state.selectedDepth * TERRAIN_SCALE * state.verticalExaggeration)`.
+- **Shader Masking:** Update `waterMaterial.uniforms.uSeaLevel` to `-state.selectedDepth`.
+  - The fragment shader will `discard` water if `elevation > uSeaLevel`, correctly revealing land and shallow seabed while keeping deep water visible below the new surface level.
 
-#### [MODIFY] Canonical Math Utility
-- Implement `latLonToVector3(lat, lon, radius)`:
-  - Latitude 0, Longitude 0 -> (R, 0, 0)
-  - Latitude 90 (N) -> (0, R, 0)
-  - Longitude 90 (E) -> (0, 0, -R) (matching Three.js standard spherical mapping).
-- Align `SphereGeometry` rotation to this math (removing the `-0.25` hack).
+#### [MODIFY] Scientific Grid Mapping (Fixing "Square Blocks")
+- **Refactor `renderSurfaceGrid`**:
+  - Calculate `latStep` and `lonStep` from the data points to determine tile size.
+  - Use `PlaneGeometry` for the `InstancedMesh`.
+  - **Orientation:** Each tile will use `dummy.lookAt(0,0,0)` to ensure it follows the Earth's curvature.
+  - **Placement:** Position at `radius = BASE_RADIUS * (1 - depth * TERRAIN_SCALE * state.verticalExaggeration)`.
+  - **Bathymetry Mask:** Sample `elevationCache` at each `(u, v)`. If `elevation > -depth`, skip the instance.
 
-#### [MODIFY] Data Controls (Sliders/Selectors)
-- **Depth Slider:** Implement snapping to nearest available depth from `DEPTHS` constant.
-- **UI Readout:** Display "Selected: [Val]m / Data: [Actual]m" when slider is moved.
-- **Time Slider:** Connect to fetch and display the correct timestamp from backend.
-- **Variable Selector:** Dynamic colorbar scale (min/max) based on dataset metadata.
+#### [MODIFY] Centralized State & Controls
+- **Depth Slider:**
+  - Update `min/max` to `0` and `2000`.
+  - Implement snapping to `DEPTHS` array.
+  - Display: `Selected: [Slider]m / Data: [Nearest]m`.
+- **Time Slider:** Trigger `refreshAll()` to fetch data for the selected timestamp.
+- **Variable Selector:** Trigger `refreshAll()` and update colorbar labels/min/max.
 
-#### [MODIFY] Interactivity & Profile Panel
-- Fix platform selection using `userData.platformIds` on `InstancedMesh`.
-- Update `openProfile` to display coordinates and profile data from the real API response.
-
-### Backend (`backend/app/`)
-- Verified `/api/model` and `/api/observations` fields (lat, lon, depth, value, platform_id) match frontend expectations.
+#### [MODIFY] Resource Disposal
+- Enhance `disposeGroup` to handle nested maps and materials to ensure memory stability during high-frequency slider updates.
 
 ## Verification Plan
 
-### Acceptance Tests (Manual via Browser)
-1. **Globe rotation**: Drag Earth. Verify it rotates around its center.
-2. **Zoom**: Scroll. Verify Earth stays centered.
-3. **India position**: Click "Fly to India". Verify India is centered.
-4. **Instrument coordinates**: Click a marker. Verify coordinates in the panel match its geographical location.
-5. **Depth Snapping**: Move depth slider. Verify it snaps to the closest discrete level (e.g. 0, 10, 25...).
-6. **Variable Switch**: Change to Oxygen. Verify colorbar scale and labels update.
-7. **Marker click**: Click Argo marker. Verify real profile chart and metadata appear.
+### Mandatory Bathymetry Tests
+Verify the following logic in the running application:
+- **ETOPO +500m (Land), Depth 500m:** Land must be visible and dry.
+- **ETOPO -200m (Shelf), Depth 500m:** Seabed must be exposed and dry.
+- **ETOPO -1000m (Deep), Depth 500m:** Water surface must be visible at the 500m level.
+- **ETOPO -700m, Depth 1000m:** Seabed must be exposed.
+- **ETOPO -1500m, Depth 1000m:** Water remains.
 
-## Fabricated Data Audit
-- `Math.random()`: Used only for `Starfield` (visual background).
-- Hardcoded Coords: `REGION_TARGETS` only (correct for camera navigation).
-- All ocean data is driven by `/api/` endpoints (with synthetic fallback in backend if real data is missing).
+### Functional Checks
+1. **Rotation:** Verify Earth rotates around its center (0,0,0).
+2. **Lat/Lon:** Verify markers appear in correct geographic locations.
+3. **Variable Sync:** Verify colorbar and grid update when switching variables.

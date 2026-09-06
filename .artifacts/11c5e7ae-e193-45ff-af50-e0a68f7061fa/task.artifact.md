@@ -1,12 +1,9 @@
-# Task List: Complete Debug & Fix of Ocean-3D
+# Task List: Physically Accurate 3D Water Drain
 
-- [x] Frontend: Refactor Scene Hierarchy into `globeGroup`
-- [x] Frontend: Implement canonical `latLonToVector3` and align with texture
-- [x] Frontend: Fix "wrong orbit" by centering `globeGroup` and fixing `OrbitControls`
-- [x] Frontend: Rewire all data overlays (markers, grids, vectors) to use canonical coordinate utility
-- [x] Frontend: Fix Depth/Time sliders to trigger data refresh with snapping
-- [x] Frontend: Fix Variable selector and dynamic Colorbar mapping
-- [x] Frontend: Fix platform picking and real data display in profile panel
-- [x] Frontend: Implement full resource disposal (GPU memory fix)
-- [x] Backend: Final field verification and baseline stability check
-- [x] Verification: Run manual acceptance tests
+- [x] Frontend: Update `waterMaterial` fragment shader for ETOPO1 sign convention logic
+- [x] Frontend: Implement dynamic `waterMesh` sinking in `refreshAll()`
+- [x] Frontend: Refactor `renderSurfaceGrid` for oriented tiles and CPU bathymetry masking
+- [x] Frontend: Fix Depth Slider snapping, range, and Sel/Data labels
+- [x] Frontend: Connect all UI selectors (Variable, Dataset, Time) to `refreshAll()`
+- [x] Frontend: Verify resource disposal in `disposeGroup`
+- [x] Verification: Run mandatory bathymetry tests (Land, Shelf, Deep)
