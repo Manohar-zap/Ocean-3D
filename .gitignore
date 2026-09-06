@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+.pytest_cache/
+
+# IDE, Secrets, Temporary Screenshots, Documents & OS
+.env
+.env.local
+frontend/config.js
+*.png
+*.docx
+*.doc
+*.pdf
+# Local ETOPO source archives and extracted rasters are generated/downloaded
+# locally and are too large for a normal GitHub repository.
+gloab/data/*.zip
+gloab/data/*.tif
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

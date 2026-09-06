@@ -1,0 +1,17 @@
+{
+  "width": 2048,
+  "height": 1024,
+  "dtype": "float32-le",
+  "byteOrder": "little-endian",
+  "minElevationMeters": -11000.0,
+  "maxElevationMeters": 9000.0,
+  "longitudeMin": -180.0,
+  "longitudeMax": 180.0,
+  "latitudeMin": -90.0,
+  "latitudeMax": 90.0,
+  "sampleConvention": "row 0 = north, column 0 = -180 longitude",
+  "source": "NOAA ETOPO1 Bedrock 1 arc-minute Global Relief Model",
+  "sourceUrl": "https://www.ngdc.noaa.gov/mgg/global/relief/ETOPO1/data/bedrock/grid_registered/georeferenced_tiff/ETOPO1_Bed_g_geotiff.zip",
+  "packedPng": "/etopo1_2048x1024_packed.png",
+  "packedEncoding": "R=high8bits, G=low8bits of unsigned 16-bit normalized elevation code"
+}
