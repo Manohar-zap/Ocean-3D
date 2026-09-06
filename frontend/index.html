@@ -723,7 +723,41 @@ async function loadVolumeStack(){
 
 let temperatureImageryLayer = null;
 
-// Render Ocean Scalar Field (Temperature/Salinity) Draped on Spherical 3D Earth Ellipsoid
+function isPointInPolyJS(pt, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i][0], yi = poly[i][1];
+    const xj = poly[j][0], yj = poly[j][1];
+    const intersect = ((yi > pt[1]) !== (yj > pt[1])) &&
+      (pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+const LAND_POLYGONS_JS = [
+  [[68.0, 23.5], [69.0, 23.0], [70.0, 21.0], [72.8, 19.5], [73.0, 16.0], [74.8, 13.0],
+   [76.0, 10.0], [77.0, 8.2], [77.5, 8.0], [78.0, 8.2], [79.5, 9.8], [80.2, 13.0],
+   [81.0, 16.0], [84.0, 18.5], [86.0, 20.0], [88.0, 21.5], [89.5, 23.0], [92.0, 26.0],
+   [88.0, 28.0], [80.0, 31.0], [74.0, 33.0], [70.0, 29.0], [68.0, 23.5]],
+  [[79.5, 9.9], [81.9, 9.9], [82.0, 6.7], [80.0, 5.8], [79.5, 9.9]],
+  [[-18.0, 35.0], [51.0, 12.0], [40.0, -35.0], [10.0, -35.0], [-18.0, 35.0]],
+  [[0.0, 35.0], [180.0, 70.0], [140.0, 35.0], [120.0, 20.0], [60.0, 25.0], [35.0, 30.0], [0.0, 35.0]],
+  [[113.0, -11.0], [153.0, -11.0], [153.0, -39.0], [113.0, -39.0], [113.0, -11.0]],
+  [[-170.0, 70.0], [-55.0, 70.0], [-55.0, 15.0], [-110.0, 15.0], [-170.0, 70.0]],
+  [[-82.0, 12.0], [-35.0, -5.0], [-55.0, -55.0], [-75.0, -55.0], [-82.0, 12.0]],
+  [[-180.0, -60.0], [180.0, -60.0], [180.0, -90.0], [-180.0, -90.0], [-180.0, -60.0]]
+];
+
+function isLandCoordinateJS(lat, lon) {
+  const pt = [lon, lat];
+  for (let i = 0; i < LAND_POLYGONS_JS.length; i++) {
+    if (isPointInPolyJS(pt, LAND_POLYGONS_JS[i])) return true;
+  }
+  return false;
+}
+
+// Render Smooth Ocean Scalar Field (Temperature/Salinity) Draped on Spherical 3D Earth Ellipsoid
 function renderCesiumSurfaceGrid(points, depth, alpha = 0.85){
   if(!points || !points.length) return;
 
@@ -739,40 +773,82 @@ function renderCesiumSurfaceGrid(points, depth, alpha = 0.85){
   const minLon = lons[0];
   const maxLon = lons[lons.length - 1];
 
+  const numGridLat = lats.length;
+  const numGridLon = lons.length;
+
   const valMap = {};
   points.forEach(p => { valMap[`${p.lat}_${p.lon}`] = p.value; });
 
-  const numLat = lats.length;
-  const numLon = lons.length;
-
+  const canvasW = 512;
+  const canvasH = 256;
   const canvas = document.createElement("canvas");
-  canvas.width = Math.max(256, numLon * 16);
-  canvas.height = Math.max(256, numLat * 16);
+  canvas.width = canvasW;
+  canvas.height = canvasH;
   const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const imgData = ctx.createImageData(canvasW, canvasH);
+  const pixels = imgData.data;
 
-  const cellWidth = canvas.width / numLon;
-  const cellHeight = canvas.height / numLat;
+  for(let py = 0; py < canvasH; py++){
+    const lat = maxLat - (py / (canvasH - 1)) * (maxLat - minLat);
 
-  for(let i = 0; i < numLat; i++){
-    for(let j = 0; j < numLon; j++){
-      const lat = lats[numLat - 1 - i];
-      const lon = lons[j];
-      const val = valMap[`${lat}_${lon}`];
+    for(let px = 0; px < canvasW; px++){
+      const lon = minLon + (px / (canvasW - 1)) * (maxLon - minLon);
 
-      if(val === undefined || val === null){
-        continue; // Land cell / missing value: transparent pixel
+      // Strict Land Mask Exclusion: Leave pixels on land 100% transparent
+      if(isLandCoordinateJS(lat, lon)){
+        continue;
+      }
+
+      let i1 = 0, i2 = numGridLat - 1;
+      for(let i = 0; i < numGridLat - 1; i++){
+        if(lat >= lats[i] && lat <= lats[i+1]){
+          i1 = i; i2 = i + 1; break;
+        }
+      }
+
+      let j1 = 0, j2 = numGridLon - 1;
+      for(let j = 0; j < numGridLon - 1; j++){
+        if(lon >= lons[j] && lon <= lons[j+1]){
+          j1 = j; j2 = j + 1; break;
+        }
+      }
+
+      const lat1 = lats[i1], lat2 = lats[i2];
+      const lon1 = lons[j1], lon2 = lons[j2];
+
+      const v11 = valMap[`${lat1}_${lon1}`];
+      const v12 = valMap[`${lat1}_${lon2}`];
+      const v21 = valMap[`${lat2}_${lon1}`];
+      const v22 = valMap[`${lat2}_${lon2}`];
+
+      const validVals = [v11, v12, v21, v22].filter(v => v !== undefined && v !== null);
+      if(!validVals.length) continue;
+
+      let val = 0;
+      if(validVals.length === 4 && lat2 > lat1 && lon2 > lon1){
+        const tLat = (lat - lat1) / (lat2 - lat1);
+        const tLon = (lon - lon1) / (lon2 - lon1);
+        const top = v21 * (1 - tLon) + v22 * tLon;
+        const bot = v11 * (1 - tLon) + v12 * tLon;
+        val = bot * (1 - tLat) + top * tLat;
+      } else {
+        val = validVals.reduce((a,b) => a + b, 0) / validVals.length;
       }
 
       const norm = Math.max(0, Math.min(1, (val - vmin) / Math.max(1e-9, (vmax - vmin))));
       const [r, g, b] = colormap(norm);
 
-      ctx.fillStyle = `rgba(${r*255|0}, ${g*255|0}, ${b*255|0}, 0.85)`;
-      ctx.fillRect(j * cellWidth, i * cellHeight, cellWidth + 0.5, cellHeight + 0.5);
+      const pIdx = (py * canvasW + px) * 4;
+      pixels[pIdx]     = (r * 255) | 0;
+      pixels[pIdx + 1] = (g * 255) | 0;
+      pixels[pIdx + 2] = (b * 255) | 0;
+      pixels[pIdx + 3] = (alpha * 215) | 0;
     }
   }
 
-  // Drapes scalar field on 3D Earth Globe Ellipsoid
+  ctx.putImageData(imgData, 0, 0);
+
+  // Drapes smooth ocean scalar field on 3D Earth Globe Ellipsoid
   const imageryProvider = new Cesium.SingleTileImageryProvider({
     url: canvas.toDataURL("image/png"),
     rectangle: Cesium.Rectangle.fromDegrees(minLon, minLat, maxLon, maxLat)
