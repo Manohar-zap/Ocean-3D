@@ -281,8 +281,10 @@ def parse_netcdf_records(filepath: str, dataset_id: str, data_status: str, sourc
                 data = np.array(f.variables[var].data) if var in f.variables else None
                 for i, lat in enumerate(lats):
                     for j, lon in enumerate(lons):
+                        lat_f, lon_f = float(lat), float(lon)
+                        if is_land(lat_f, lon_f):
+                            continue # Strict Land Mask Exclusion
                         for k, d in enumerate(depths[:8]):
-                            lat_f, lon_f = float(lat), float(lon)
                             if data is not None:
                                 raw_v = data[0, k, i, j] if data.ndim == 4 else data[k, i, j]
                                 val = float(raw_v) if not math.isnan(float(raw_v)) else _synthetic_value(var, lat_f, lon_f, float(d), 0)
@@ -292,9 +294,6 @@ def parse_netcdf_records(filepath: str, dataset_id: str, data_status: str, sourc
                             if val is None:
                                 continue
 
-                            if var in ("current_u", "current_v") and is_land(lat_f, lon_f):
-                                val = 0.0
-                                
                             records.append(StandardRecord(
                                 kind="model",
                                 dataset_id=dataset_id,
