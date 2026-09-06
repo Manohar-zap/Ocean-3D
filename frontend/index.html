@@ -748,9 +748,27 @@
   }
 
   async function refreshAll(){
-    while(modelGroup.children.length > 0) modelGroup.remove(modelGroup.children[0]);
-    while(vectorGroup.children.length > 0) vectorGroup.remove(vectorGroup.children[0]);
-    while(observationGroup.children.length > 0) observationGroup.remove(observationGroup.children[0]);
+    const disposeGroup = (group) => {
+      while(group.children.length > 0) {
+        const child = group.children[0];
+        if(child.geometry) child.geometry.dispose();
+        if(child.material) {
+          if(Array.isArray(child.material)) {
+            child.material.forEach(m => {
+              if(m.map) m.map.dispose();
+              m.dispose();
+            });
+          } else {
+            if(child.material.map) child.material.map.dispose();
+            child.material.dispose();
+          }
+        }
+        group.remove(child);
+      }
+    };
+    disposeGroup(modelGroup);
+    disposeGroup(vectorGroup);
+    disposeGroup(observationGroup);
 
     await Promise.all([loadModelData(), loadBathymetry(), loadVectors(), loadObservations()]);
   }
@@ -940,13 +958,17 @@
       const markers = data.markers;
       if(!markers || !markers.length) continue;
 
-      // Batched InstancedMesh for platform markers
+      // Batched InstancedMesh for this platform type
       const geom = new THREE.SphereGeometry(0.025, 16, 16);
       const colorHex = PLATFORM_COLOR[ptype] || 0xf2a65a;
       const mat = new THREE.MeshBasicMaterial({ color: colorHex });
       const instancedMesh = new THREE.InstancedMesh(geom, mat, markers.length);
-      const dummy = new THREE.Object3D();
 
+      // Store platform IDs for picking (Requirement 3 fixed)
+      instancedMesh.userData.platformIds = markers.map(m => m.platform_id);
+      instancedMesh.userData.isObservationMarker = true;
+
+      const dummy = new THREE.Object3D();
       for(let i = 0; i < markers.length; i++){
         const m = markers[i];
         const v3 = latLonToVector3(m.lat, m.lon, BASE_RADIUS + 0.01);
@@ -999,8 +1021,12 @@
       raycaster.setFromCamera(mouse, camera);
       const intersects = raycaster.intersectObjects(observationGroup.children, true);
       if(intersects.length > 0){
-        // Pick nearest platform or fallback demo ID
-        openProfile("ARGO-2900000");
+        const intersect = intersects[0];
+        const mesh = intersect.object;
+        if(mesh.userData.isObservationMarker && intersect.instanceId !== undefined){
+          const pid = mesh.userData.platformIds[intersect.instanceId];
+          if(pid) openProfile(pid);
+        }
       }
     }
   });
@@ -1014,7 +1040,11 @@
     document.getElementById("profileMeta").textContent =
       `${data.platform_type.toUpperCase()} platform · 3D depth profile active`;
 
-    document.getElementById("obsCoords").textContent = `18.00°N, 78.50°E`;
+    const sample = data.profile[0] || {};
+    const lat = sample.latitude ?? 0;
+    const lon = sample.longitude ?? 0;
+    document.getElementById("obsCoords").textContent = `${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E`;
+
     const maxD = Math.max(...data.profile.map(p => p.depth));
     document.getElementById("obsMaxDepth").textContent = `${maxD} m`;
     document.getElementById("obsCursorDepth").textContent = `${DEPTHS[state.depthIndex]} m`;

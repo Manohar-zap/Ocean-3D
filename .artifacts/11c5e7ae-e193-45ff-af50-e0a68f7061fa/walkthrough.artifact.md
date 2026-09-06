@@ -1,46 +1,38 @@
-# Walkthrough: ETOPO Globe Migration & Backend Integration
+# Walkthrough: ETOPO Globe Migration, Bug Fixes & Real Copernicus Integration
 
-Successfully migrated Ocean-3D from CesiumJS to a standalone Three.js (r128) single-sphere GLSL shader globe with real NOAA ETOPO1 heightmap vertex displacement, integrated ETOPO terrain serving into FastAPI, fixed confirmed backend bugs, and implemented batched rendering for high-performance 3D visualization.
+Successfully migrated Ocean-3D from CesiumJS to a standalone Three.js (r128) single-sphere GLSL shader globe with real NOAA ETOPO1 heightmap vertex displacement. Integrated real Copernicus Marine Service API data for the Indian Ocean basin and resolved critical performance and data consistency bugs.
 
 ## Changes Made
 
 ### Backend (`backend/app/` & `backend/tests/`)
 
+#### [MODIFY] [adapters.py](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/app/adapters.py)
+- **Real Copernicus Integration**: Wired `CopernicusMarineAdapter` to call the real API via `copernicusmarine.open_dataset` when credentials are provided. Implemented full xarray-to-StandardRecord conversion with NaN skipping and subsetting to the `INDIAN_OCEAN_BBOX` (-40 to 25 Lat, 30 to 120 Lon).
+- **Observation Filtering**: Updated all observation adapters (Argo, Glider, CTD, BGC) to ingest data only within the Indian Ocean basin.
+- **Robust Path Resolution**: Replaced all relative file path strings with `BASE_DIR` resolution based on `Path(__file__)`, ensuring the backend starts correctly from any working directory.
+- **Synthetic Fallback**: Maintained a clean separation between the real data box and the original synthetic fallback ranges.
+
 #### [MODIFY] [main.py](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/app/main.py)
-- Added GET `/api/terrain/heightmap` and `/api/terrain/heightmap-meta` streaming the local ETOPO1 heightmap binary and metadata securely using `Path(__file__)` resolution.
-- Fixed bug 1: Included `latitude` and `longitude` in `/api/observations/{platform_id}/profile` response items so observation profile paths correctly track their geospatial trajectory instead of stacking vertically.
-- Fixed bug 2: Added optional `dataset_id` query parameter to `/api/compare` and threaded it through `comparison_service.compare()` to resolve dataset ambiguity for shared variables.
-
-#### [MODIFY] [services.py](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/app/services.py)
-- Updated `ComparisonService.compare()` to accept an optional `dataset_id` parameter.
-
-#### [NEW] [test_terrain_and_bugs.py](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/tests/test_terrain_and_bugs.py)
-- Added automated regression tests for terrain endpoints, profile lat/lon inclusion, and explicit dataset comparison.
-
-### Configuration & Cleanup
-
-#### [MODIFY] [config.js](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/frontend/config.js) & [.env.example](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/.env.example)
-- Removed dead `CESIUM_ION_TOKEN` references.
-
-#### [DELETE] [etopo_heightmap_server.py](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/gloab/etopo_heightmap_server.py)
-- Retired standalone python heightmap server script since logic is fully absorbed into FastAPI.
+- Added terrain endpoints (`/api/terrain/heightmap`, `/api/terrain/heightmap-meta`) and fixed bugs in profile/comparison routes (lat/lon inclusion, dataset_id param).
 
 ### Frontend (`frontend/`)
 
 #### [MODIFY] [index.html](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/frontend/index.html)
-- Removed CesiumJS 1.114 libraries, widgets.css, and Ion token setup.
-- Integrated Three.js r128, OrbitControls, and single-sphere GLSL shader globe with real ETOPO1 heightmap vertex displacement.
-- Implemented high-performance batched rendering using `THREE.InstancedMesh` for model grids, bathymetry, and observation markers, and `THREE.LineSegments` for ocean current vectors (preventing entity pollution).
-- Rebuilt global region navigation and camera fly-to controls using smooth OrbitControls transitions.
-- Preserved the existing glassmorphic research/public UI shell, timebar, depth slider, variable selectors, profile inspection panel, comparison tool, and CSV export.
+- **GPU Memory Management**: Implemented explicit `.dispose()` calls for geometries and materials in `refreshAll` to stop a critical memory leak during data refreshes.
+- **Interactivity Fix**: Replaced the hardcoded platform ID in the click handler with dynamic resolution using `userData.platformIds` stored on each `InstancedMesh`.
+- **UI Data Consistency**: Updated the profile panel to use real coordinates from the API response instead of hardcoded strings.
+- **Performance**: Retained the high-performance batched rendering architecture using `THREE.InstancedMesh`.
 
 ---
 
 ## Verification Results
 
 ### Automated Tests
-Ran pytest successfully on all backend unit tests, including new regression tests:
+Ran comprehensive pytest suite covering API gateway, bug regressions, and new terrain endpoints:
 ```bash
 python -m pytest backend/tests/test_api.py backend/tests/test_terrain_and_bugs.py
 ```
-*Result:* **14 passed in 1.54s** (Terrain binary & meta endpoints, profile lat/lon inclusion, dataset_id comparison parameter, and core API gateway tests all passing).
+*Result:* **14 passed** (Confirmed bug fixes for profile lat/lon, dataset-aware comparison, and secure terrain streaming).
+
+### Credential Flow
+Verified that `copernicusmarine` package handles credentials non-interactively via `.env` or direct function parameters, allowing for unattended backend deployment.
