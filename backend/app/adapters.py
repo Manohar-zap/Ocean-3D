@@ -83,29 +83,28 @@ def is_land(lat: float, lon: float) -> bool:
 
 def _synthetic_value(variable: str, lat: float, lon: float, depth: float, step: int) -> float:
     """Deterministic pseudo-physical field so repeated queries are stable."""
-    # Land Mask check for ocean current vectors
-    if variable in ("current_u", "current_v") and is_land(lat, lon):
-        return 0.0
+    if is_land(lat, lon):
+        if variable in ("current_u", "current_v"):
+            return 0.0
+        return None
 
-    lat_n = (lat - LAT_RANGE[0]) / (LAT_RANGE[1] - LAT_RANGE[0])
-    lon_n = (lon - LON_RANGE[0]) / (LON_RANGE[1] - LON_RANGE[0])
     depth_decay = math.exp(-depth / 800.0)
     seasonal = math.sin(step / TIME_STEPS * 2 * math.pi)
 
     if variable == "temperature":
-        surface_temp = 26 + 4 * math.sin(lat_n * math.pi) + 1.5 * math.cos(lon_n * 2 * math.pi)
-        return round(4 + (surface_temp - 4) * depth_decay + 0.5 * seasonal, 3)
+        surface_temp = 2.0 + 26.0 * math.cos((lat / 90.0) * (math.pi / 2)) + 1.5 * math.cos(((lon + 180.0) / 360.0) * 2 * math.pi)
+        return round(2.0 + (surface_temp - 2.0) * depth_decay + 0.5 * seasonal, 3)
     if variable == "salinity":
-        base = 34.5 + 1.2 * math.cos(lat_n * math.pi) + 0.3 * lon_n
+        base = 34.5 + 1.2 * math.cos((lat / 90.0) * math.pi) + 0.3 * ((lon + 180.0) / 360.0)
         return round(base + 0.1 * (1 - depth_decay) + 0.05 * seasonal, 3)
     if variable == "current_u":
-        return round(0.4 * math.sin(lon_n * 2 * math.pi + step * 0.3) * depth_decay, 4)
+        return round(0.4 * math.sin(((lon + 180.0) / 360.0) * 2 * math.pi + step * 0.3) * depth_decay, 4)
     if variable == "current_v":
-        return round(0.3 * math.cos(lat_n * 2 * math.pi + step * 0.3) * depth_decay, 4)
+        return round(0.3 * math.cos((lat / 90.0) * 2 * math.pi + step * 0.3) * depth_decay, 4)
     if variable == "oxygen":
         return round(220 - 150 * (1 - depth_decay) + 10 * seasonal, 2)
     if variable == "chlorophyll":
-        return round(max(0.02, 0.9 * depth_decay * math.exp(-((lat_n - 0.5) ** 2) * 4)), 4)
+        return round(max(0.02, 0.9 * depth_decay * math.exp(-((lat / 90.0) ** 2) * 4)), 4)
     return 0.0
 
 
@@ -285,10 +284,14 @@ def parse_netcdf_records(filepath: str, dataset_id: str, data_status: str, sourc
                         for k, d in enumerate(depths[:8]):
                             lat_f, lon_f = float(lat), float(lon)
                             if data is not None:
-                                val = float(data[0, k, i, j]) if data.ndim == 4 else float(data[k, i, j])
+                                raw_v = data[0, k, i, j] if data.ndim == 4 else data[k, i, j]
+                                val = float(raw_v) if not math.isnan(float(raw_v)) else _synthetic_value(var, lat_f, lon_f, float(d), 0)
                             else:
                                 val = _synthetic_value(var, lat_f, lon_f, float(d), 0)
-                            
+
+                            if val is None:
+                                continue
+
                             if var in ("current_u", "current_v") and is_land(lat_f, lon_f):
                                 val = 0.0
                                 
@@ -316,16 +319,11 @@ def parse_netcdf_records(filepath: str, dataset_id: str, data_status: str, sourc
 
 def parse_synthetic_grid(dataset_id: str, variables: list[str], units: dict[str, str], data_status: str, source_org: str, product_id: str) -> list[StandardRecord]:
     records: list[StandardRecord] = []
-    
-    # Global lat/lon ranges for Copernicus Marine Global Ocean Product
-    if dataset_id == "copernicus_cmems":
-        lat_bounds = (-75.0, 75.0)
-        lon_bounds = (-170.0, 170.0)
-        n_steps = 15
-    else:
-        lat_bounds = LAT_RANGE
-        lon_bounds = LON_RANGE
-        n_steps = GRID_N
+
+    # Global lat/lon ranges for Global Ocean Model Products
+    lat_bounds = (-75.0, 75.0)
+    lon_bounds = (-180.0, 180.0)
+    n_steps = 25
 
     lats = [lat_bounds[0] + i * (lat_bounds[1] - lat_bounds[0]) / (n_steps - 1) for i in range(n_steps)]
     lons = [lon_bounds[0] + i * (lon_bounds[1] - lon_bounds[0]) / (n_steps - 1) for i in range(n_steps)]
@@ -336,6 +334,9 @@ def parse_synthetic_grid(dataset_id: str, variables: list[str], units: dict[str,
             for lon in lons:
                 for depth in DEPTHS:
                     for var in variables:
+                        val = _synthetic_value(var, lat, lon, depth, step)
+                        if val is None:
+                            continue
                         records.append(StandardRecord(
                             kind="model",
                             dataset_id=dataset_id,
@@ -344,7 +345,7 @@ def parse_synthetic_grid(dataset_id: str, variables: list[str], units: dict[str,
                             longitude=round(lon, 4),
                             depth=depth,
                             time=t,
-                            value=_synthetic_value(var, lat, lon, depth, step),
+                            value=val,
                             unit=units[var],
                             source_model=source_org,
                             source_file="global_grid",

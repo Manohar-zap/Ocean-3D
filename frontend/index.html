@@ -672,10 +672,19 @@ async function loadBathymetry(){
   }
 }
 
+function globalModelBounds(){
+  return {
+    min_lat: -75.0,
+    max_lat: 75.0,
+    min_lon: -180.0,
+    max_lon: 180.0
+  };
+}
+
 async function loadSingleSlice(){
   const depth = DEPTHS[state.depthIndex];
   const time = state.times[state.timeIndex];
-  const b = currentBounds();
+  const b = globalModelBounds();
   const url = apiUrl(`/api/model?dataset_id=${state.dataset_id}&variable=${state.variable}`
     + `&min_depth=${depth}&max_depth=${depth}&time=${encodeURIComponent(time||"")}`
     + `&min_lat=${b.min_lat}&max_lat=${b.max_lat}&min_lon=${b.min_lon}&max_lon=${b.max_lon}`);
@@ -689,7 +698,7 @@ async function loadSingleSlice(){
 
 async function loadVolumeStack(){
   const time = state.times[state.timeIndex];
-  const b = currentBounds();
+  const b = globalModelBounds();
   const url = apiUrl(`/api/model/volume?dataset_id=${state.dataset_id}&variable=${state.variable}`
     + `&depths=0,100,200,500,1000&time=${encodeURIComponent(time||"")}`
     + `&min_lat=${b.min_lat}&max_lat=${b.max_lat}&min_lon=${b.min_lon}&max_lon=${b.max_lon}`);
