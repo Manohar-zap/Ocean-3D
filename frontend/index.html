@@ -617,6 +617,10 @@ async function loadModelData(){
 function clearModelEntities(){
   modelEntities.forEach(e => viewer.entities.remove(e));
   modelEntities = [];
+  if(temperatureImageryLayer){
+    viewer.imageryLayers.remove(temperatureImageryLayer);
+    temperatureImageryLayer = null;
+  }
 }
 
 let bathymetryEntities = [];
@@ -701,7 +705,9 @@ async function loadVolumeStack(){
   }
 }
 
-// Render Surface Grid using Cesium Rectangles
+let temperatureImageryLayer = null;
+
+// Render Ocean Scalar Field (Temperature/Salinity) Draped on Spherical 3D Earth Ellipsoid
 function renderCesiumSurfaceGrid(points, depth, alpha = 0.85){
   if(!points || !points.length) return;
 
@@ -709,41 +715,66 @@ function renderCesiumSurfaceGrid(points, depth, alpha = 0.85){
   const [vmin, vmax] = ds ? ds.valid_range[state.variable] : [0, 30];
   drawColorbar(vmin, vmax);
 
-  const heightOffset = -depth * state.verticalExaggeration * 15.0;
-
   const lats = Array.from(new Set(points.map(p => p.lat))).sort((a,b) => a - b);
   const lons = Array.from(new Set(points.map(p => p.lon))).sort((a,b) => a - b);
+
+  const minLat = lats[0];
+  const maxLat = lats[lats.length - 1];
+  const minLon = lons[0];
+  const maxLon = lons[lons.length - 1];
 
   const valMap = {};
   points.forEach(p => { valMap[`${p.lat}_${p.lon}`] = p.value; });
 
-  const latStep = (lats[lats.length - 1] - lats[0]) / Math.max(1, lats.length - 1);
-  const lonStep = (lons[lons.length - 1] - lons[0]) / Math.max(1, lons.length - 1);
+  const numLat = lats.length;
+  const numLon = lons.length;
 
-  for(let i = 0; i < lats.length; i++){
-    for(let j = 0; j < lons.length; j++){
-      const lat = lats[i], lon = lons[j];
-      const val = valMap[`${lat}_${lon}`] ?? vmin;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(256, numLon * 16);
+  canvas.height = Math.max(256, numLat * 16);
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      const norm = (val - vmin) / Math.max(1e-9, (vmax - vmin));
+  const cellWidth = canvas.width / numLon;
+  const cellHeight = canvas.height / numLat;
+
+  for(let i = 0; i < numLat; i++){
+    for(let j = 0; j < numLon; j++){
+      const lat = lats[numLat - 1 - i];
+      const lon = lons[j];
+      const val = valMap[`${lat}_${lon}`];
+
+      if(val === undefined || val === null){
+        continue; // Land cell / missing value: transparent pixel
+      }
+
+      const norm = Math.max(0, Math.min(1, (val - vmin) / Math.max(1e-9, (vmax - vmin))));
       const [r, g, b] = colormap(norm);
 
-      const rectEntity = viewer.entities.add({
-        rectangle: {
-          coordinates: Cesium.Rectangle.fromDegrees(
-            lon - lonStep/2, lat - latStep/2,
-            lon + lonStep/2, lat + latStep/2
-          ),
-          height: heightOffset,
-          material: new Cesium.ColorMaterialProperty(
-            new Cesium.Color(r, g, b, alpha)
-          ),
-          outline: false
-        }
-      });
-      modelEntities.push(rectEntity);
+      ctx.fillStyle = `rgba(${r*255|0}, ${g*255|0}, ${b*255|0}, 0.85)`;
+      ctx.fillRect(j * cellWidth, i * cellHeight, cellWidth + 0.5, cellHeight + 0.5);
     }
   }
+
+  // Drapes scalar field on 3D Earth Globe Ellipsoid
+  const imageryProvider = new Cesium.SingleTileImageryProvider({
+    url: canvas.toDataURL("image/png"),
+    rectangle: Cesium.Rectangle.fromDegrees(minLon, minLat, maxLon, maxLat)
+  });
+
+  if(temperatureImageryLayer){
+    viewer.imageryLayers.remove(temperatureImageryLayer);
+    temperatureImageryLayer = null;
+  }
+
+  temperatureImageryLayer = viewer.imageryLayers.addImageryProvider(imageryProvider);
+  temperatureImageryLayer.alpha = alpha;
+
+  const proxyEntity = viewer.entities.add({
+    position: Cesium.Cartesian3.fromDegrees((minLon+maxLon)/2, (minLat+maxLat)/2, 0),
+    point: { pixelSize: 0, show: false }
+  });
+  modelEntities.push(proxyEntity);
 }
 
 // Current Vectors
