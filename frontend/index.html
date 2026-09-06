@@ -486,6 +486,13 @@ async function initCesiumGlobe(){
     const pickedObject = viewer.scene.pick(movement.endPosition);
     if(Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.userData && pickedObject.id.userData.platform_id) {
       const entity = pickedObject.id;
+      const uData = entity.userData;
+
+      if(uData.isTrackPoint){
+        const tsStr = (uData.timestamp || "").replace("T", " ").replace("Z", " UTC");
+        document.getElementById("coordsReadout").textContent = `${uData.platform_id} | Obs #${uData.sequence_number} | ${tsStr} | Position: ${uData.lat.toFixed(2)}°N, ${uData.lon.toFixed(2)}°E`;
+      }
+
       if(hoveredEntity && hoveredEntity !== entity && (!state.selectedProfile || state.selectedProfile.platform_id !== hoveredEntity.userData.platform_id)) {
         if(hoveredEntity.label) hoveredEntity.label.show = false;
       }
@@ -850,34 +857,77 @@ const PLATFORM_ICON = {
 };
 
 let trackEntity = null;
+let trackPointEntities = [];
 
-async function loadPlatformTrack(platform_id){
+function clearPlatformTrack(){
   if(trackEntity){
     viewer.entities.remove(trackEntity);
     trackEntity = null;
   }
+  trackPointEntities.forEach(e => viewer.entities.remove(e));
+  trackPointEntities = [];
+}
+
+async function loadPlatformTrack(platform_id){
+  clearPlatformTrack();
   const res = await fetch(apiUrl(`/api/observations/${platform_id}/track`));
   if(!res.ok) return;
   const data = await res.json();
   const track = data.track || [];
-  if(track.length < 2) return;
+  if(!track.length) return;
 
-  const positions = [];
-  track.forEach(pt => {
-    positions.push(pt.longitude, pt.latitude, 100.0);
-  });
+  if(track.length >= 2){
+    const positions = [];
+    track.forEach(pt => {
+      positions.push(pt.longitude, pt.latitude, 100.0);
+    });
 
-  trackEntity = viewer.entities.add({
-    polyline: {
-      positions: Cesium.Cartesian3.fromDegreesArrayHeights(positions),
-      width: 3.0,
-      material: new Cesium.PolylineGlowMaterialProperty({
-        glowPower: 0.25,
-        taperPower: 0.5,
-        color: Cesium.Color.fromCssColorString('#3fe0c5')
-      }),
-      disableDepthTestDistance: Number.POSITIVE_INFINITY
-    }
+    trackEntity = viewer.entities.add({
+      polyline: {
+        positions: Cesium.Cartesian3.fromDegreesArrayHeights(positions),
+        width: 3.0,
+        material: new Cesium.PolylineGlowMaterialProperty({
+          glowPower: 0.25,
+          taperPower: 0.5,
+          color: Cesium.Color.fromCssColorString('#3fe0c5')
+        }),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
+      }
+    });
+  }
+
+  // Render small observation markers for historical trajectory cycles (P1, P2, P3...)
+  const historicalPts = track.length > 1 ? track.slice(0, track.length - 1) : track;
+  historicalPts.forEach((pt, idx) => {
+    const seq = pt.sequence_number || (idx + 1);
+    const ptEntity = viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(pt.longitude, pt.latitude, 100.0),
+      point: {
+        pixelSize: 8,
+        color: Cesium.Color.fromCssColorString('#3fe0c5'),
+        outlineColor: Cesium.Color.WHITE,
+        outlineWidth: 1.5,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
+      },
+      label: {
+        text: `Obs #${seq}`,
+        font: '10px IBM Plex Mono',
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        pixelOffset: new Cesium.Cartesian2(0, -14),
+        fillColor: Cesium.Color.WHITE,
+        show: false
+      }
+    });
+    ptEntity.userData = {
+      platform_id: data.platform_id,
+      platform_type: data.platform_type,
+      sequence_number: seq,
+      timestamp: pt.timestamp,
+      lat: pt.latitude,
+      lon: pt.longitude,
+      isTrackPoint: true
+    };
+    trackPointEntities.push(ptEntity);
   });
 }
 
@@ -1271,10 +1321,7 @@ document.getElementById("closeProfile").onclick = () => {
       if(mEntity.label) mEntity.label.show = false;
     }
   }
-  if(trackEntity){
-    viewer.entities.remove(trackEntity);
-    trackEntity = null;
-  }
+  clearPlatformTrack();
   state.selectedProfile = null;
   state.selectedSample = null;
   depthCursorEntity = null;

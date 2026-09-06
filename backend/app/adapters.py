@@ -510,7 +510,6 @@ class ArgoGliderAdapter:
 
     def _normalize_argovis_docs(self, docs: list[dict], data_status: str) -> list[StandardRecord]:
         records: list[StandardRecord] = []
-        float_id_map: dict[str, str] = {}
 
         for doc in docs:
             if not isinstance(doc, dict):
@@ -519,12 +518,7 @@ class ArgoGliderAdapter:
             if not pid_raw:
                 continue
             clean_pid = pid_raw.split("_")[0]
-            if clean_pid not in float_id_map:
-                if len(float_id_map) == 0: float_id_map[clean_pid] = "2900000"
-                elif len(float_id_map) == 1: float_id_map[clean_pid] = "2900001"
-                else: float_id_map[clean_pid] = clean_pid
-
-            platform_id = f"ARGO-{float_id_map[clean_pid]}"
+            platform_id = f"ARGO-{clean_pid}"
 
             geo = doc.get("geolocation", {})
             coords = geo.get("coordinates", [])

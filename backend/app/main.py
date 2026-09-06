@@ -310,18 +310,26 @@ def platform_track(platform_id: str):
 
     track_points = sorted(by_time.values(), key=lambda r: r.time)
     ptype = rows[0].platform_type
+    ds = getattr(rows[0], "data_status", "DEMONSTRATION DATA")
+    source_org = getattr(rows[0], "source_organization", "In-situ Observation")
 
     return {
         "platform_id": platform_id,
         "platform_type": ptype,
+        "source": source_org,
+        "data_status": ds,
+        "first_timestamp": track_points[0].time if track_points else None,
+        "last_timestamp": track_points[-1].time if track_points else None,
+        "point_count": len(track_points),
         "track": [
             {
                 "latitude": r.latitude,
                 "longitude": r.longitude,
                 "timestamp": r.time,
                 "depth": r.depth,
+                "sequence_number": idx + 1
             }
-            for r in track_points
+            for idx, r in enumerate(track_points)
         ],
     }
 
