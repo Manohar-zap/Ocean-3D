@@ -17,6 +17,10 @@ frontend/config.js
 *.docx
 *.doc
 *.pdf
+# Local ETOPO source archives and extracted rasters are generated/downloaded
+# locally and are too large for a normal GitHub repository.
+gloab/data/*.zip
+gloab/data/*.tif
 .idea/
 .vscode/
 .DS_Store

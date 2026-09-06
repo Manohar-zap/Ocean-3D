@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Earth Ocean Evaporation & Temperature Explorer</title>
+
+    <!-- Three.js and OrbitControls via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <style>
+        /* ==========================================================================
+           RESET & CORE DESIGN SYSTEM (DARK SCIENTIFIC GIS THEME)
+           ========================================================================== */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        :root {
+            --bg-glass: rgba(7, 13, 27, 0.82);
+            --border-glass: rgba(255, 255, 255, 0.12);
+            --accent-cyan: #00f0ff;
+            --accent-blue: #0077ff;
+            --accent-glow: rgba(0, 240, 255, 0.35);
+            --text-primary: #f8fafc;
+            --text-muted: #94a3b8;
+            --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #030712;
+            font-family: var(--font-stack);
+            color: var(--text-primary);
+        }
+
+        #webgl-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            display: block;
+        }
+
+        /* Glassmorphic UI Panels */
+        .glass-panel {
+            background: var(--bg-glass);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        /* Header Bar */
+        header {
+            position: absolute;
+            top: 20px;
+            left: 24px;
+            z-index: 10;
+            padding: 16px 22px;
+            pointer-events: auto;
+        }
+
+        header h1 {
+            font-size: 1.15rem;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, #ffffff 40%, var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        header p {
+            font-size: 0.76rem;
+            color: var(--text-muted);
+            letter-spacing: 0.4px;
+            margin-top: 4px;
+        }
+
+        #status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+            font-size: 0.68rem;
+            color: var(--accent-cyan);
+            font-family: var(--font-mono);
+        }
+
+        #status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            box-shadow: 0 0 8px var(--accent-cyan);
+            animation: pulseDot 2s infinite ease-in-out;
+        }
+
+        @keyframes pulseDot {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.4); opacity: 0.5; }
+        }
+
+        /* Controls Toolbar (Top Right) */
+        #toolbar {
+            position: absolute;
+            top: 20px;
+            right: 24px;
+            z-index: 10;
+            padding: 10px 14px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn-tool {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-tool:hover {
+            background: rgba(0, 240, 255, 0.2);
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+
+        .btn-tool.active {
+            background: rgba(0, 240, 255, 0.25);
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+
+        /* Main Sea Level / Evaporation Dock (Bottom Center) */
+        #slider-dock {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            width: min(640px, 92vw);
+            padding: 20px 26px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .dock-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        .dock-title {
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .dock-readout {
+            font-family: var(--font-mono);
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--accent-cyan);
+            text-shadow: 0 0 14px var(--accent-glow);
+        }
+
+        .dock-readout span {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-left: 4px;
+            font-weight: normal;
+        }
+
+        .dock-stage-desc {
+            font-size: 0.72rem;
+            color: #38bdf8;
+            letter-spacing: 0.4px;
+            font-family: var(--font-mono);
+        }
+
+        /* Range Slider */
+        .range-wrap {
+            position: relative;
+            width: 100%;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 10px;
+            border-radius: 6px;
+            background: linear-gradient(90deg, #020617 0%, #082f49 20%, #0369a1 50%, #0284c7 75%, #38bdf8 100%);
+            outline: none;
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 2px solid var(--accent-cyan);
+            box-shadow: 0 0 16px var(--accent-cyan);
+            cursor: grab;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            box-shadow: 0 0 24px var(--accent-cyan);
+        }
+
+        input[type="range"]:active::-webkit-slider-thumb {
+            cursor: grabbing;
+            transform: scale(1.05);
+        }
+
+        /* Preset Chips */
+        .preset-grid {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+
+        .chip-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+            font-size: 0.68rem;
+            padding: 5px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .chip-btn:hover {
+            color: #ffffff;
+            background: rgba(0, 240, 255, 0.15);
+            border-color: var(--accent-cyan);
+        }
+
+        .chip-btn.active {
+            background: rgba(0, 240, 255, 0.25);
+            border-color: var(--accent-cyan);
+            color: #ffffff;
+        }
+
+        /* Temperature Legend (Bottom Left) */
+        #temp-legend {
+            position: absolute;
+            bottom: 24px;
+            left: 24px;
+            z-index: 10;
+            padding: 16px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 180px;
+        }
+
+        .legend-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .legend-body {
+            display: flex;
+            gap: 10px;
+            align-items: stretch;
+        }
+
+        .legend-ramp {
+            width: 12px;
+            border-radius: 6px;
+            background: linear-gradient(to bottom,
+                #f43f5e 0%,   /* 30°C Tropical Warm (Red) */
+                #fb923c 25%,  /* 20°C Subtropical (Orange) */
+                #2dd4bf 50%,  /* 12°C Thermocline (Teal/Cyan) */
+                #3b82f6 75%,  /* 4°C Abyssal Floor (Blue) */
+                #1e1b4b 100%  /* -2°C Polar Freezing (Deep Indigo) */
+            );
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .legend-labels {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: #cbd5e1;
+            font-family: var(--font-mono);
+        }
+
+        .legend-labels span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-labels span::before {
+            content: '—';
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Floating Tooltip */
+        #tooltip {
+            position: absolute;
+            z-index: 100;
+            pointer-events: none;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            line-height: 1.45;
+            opacity: 0;
+            transform: translate(16px, 16px);
+            transition: opacity 0.15s ease;
+            white-space: nowrap;
+            min-width: 220px;
+        }
+
+        #tooltip .badge {
+            display: inline-block;
+            font-size: 0.65rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            padding: 2px 7px;
+            border-radius: 4px;
+            margin-bottom: 6px;
+        }
+
+        .badge-ocean {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0, 240, 255, 0.4);
+        }
+
+        .badge-basin {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.4);
+        }
+
+        .badge-land {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.4);
+        }
+
+        #tooltip .row {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        #tooltip .val {
+            font-family: var(--font-mono);
+            font-weight: 600;
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- WebGL Canvas -->
+    <canvas id="webgl-canvas"></canvas>
+
+    <!-- Header -->
+    <header class="glass-panel">
+        <h1>3D Earth Ocean Evaporation</h1>
+        <p>Single-Sphere GLSL Bathymetry & Thermal Gradient</p>
+        <div id="status-pill">
+            <span id="status-dot"></span>
+            <span id="status-text">CONNECTING TO LOCAL ETOPO1...</span>
+        </div>
+    </header>
+
+    <!-- Toolbar -->
+    <div id="toolbar" class="glass-panel">
+        <button class="btn-tool active" id="btnToggleRotate" onclick="toggleAutoRotation()">
+            <span id="rotateIcon">⏸</span>
+            <span>Toggle Rotation</span>
+        </button>
+        <button class="btn-tool" onclick="resetView()">
+            <span>↺</span>
+            <span>Reset View</span>
+        </button>
+    </div>
+
+    <!-- Temperature Legend -->
+    <div id="temp-legend" class="glass-panel">
+        <div class="legend-title">Thermal Scale</div>
+        <div class="legend-body">
+            <div class="legend-ramp"></div>
+            <div class="legend-labels">
+                <span>+30.0°C (Tropical)</span>
+                <span>+20.0°C (Subtropical)</span>
+                <span>+12.0°C (Temperate)</span>
+                <span>+4.0°C (Cold Ocean)</span>
+                <span>-1.8°C (Polar / Freezing)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Sea Level / Evaporation Dock -->
+    <div id="slider-dock" class="glass-panel">
+        <div class="dock-header">
+            <div>
+                <div class="dock-title">Sea Level / Evaporation</div>
+                <div class="dock-stage-desc" id="stageDesc">NORMAL OCEAN LEVEL — LANDMASSES FULLY DRY & INTACT</div>
+            </div>
+            <div class="dock-readout"><span id="readoutValue">0</span><span>m</span></div>
+        </div>
+
+        <div class="range-wrap">
+            <!-- 0m is default sea level; -11000m is total desiccation of deepest trench -->
+            <input type="range" id="evapSlider" min="-11000" max="0" value="0" step="50">
+        </div>
+
+        <div class="preset-grid">
+            <button class="chip-btn" onclick="setEvapLevel(0)">Modern (0m)</button>
+            <button class="chip-btn" onclick="setEvapLevel(-120)">Ice Age (-120m)</button>
+            <button class="chip-btn" onclick="setEvapLevel(-500)">Shelves Dry (-500m)</button>
+            <button class="chip-btn" onclick="setEvapLevel(-2500)">Ridges Emerge (-2500m)</button>
+            <button class="chip-btn" onclick="setEvapLevel(-5000)">Abyss Dry (-5000m)</button>
+            <button class="chip-btn" onclick="setEvapLevel(-11000)">Desiccated (-11000m)</button>
+            <button class="chip-btn" id="btnAutoEvap" onclick="toggleAutoEvap()">▶ Auto Evaporate</button>
+        </div>
+    </div>
+
+    <!-- Floating Raycaster Tooltip -->
+    <div id="tooltip" class="glass-panel">
+        <div class="badge badge-ocean" id="ttBadge">Active Ocean Water</div>
+        <div class="row"><span>Coordinates:</span> <span class="val" id="ttCoords">0.0° N, 0.0° E</span></div>
+        <div class="row"><span>Elevation / Depth:</span> <span class="val" id="ttElevation">-3,840 m</span></div>
+        <div class="row"><span>Local State:</span> <span class="val" id="ttState">Submerged (3,840m water)</span></div>
+        <div class="row"><span>Temperature:</span> <span class="val" id="ttTemp">3.8 °C</span></div>
+    </div>
+
+    <!-- ==========================================================================
+         APPLICATION LOGIC: SINGLE-SPHERE GLSL SHADER + THREE.JS
+         ========================================================================== -->
+    <script>
+(() => {
+  'use strict';
+
+  // ---------------------------------------------------------------------------
+  // EARNED / Earth Ocean Evaporation Explorer
+  // Robust initialization: the Earth is rendered immediately. Real ETOPO1-
+  // derived bathymetry is loaded asynchronously and applied when available.
+  // ---------------------------------------------------------------------------
+  const BASE_RADIUS = 2.0;
+  const MIN_ELEVATION = -11000.0;
+  const MAX_ELEVATION = 9000.0;
+  const TERRAIN_SCALE = 0.0000105; // ~21 cm Earth relief per 20 km elevation span
+  const SEA_MIN = -11000.0;
+  const SEA_MAX = 0.0;
+  // Water shell sits this many world units above the sea-level radius so it
+  // never z-fights the terrain exactly at the coastline. Tiny relative to the
+  // globe (~0.075% of BASE_RADIUS) so water never visibly floats above land.
+  const WATER_EPSILON = 0.0015;
+  // Local NOAA ETOPO1 Float32 heightmap server (see etopo_heightmap_server.py).
+  // Serves the real 2048x1024 elevation grid in metres, NOT an image.
+  const HEIGHT_URL = 'http://127.0.0.1:8765/heightmap';
+  const ETOPO_WIDTH = 2048;
+  const ETOPO_HEIGHT = 1024;
+  const EARTH_URL = 'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg';
+
+  // The water surface is a global equipotential shell. Its radius is driven
+  // ONLY by the selected sea level, using the exact same elevation->radius
+  // mapping the terrain uses for its displacement. This guarantees that at
+  // sea level = X, the water shell's radius exactly matches where terrain at
+  // elevation X sits — so water covers everything at/below X and nothing
+  // above it, without ever depending on local terrain elevation.
+  function seaLevelToRadius(meters) {
+    return BASE_RADIUS * (1 + meters * TERRAIN_SCALE) + WATER_EPSILON;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Shared thermal colour model. These are the ONLY temperature/colour
+  // functions in the app — the water shader (GLSL, see below), the tooltip,
+  // and the thermal legend gradient all derive from this exact same JS
+  // definition (the shader has its own GLSL copy of the identical stops/
+  // formula, since uniforms can't carry functions across to the GPU, but the
+  // numbers and logic are kept in lockstep with this).
+  // ---------------------------------------------------------------------------
+  const THERMAL_STOPS = [
+    { t: -1.8, rgb: [30, 27, 75] },   // deep indigo  #1e1b4b
+    { t: 4.0,  rgb: [59, 130, 246] }, // blue          #3b82f6
+    { t: 12.0, rgb: [45, 212, 191] }, // cyan/teal     #2dd4bf
+    { t: 20.0, rgb: [251, 146, 60] }, // orange        #fb923c
+    { t: 30.0, rgb: [244, 63, 94] }   // red           #f43f5e
+  ];
+
+  function thermalColor(tempC) {
+    if (tempC <= THERMAL_STOPS[0].t) return THERMAL_STOPS[0].rgb.slice();
+    for (let i = 1; i < THERMAL_STOPS.length; i++) {
+      const a = THERMAL_STOPS[i - 1], b = THERMAL_STOPS[i];
+      if (tempC <= b.t) {
+        const f = (tempC - a.t) / (b.t - a.t);
+        return [
+          Math.round(a.rgb[0] + (b.rgb[0] - a.rgb[0]) * f),
+          Math.round(a.rgb[1] + (b.rgb[1] - a.rgb[1]) * f),
+          Math.round(a.rgb[2] + (b.rgb[2] - a.rgb[2]) * f)
+        ];
+      }
+    }
+    return THERMAL_STOPS[THERMAL_STOPS.length - 1].rgb.slice();
+  }
+
+  // Simplified but scientifically sensible latitude-driven climate model,
+  // identical to the GLSL latitudeTemperature() in the water shader: mean
+  // temperature falls off roughly with cos(latitude). Symmetric by absolute
+  // latitude — equator is always warm, both poles are always cold.
+  function latitudeTemperature(latDeg) {
+    const T_EQUATOR = 30.0, T_POLE = -1.8;
+    const n = Math.max(0, Math.min(90, Math.abs(latDeg))) / 90;
+    return T_POLE + (T_EQUATOR - T_POLE) * Math.cos(n * Math.PI / 2);
+  }
+
+  // Builds the legend's gradient directly from thermalColor() so the legend
+  // can never visually drift out of sync with the globe/tooltip.
+  function buildThermalLegendGradient() {
+    const ramp = document.querySelector('.legend-ramp');
+    if (!ramp) return;
+    const steps = 8;
+    const maxT = 30.0, minT = -1.8;
+    const stops = [];
+    for (let i = 0; i <= steps; i++) {
+      const frac = i / steps;
+      const t = maxT - frac * (maxT - minT); // top = warm(red), bottom = cold(indigo)
+      const [r, g, b] = thermalColor(t);
+      stops.push(`rgb(${r}, ${g}, ${b}) ${(frac * 100).toFixed(1)}%`);
+    }
+    ramp.style.background = `linear-gradient(to bottom, ${stops.join(', ')})`;
+  }
+
+  const EVAP_RATE_M_PER_S = 55; // metres/second, evaporation is one-directional (falling only)
+  let currentSeaLevelMeters = 0;
+  let isAutoEvaporating = false;
+  let heightReady = false;
+  let heightWidth = 0;
+  let heightHeight = 0;
+  let elevationCache = null; // Float32Array of real ETOPO1 elevations in metres — single source of truth
+  let terrainMesh = null;
+  let waterMesh = null;
+  let terrainMaterial = null;
+  let waterMaterial = null;
+
+  const $ = id => document.getElementById(id);
+  const canvas = $('webgl-canvas');
+  const evapSlider = $('evapSlider');
+  const readoutValue = $('readoutValue');
+  const stageDesc = $('stageDesc');
+  const statusText = $('status-text');
+  const statusDot = $('status-dot');
+  const btnToggleRotate = $('btnToggleRotate');
+  const rotateIcon = $('rotateIcon');
+  const tooltip = $('tooltip');
+  const ttBadge = $('ttBadge');
+  const ttCoords = $('ttCoords');
+  const ttElevation = $('ttElevation');
+  const ttState = $('ttState');
+  const ttTemp = $('ttTemp');
+
+  // ---------------------------------------------------------------------------
+  // Scene
+  // ---------------------------------------------------------------------------
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x030712);
+
+  const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 1000);
+  camera.position.set(0, 1.25, 5.2);
+
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: false,
+      powerPreference: 'high-performance'
+    });
+  } catch (err) {
+    if (statusText) statusText.textContent = 'WEBGL FAILED — ENABLE HARDWARE ACCELERATION';
+    console.error('WebGL initialization failed:', err);
+    return;
+  }
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  if ('outputEncoding' in renderer) renderer.outputEncoding = THREE.sRGBEncoding;
+
+  let controls;
+  try {
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.minDistance = 2.3;
+    controls.maxDistance = 8.5;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.35;
+  } catch (err) {
+    console.error('OrbitControls failed:', err);
+  }
+
+  // Lights make the fallback/loaded terrain readable without requiring a custom
+  // shader just to display the Earth.
+  scene.add(new THREE.AmbientLight(0xffffff, 1.25));
+  const sun = new THREE.DirectionalLight(0xffffff, 2.0);
+  sun.position.set(5, 3, 5);
+  scene.add(sun);
+  const fill = new THREE.DirectionalLight(0x8fb7ff, 0.55);
+  fill.position.set(-4, -2, -3);
+  scene.add(fill);
+
+  // Starfield
+  {
+    const count = 1800;
+    const pos = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      const r = 50 + Math.random() * 50;
+      const z = Math.random() * 2 - 1;
+      const a = Math.random() * Math.PI * 2;
+      const q = Math.sqrt(1 - z * z);
+      pos[i*3] = r * q * Math.cos(a);
+      pos[i*3+1] = r * q * Math.sin(a);
+      pos[i*3+2] = r * z;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    scene.add(new THREE.Points(g, new THREE.PointsMaterial({size: 0.18, color: 0xdbeafe, transparent: true, opacity: 0.75})));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Immediate Earth: no blank screen even if the remote ETOPO asset fails.
+  // ---------------------------------------------------------------------------
+  const earthGeometry = new THREE.SphereGeometry(BASE_RADIUS, 256, 128);
+  const earthTexture = new THREE.Texture();
+  earthTexture.colorSpace = THREE.SRGBColorSpace || undefined;
+  terrainMaterial = new THREE.MeshPhongMaterial({
+    color: 0x6f8f65,
+    map: earthTexture,
+    shininess: 8,
+    specular: new THREE.Color(0x172033),
+    side: THREE.FrontSide
+  });
+  terrainMesh = new THREE.Mesh(earthGeometry, terrainMaterial);
+  terrainMesh.rotation.y = -0.25;
+  scene.add(terrainMesh);
+
+  // Water is a separate shell, built at unit radius and then uniformly scaled
+  // to seaLevelToRadius(currentSeaLevelMeters) — see updateSeaLevel(). Its
+  // fragment shader ALSO checks the actual ETOPO elevation per-fragment and
+  // discards water wherever terrain is above the selected sea level, so the
+  // coastline follows real bathymetry even though the shell itself is a
+  // smooth sphere at the sea-level radius.
+  const waterGeometry = new THREE.SphereGeometry(1, 256, 128);
+  waterMaterial = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    side: THREE.FrontSide,
+    uniforms: {
+      uHeight: { value: null },
+      uSeaLevel: { value: 0.0 },
+      uHeightReady: { value: 0.0 },
+      uHeightSize: { value: new THREE.Vector2(ETOPO_WIDTH, ETOPO_HEIGHT) }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      varying vec3 vWorldPos;
+      void main(){
+        vUv = uv;
+        vNormal = normalize(normalMatrix * normal);
+        vec4 world = modelMatrix * vec4(position, 1.0);
+        vWorldPos = world.xyz;
+        gl_Position = projectionMatrix * viewMatrix * world;
+      }
+    `,
+    fragmentShader: `
+      uniform sampler2D uHeight;
+      uniform float uSeaLevel;
+      uniform float uHeightReady;
+      uniform vec2 uHeightSize;
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      varying vec3 vWorldPos;
+
+      // Decodes the 16-bit packed elevation code built client-side from the
+      // real ETOPO1 Float32 grid (see buildPackedHeightTexture()). R = high
+      // byte, G = low byte of a 0..65535 normalized code across the full
+      // -11000..9000 m ETOPO1 physical elevation range. This is the SAME
+      // real elevation data the CPU terrain/tooltip code uses — no fake or
+      // procedural elevation is used here. The texture itself uses
+      // NearestFilter deliberately: we do our own bilinear blend below on
+      // the DECODED metre values, not on the raw packed bytes (blending the
+      // raw bytes across a high/low-byte boundary would corrupt the result).
+      float decodeElevationTexel(vec2 uv){
+        vec4 c = texture2D(uHeight, uv);
+        float hi = floor(c.r * 255.0 + 0.5);
+        float lo = floor(c.g * 255.0 + 0.5);
+        float code = hi * 256.0 + lo;
+        return -11000.0 + (code / 65535.0) * 20000.0;
+      }
+
+      // Manual bilinear interpolation of the REAL ETOPO elevation field.
+      // This removes the blocky 2048x1024-texel coastline look by fetching
+      // the four surrounding texel centres (NearestFilter, exact values,
+      // wrapping horizontally / clamping vertically) and blending the
+      // DECODED metre values in metre-space — mathematically the same
+      // result true hardware float-linear filtering would give, but works
+      // on every WebGL1/WebGL2 browser without extension detection. No new
+      // elevation values are invented; every sample is a blend of real
+      // ETOPO1 data points.
+      float sampleElevationSmooth(vec2 uv){
+        vec2 texel = uv * uHeightSize - 0.5;
+        vec2 f = fract(texel);
+        vec2 base = floor(texel);
+
+        vec2 uv00 = (base + vec2(0.5, 0.5)) / uHeightSize;
+        vec2 uv10 = (base + vec2(1.5, 0.5)) / uHeightSize;
+        vec2 uv01 = (base + vec2(0.5, 1.5)) / uHeightSize;
+        vec2 uv11 = (base + vec2(1.5, 1.5)) / uHeightSize;
+
+        uv00.x = fract(uv00.x); uv10.x = fract(uv10.x);
+        uv01.x = fract(uv01.x); uv11.x = fract(uv11.x);
+        uv00.y = clamp(uv00.y, 0.0, 1.0); uv10.y = clamp(uv10.y, 0.0, 1.0);
+        uv01.y = clamp(uv01.y, 0.0, 1.0); uv11.y = clamp(uv11.y, 0.0, 1.0);
+
+        float e00 = decodeElevationTexel(uv00);
+        float e10 = decodeElevationTexel(uv10);
+        float e01 = decodeElevationTexel(uv01);
+        float e11 = decodeElevationTexel(uv11);
+
+        float e0 = mix(e00, e10, f.x);
+        float e1 = mix(e01, e11, f.x);
+        return mix(e0, e1, f.y);
+      }
+
+      // ---- Shared thermal colour model -------------------------------
+      // The SAME stops used by the JS tooltip and the legend gradient:
+      // -1.8C deep indigo -> 4C blue -> 12C cyan/teal -> 20C orange ->
+      // 30C red. One mapping, referenced from three places, not three
+      // separate approximations.
+      vec3 thermalColor(float t){
+        vec3 c0 = vec3(0.11765, 0.10588, 0.29412); // -1.8C  #1e1b4b
+        vec3 c1 = vec3(0.23137, 0.50980, 0.96471); //  4.0C  #3b82f6
+        vec3 c2 = vec3(0.17647, 0.83137, 0.74902); // 12.0C  #2dd4bf
+        vec3 c3 = vec3(0.98431, 0.57255, 0.23529); // 20.0C  #fb923c
+        vec3 c4 = vec3(0.95686, 0.24706, 0.36863); // 30.0C  #f43f5e
+
+        if (t <= -1.8) return c0;
+        if (t <= 4.0)  return mix(c0, c1, (t + 1.8) / 5.8);
+        if (t <= 12.0) return mix(c1, c2, (t - 4.0) / 8.0);
+        if (t <= 20.0) return mix(c2, c3, (t - 12.0) / 8.0);
+        if (t <= 30.0) return mix(c3, c4, (t - 20.0) / 10.0);
+        return c4;
+      }
+
+      // Simplified but scientifically sensible latitude-driven climate
+      // model: mean temperature falls off roughly with cos(latitude),
+      // approximating the drop in insolation toward the poles. Symmetric
+      // by ABSOLUTE latitude, so the equator is always the warm end and
+      // both poles are always the cold end.
+      float latitudeTemperature(float latDeg){
+        const float T_EQUATOR = 30.0;
+        const float T_POLE = -1.8;
+        float n = clamp(abs(latDeg), 0.0, 90.0) / 90.0;
+        return T_POLE + (T_EQUATOR - T_POLE) * cos(n * 1.5707963267948966);
+      }
+
+      void main(){
+        float waterMask = 1.0;
+        float elevation = 0.0;
+        if (uHeightReady > 0.5) {
+          elevation = sampleElevationSmooth(vUv);
+          // Small, FIXED-width smoothstep purely to anti-alias the
+          // coastline edge — a few metres out of a 20,000 m elevation
+          // range, not a large smoothing radius, so the coastline still
+          // sits at the real ETOPO elevation / sea-level boundary.
+          float edgeHalfWidth = 6.0;
+          waterMask = 1.0 - smoothstep(uSeaLevel - edgeHalfWidth, uSeaLevel + edgeHalfWidth, elevation);
+          if (waterMask <= 0.003) discard;
+        }
+
+        // Three.js sphere UV.y = 1 at the north pole, 0 at the south pole.
+        float lat = (vUv.y - 0.5) * 180.0;
+        float depth = max(0.0, uSeaLevel - elevation);
+
+        // Latitude is the PRIMARY driver of colour (real climate zones).
+        // Depth only adds a small, bounded cooling for very deep water and
+        // never reverses or dominates the geographic gradient.
+        float temp = latitudeTemperature(lat) - 3.0 * clamp(depth / 6000.0, 0.0, 1.0);
+        vec3 col = thermalColor(temp);
+
+        vec3 viewDir = normalize(cameraPosition - vWorldPos);
+        float fresnel = pow(1.0 - max(dot(normalize(vNormal), viewDir), 0.0), 3.0);
+        col *= (0.82 + fresnel * 0.32);
+
+        gl_FragColor = vec4(col, (0.55 + fresnel * 0.24) * waterMask);
+      }
+    `
+  });
+  waterMesh = new THREE.Mesh(waterGeometry, waterMaterial);
+  waterMesh.rotation.copy(terrainMesh.rotation);
+  waterMesh.scale.setScalar(seaLevelToRadius(currentSeaLevelMeters));
+  // Render order + no depth-write on water keeps the coastline seam from
+  // flickering: terrain (opaque) always rasterizes first, water (transparent)
+  // is composited on top every frame regardless of tiny radius differences.
+  terrainMesh.renderOrder = 0;
+  waterMesh.renderOrder = 1;
+  scene.add(waterMesh);
+
+  // ---------------------------------------------------------------------------
+  // Texture loading
+  // ---------------------------------------------------------------------------
+  const loader = new THREE.TextureLoader();
+  loader.setCrossOrigin('anonymous');
+
+  function setStatus(text, ok) {
+    if (statusText) statusText.textContent = text;
+    if (statusDot) statusDot.style.background = ok ? '#22d3ee' : '#f59e0b';
+  }
+
+  loader.load(EARTH_URL, tex => {
+    tex.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    if ('colorSpace' in tex) tex.colorSpace = THREE.SRGBColorSpace;
+    else tex.encoding = THREE.sRGBEncoding;
+    terrainMaterial.map = tex;
+    terrainMaterial.needsUpdate = true;
+    if (!heightReady) setStatus('EARTH TEXTURE LOADED — CONNECTING TO LOCAL ETOPO1...', true);
+  }, undefined, err => {
+    console.warn('Earth texture failed:', err);
+    setStatus('EARTH TEXTURE FAILED — ETOPO STILL LOADING', false);
+  });
+
+  // ---------------------------------------------------------------------------
+  // ETOPO1 real elevation data, loaded from the local Python server as raw
+  // Float32 (metres). This array is the single source of truth for terrain
+  // displacement, the GPU water mask, coastlines, and the tooltip — nothing
+  // here is procedural or randomly generated.
+  // ---------------------------------------------------------------------------
+
+  // Packs the real Float32 elevation grid into an RGBA Uint8 DataTexture so
+  // the GPU water shader can classify land/water per-fragment without
+  // requiring floating-point texture support. R = high byte, G = low byte of
+  // a 16-bit code normalized across [MIN_ELEVATION, MAX_ELEVATION]. Rows are
+  // stored reversed (south-to-north) so that, with flipY left at its default
+  // (false), texture2D(uHeight, vUv) in the shader lines up with exactly the
+  // same (1 - v) convention sampleElevation() uses below — no dependence on
+  // DataTexture flipY semantics.
+  function buildPackedHeightTexture(elevations, width, height) {
+    const data = new Uint8Array(width * height * 4);
+    const range = MAX_ELEVATION - MIN_ELEVATION;
+    for (let row = 0; row < height; row++) {
+      const srcRow = height - 1 - row;
+      const srcBase = srcRow * width;
+      const dstBase = row * width;
+      for (let col = 0; col < width; col++) {
+        const e = elevations[srcBase + col];
+        const clamped = Math.max(MIN_ELEVATION, Math.min(MAX_ELEVATION, e));
+        const code = Math.round(((clamped - MIN_ELEVATION) / range) * 65535);
+        const p = (dstBase + col) * 4;
+        data[p] = (code >> 8) & 255;
+        data[p + 1] = code & 255;
+        data[p + 2] = 0;
+        data[p + 3] = 255;
+      }
+    }
+    const tex = new THREE.DataTexture(data, width, height, THREE.RGBAFormat);
+    tex.flipY = false;
+    // Nearest filtering avoids interpolating across the R/G byte boundary,
+    // which would otherwise corrupt reconstructed elevation values at the
+    // coastline — correctness matters more here than a smoothed look.
+    tex.minFilter = THREE.NearestFilter;
+    tex.magFilter = THREE.NearestFilter;
+    tex.generateMipmaps = false;
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.needsUpdate = true;
+    return tex;
+  }
+
+  function sampleElevation(u, v) {
+    if (!elevationCache || !heightWidth || !heightHeight) return 0;
+    // Sphere UVs wrap horizontally; column 0 of the ETOPO grid is -180° lon.
+    // Three.js sphere UV.y = 1 at the north pole, 0 at the south pole, while
+    // row 0 of the ETOPO grid is north — so latitude is (1 - v).
+    // Bilinear interpolation of the REAL ETOPO elevation values (same
+    // approach as the GPU shader's sampleElevationSmooth) — this is what
+    // keeps the terrain mesh and the tooltip's elevation/depth readout
+    // consistent with the smooth coastline seen in the water shader,
+    // instead of snapping to the nearest 2048x1024 texel.
+    const w = heightWidth, h = heightHeight;
+    const uu = (((u % 1) + 1) % 1);
+    const vv = Math.max(0, Math.min(1, v));
+    const lonCol = uu * (w - 1);
+    const latRow = (1 - vv) * (h - 1);
+    const x0 = Math.floor(lonCol);
+    const x1 = (x0 + 1) % w;
+    const y0 = Math.floor(latRow);
+    const y1 = Math.min(h - 1, y0 + 1);
+    const fx = lonCol - x0;
+    const fy = latRow - y0;
+    const e00 = elevationCache[y0 * w + x0];
+    const e10 = elevationCache[y0 * w + x1];
+    const e01 = elevationCache[y1 * w + x0];
+    const e11 = elevationCache[y1 * w + x1];
+    const e0 = e00 + (e10 - e00) * fx;
+    const e1 = e01 + (e11 - e01) * fx;
+    return e0 + (e1 - e0) * fy;
+  }
+
+  function applyHeightmap(elevations) {
+    try {
+      heightWidth = ETOPO_WIDTH;
+      heightHeight = ETOPO_HEIGHT;
+      elevationCache = elevations;
+
+      const packedTexture = buildPackedHeightTexture(elevations, heightWidth, heightHeight);
+      waterMaterial.uniforms.uHeight.value = packedTexture;
+      waterMaterial.uniforms.uHeightReady.value = 1.0;
+
+      // CPU-displace the visible terrain from the same real elevation data.
+      // radius = BASE_RADIUS + elevationMeters * TERRAIN_SCALE (expressed here
+      // as a scale factor applied to each vertex along its own radial dir).
+      const pos = terrainMesh.geometry.attributes.position;
+      const uv = terrainMesh.geometry.attributes.uv;
+      for (let i = 0; i < pos.count; i++) {
+        const u = uv.getX(i);
+        const v = uv.getY(i);
+        const e = sampleElevation(u, v);
+        const scale = 1 + e * TERRAIN_SCALE;
+        const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+        const len = Math.sqrt(x*x + y*y + z*z) || BASE_RADIUS;
+        pos.setXYZ(i, x * scale * BASE_RADIUS / len, y * scale * BASE_RADIUS / len, z * scale * BASE_RADIUS / len);
+      }
+      pos.needsUpdate = true;
+      terrainMesh.geometry.computeVertexNormals();
+      terrainMesh.geometry.attributes.normal.needsUpdate = true;
+      heightReady = true;
+      setStatus(`ETOPO1 LOCAL — ${heightWidth}×${heightHeight} — LOADED`, true);
+      updateSeaLevel(currentSeaLevelMeters);
+    } catch (err) {
+      console.error('ETOPO1 apply failed:', err);
+      setStatus('ETOPO1 LOCAL SERVER OFFLINE', false);
+    }
+  }
+
+  async function loadLocalHeightmap() {
+    setStatus('CONNECTING TO LOCAL ETOPO1...', true);
+    try {
+      const response = await fetch(HEIGHT_URL);
+      if (!response.ok) {
+        throw new Error(`Local ETOPO1 server responded with HTTP ${response.status}`);
+      }
+      const buffer = await response.arrayBuffer();
+      const elevations = new Float32Array(buffer);
+      const expected = ETOPO_WIDTH * ETOPO_HEIGHT;
+      if (elevations.length !== expected) {
+        throw new Error(
+          `Unexpected heightmap size: received ${elevations.length} float32 values, expected ${expected} (${ETOPO_WIDTH}x${ETOPO_HEIGHT}).`
+        );
+      }
+      applyHeightmap(elevations);
+    } catch (err) {
+      // Never let ETOPO failure blank the page — the fallback sphere/texture
+      // set up above stays visible and interactive.
+      console.error('ETOPO1 local heightmap load failed:', err);
+      setStatus('ETOPO1 LOCAL SERVER OFFLINE', false);
+    }
+  }
+
+  loadLocalHeightmap();
+
+  // ---------------------------------------------------------------------------
+  // Sea level controls
+  // ---------------------------------------------------------------------------
+  function updateSeaLevel(meters) {
+    currentSeaLevelMeters = Math.max(SEA_MIN, Math.min(SEA_MAX, Number(meters) || 0));
+    if (evapSlider) evapSlider.value = currentSeaLevelMeters;
+    if (readoutValue) readoutValue.textContent = Math.round(currentSeaLevelMeters).toLocaleString();
+    if (waterMaterial) waterMaterial.uniforms.uSeaLevel.value = currentSeaLevelMeters;
+    // Move the water shell itself to the new sea-level radius. This is what
+    // actually makes the ocean surface drop as the sea level falls (instead
+    // of only masking coastlines while the shell stays parked at 0 m).
+    if (waterMesh) waterMesh.scale.setScalar(seaLevelToRadius(currentSeaLevelMeters));
+
+    if (stageDesc) {
+      if (currentSeaLevelMeters === 0) stageDesc.textContent = 'MODERN SEA LEVEL (0m) — REAL COASTLINES';
+      else if (currentSeaLevelMeters <= -10000) stageDesc.textContent = 'DESICCATED — ONLY THE DEEPEST BASINS RETAIN WATER';
+      else if (currentSeaLevelMeters <= -5000) stageDesc.textContent = 'ABYSSAL OCEAN — DEEP BASINS ONLY';
+      else if (currentSeaLevelMeters <= -2500) stageDesc.textContent = 'MID-OCEAN RIDGES BEGIN TO EMERGE';
+      else if (currentSeaLevelMeters <= -500) stageDesc.textContent = 'CONTINENTAL SHELVES EXPOSED';
+      else stageDesc.textContent = 'ICE-AGE SEA LEVEL — SHALLOW SHELVES EXPOSED';
+    }
+  }
+
+  window.setEvapLevel = updateSeaLevel;
+  evapSlider?.addEventListener('input', e => updateSeaLevel(e.target.value));
+
+  window.toggleAutoEvap = function() {
+    isAutoEvaporating = !isAutoEvaporating;
+    // Evaporation only ever falls (0 -> ... -> -11000) and stops at the
+    // bottom rather than bouncing back up. If it's already fully desiccated,
+    // starting it again begins a fresh evaporation run from modern sea level.
+    if (isAutoEvaporating && currentSeaLevelMeters <= SEA_MIN + 1e-6) {
+      updateSeaLevel(0);
+    }
+    const btn = $('btnAutoEvap');
+    if (btn) btn.textContent = isAutoEvaporating ? '⏸ Pause Evaporation' : '▶ Auto Evaporate';
+  };
+
+  window.toggleAutoRotation = function() {
+    if (!controls) return;
+    controls.autoRotate = !controls.autoRotate;
+    if (rotateIcon) rotateIcon.textContent = controls.autoRotate ? '⏸' : '▶';
+    if (btnToggleRotate) btnToggleRotate.classList.toggle('active', controls.autoRotate);
+  };
+
+  const INITIAL_CAMERA_POS = camera.position.clone();
+  window.resetView = function() {
+    camera.position.copy(INITIAL_CAMERA_POS);
+    camera.updateProjectionMatrix();
+    if (controls) {
+      controls.target.set(0, 0, 0);
+      controls.update();
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Tooltip: reports real ETOPO elevation and water depth at the hit point.
+  // ---------------------------------------------------------------------------
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+  let tooltipTimer = null;
+  function onPointerMove(e) {
+    mouse.x = (e.clientX / innerWidth) * 2 - 1;
+    mouse.y = -(e.clientY / innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const hit = raycaster.intersectObject(terrainMesh, false)[0];
+    if (!hit || !heightReady) { if (tooltip) tooltip.style.opacity = '0'; return; }
+    const u = hit.uv?.x ?? 0.5;
+    const v = hit.uv?.y ?? 0.5;
+    const elev = sampleElevation(u, v);
+    const depth = Math.max(0, currentSeaLevelMeters - elev);
+    const submerged = elev <= currentSeaLevelMeters;
+    const lon = ((u * 360 + 180) % 360) - 180;
+    const lat = v * 180 - 90;
+    if (ttCoords) ttCoords.textContent = `${Math.abs(lat).toFixed(1)}° ${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lon).toFixed(1)}° ${lon >= 0 ? 'E' : 'W'}`;
+    if (ttElevation) ttElevation.textContent = submerged ? `${Math.round(depth).toLocaleString()} m water depth` : `${Math.round(elev).toLocaleString()} m elevation`;
+    if (ttState) ttState.textContent = submerged ? `Submerged (${Math.round(depth).toLocaleString()}m water)` : 'Exposed land / ocean floor';
+    // Same shared model the water shader uses: latitude is the PRIMARY
+    // driver (equator warm, poles cold, symmetric by |latitude|), with only
+    // a small bounded cooling for very deep submerged water. This is the
+    // exact fix for the old bug where submerged points used a depth-only
+    // formula that ignored latitude entirely, making tooltip and globe
+    // colours disagree ("reversed" look).
+    if (ttTemp) {
+      const baseTemp = latitudeTemperature(lat);
+      const temp = submerged ? baseTemp - 3.0 * Math.min(1, depth / 6000) : baseTemp;
+      ttTemp.textContent = `${temp.toFixed(1)} °C`;
+      const [tr, tg, tb] = thermalColor(temp);
+      ttTemp.style.color = `rgb(${tr}, ${tg}, ${tb})`;
+    }
+    if (ttBadge) ttBadge.textContent = submerged ? 'Active Ocean Water' : 'Exposed Terrain';
+    if (tooltip) {
+      tooltip.style.left = Math.min(e.clientX + 16, innerWidth - 300) + 'px';
+      tooltip.style.top = Math.min(e.clientY + 16, innerHeight - 170) + 'px';
+      tooltip.style.opacity = '1';
+    }
+  }
+  addEventListener('pointermove', onPointerMove, { passive: true });
+
+  // ---------------------------------------------------------------------------
+  // Animation
+  // ---------------------------------------------------------------------------
+  let last = performance.now();
+  function animate(now) {
+    requestAnimationFrame(animate);
+    const dt = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    if (isAutoEvaporating) {
+      // Real-elapsed-time evaporation: falls at a constant rate regardless of
+      // frame rate, moves downward only, and stops (does not bounce back up)
+      // once it reaches total desiccation.
+      const next = currentSeaLevelMeters - EVAP_RATE_M_PER_S * dt;
+      if (next <= SEA_MIN) {
+        updateSeaLevel(SEA_MIN);
+        isAutoEvaporating = false;
+        const btn = $('btnAutoEvap');
+        if (btn) btn.textContent = '▶ Auto Evaporate';
+      } else {
+        updateSeaLevel(next);
+      }
+    }
+    if (controls) controls.update();
+    renderer.render(scene, camera);
+  }
+  requestAnimationFrame(animate);
+
+  addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+
+  buildThermalLegendGradient();
+  updateSeaLevel(0);
+  console.log('Earth Explorer initialized successfully.');
+})();
+</script>
