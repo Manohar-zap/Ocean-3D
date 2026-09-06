@@ -594,7 +594,7 @@
   waterMesh.scale.setScalar(BASE_RADIUS);
   terrainMesh.renderOrder = 0;
   waterMesh.renderOrder = 1;
-  scene.add(waterMesh);
+  globeGroup.add(waterMesh);
 
   // Load Earth Texture
   new THREE.TextureLoader().load(EARTH_URL, tex => {
