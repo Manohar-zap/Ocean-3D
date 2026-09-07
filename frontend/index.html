@@ -140,7 +140,8 @@
     <div class="field">
       <label>Global Region Navigator</label>
       <select id="globalRegionSelect">
-        <option value="indian">Indian Ocean (Default Target)</option>
+        <option value="global" selected>Global Oceans (Whole Earth)</option>
+        <option value="indian">Indian Ocean</option>
         <option value="pacific">Pacific Ocean</option>
         <option value="atlantic">Atlantic Ocean</option>
         <option value="southern">Southern Ocean</option>
@@ -148,7 +149,8 @@
       </select>
     </div>
 
-    <button class="action primary" id="btnFlyIndia">Fly to India & Indian Ocean</button>
+    <button class="action primary" id="btnFlyGlobal">Fly to Global View</button>
+    <button class="action" id="btnFlyIndia" style="margin-top:-6px;">Fly to India & Indian Ocean</button>
     <button class="action" id="btnFlyHimalayas" style="margin-top:-6px;">Fly to Himalayas (3D Terrain Test)</button>
 
     <div class="field research-only">
@@ -230,10 +232,10 @@
     <div class="field research-only">
       <label>Region (lat / lon bounds)</label>
       <div style="display:flex; gap:6px;">
-        <input id="minLat" type="text" class="mono" value="0" style="width:25%">
-        <input id="maxLat" type="text" class="mono" value="25" style="width:25%">
-        <input id="minLon" type="text" class="mono" value="60" style="width:25%">
-        <input id="maxLon" type="text" class="mono" value="95" style="width:25%">
+        <input id="minLat" type="text" class="mono" value="-90" style="width:25%">
+        <input id="maxLat" type="text" class="mono" value="90" style="width:25%">
+        <input id="minLon" type="text" class="mono" value="-180" style="width:25%">
+        <input id="maxLon" type="text" class="mono" value="180" style="width:25%">
       </div>
     </div>
 
@@ -276,7 +278,7 @@
   <main>
     <div id="cesiumContainer"></div>
     <div id="hint">Drag to orbit Earth globe · scroll to zoom · click an observation platform to inspect</div>
-    <div id="coordsReadout" class="mono">Position: 18.00°N, 78.50°E | India & Indian Ocean Globe Workspace</div>
+    <div id="coordsReadout" class="mono">Position: 0.00°N, 20.00°E | Global 3D Ocean Globe Workspace</div>
     <div id="terrainErrorBanner"></div>
     <div id="loading">Initializing Real 3D Earth Globe & Cesium World Terrain…</div>
 
@@ -331,8 +333,8 @@
 
 <script>
 // Domain Constants
-const LAT_RANGE = [0, 25];
-const LON_RANGE = [60, 95];
+const LAT_RANGE = [-90, 90];
+const LON_RANGE = [-180, 180];
 const DEPTHS = [0, 10, 25, 50, 75, 100, 150, 200, 300, 500, 750, 1000, 1500, 2000];
 
 const PLAIN_LABELS = {
@@ -459,16 +461,16 @@ async function initCesiumGlobe(){
   viewer.scene.globe.depthTestAgainstTerrain = state.worldTerrainLoaded;
   viewer.scene.globe.enableLighting = true;
 
-  // Enforce camera zoom limits to prevent zooming out into deep space away from Earth
-  viewer.scene.screenSpaceCameraController.maximumZoomDistance = 12000000.0; // 12,000 km max distance from Earth
+  // Enforce camera zoom limits to allow full global Earth view
+  viewer.scene.screenSpaceCameraController.maximumZoomDistance = 22000000.0; // 22,000 km max distance from Earth
   viewer.scene.screenSpaceCameraController.minimumZoomDistance = 100.0;     // 100 meters min distance
 
   // Log Provider Type for Verification
   console.log("Active Terrain Provider Class:", viewer.terrainProvider.constructor.name);
   console.log("Cesium Ion Token Status:", state.cesiumIonStatus);
 
-  // Initial Camera Target: India + Indian Ocean
-  flyToIndia();
+  // Initial Camera Target: Global View (Whole Earth Globe)
+  flyToGlobal();
 
   // Hover Readout & Observation Platform Label Display
   let hoveredEntity = null;
@@ -480,7 +482,7 @@ async function initCesiumGlobe(){
       const lon = Cesium.Math.toDegrees(cartographic.longitude).toFixed(2);
       const lat = Cesium.Math.toDegrees(cartographic.latitude).toFixed(2);
       const height = (viewer.camera.positionCartographic.height / 1000.0).toFixed(0);
-      document.getElementById("coordsReadout").textContent = `Position: ${lat}°N, ${lon}°E | Altitude: ${height} km | India & Indian Ocean Globe`;
+      document.getElementById("coordsReadout").textContent = `Position: ${lat}°N, ${lon}°E | Altitude: ${height} km | Global 3D Ocean Globe`;
     }
 
     const pickedObject = viewer.scene.pick(movement.endPosition);
@@ -522,17 +524,56 @@ function showTerrainError(msg){
   banner.textContent = msg;
 }
 
-function flyToIndia(){
+function flyToGlobal(){
   if(!viewer) return;
   viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(78.5, 18.0, 3800000),
+    destination: Cesium.Cartesian3.fromDegrees(20.0, 10.0, 18000000),
     orientation: {
       heading: Cesium.Math.toRadians(0.0),
-      pitch: Cesium.Math.toRadians(-65.0),
+      pitch: Cesium.Math.toRadians(-90.0),
       roll: 0.0
     },
     duration: 2.0
   });
+}
+
+function flyToRegion(region){
+  if(!viewer) return;
+  const regions = {
+    global: { lon: 20.0, lat: 10.0, alt: 18000000, pitch: -90.0, bounds: [-90, 90, -180, 180] },
+    indian: { lon: 78.5, lat: 18.0, alt: 3800000, pitch: -65.0, bounds: [-10, 30, 50, 100] },
+    pacific: { lon: -150.0, lat: 0.0, alt: 12000000, pitch: -80.0, bounds: [-60, 60, -180, 180] },
+    atlantic: { lon: -30.0, lat: 15.0, alt: 10000000, pitch: -80.0, bounds: [-60, 70, -90, 30] },
+    southern: { lon: 0.0, lat: -65.0, alt: 10000000, pitch: -70.0, bounds: [-90, -40, -180, 180] },
+    arctic: { lon: 0.0, lat: 85.0, alt: 8000000, pitch: -85.0, bounds: [60, 90, -180, 180] },
+  };
+  const target = regions[region] || regions.global;
+
+  if(target.bounds){
+    document.getElementById("minLat").value = target.bounds[0];
+    document.getElementById("maxLat").value = target.bounds[1];
+    document.getElementById("minLon").value = target.bounds[2];
+    document.getElementById("maxLon").value = target.bounds[3];
+  }
+
+  viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(target.lon, target.lat, target.alt),
+    orientation: {
+      heading: Cesium.Math.toRadians(0.0),
+      pitch: Cesium.Math.toRadians(target.pitch),
+      roll: 0.0
+    },
+    duration: 2.0
+  });
+
+  setTimeout(() => {
+    loadObservations();
+    if(typeof loadModelData === "function") loadModelData();
+  }, 300);
+}
+
+function flyToIndia(){
+  flyToRegion("indian");
 }
 
 function flyToHimalayas(){
@@ -548,8 +589,10 @@ function flyToHimalayas(){
   });
 }
 
+document.getElementById("btnFlyGlobal").onclick = flyToGlobal;
 document.getElementById("btnFlyIndia").onclick = flyToIndia;
 document.getElementById("btnFlyHimalayas").onclick = flyToHimalayas;
+document.getElementById("globalRegionSelect").onchange = (e) => flyToRegion(e.target.value);
 
 // ---------------------------------------------------------------------
 // Scientific Ocean Layers on Cesium Globe
@@ -1038,7 +1081,14 @@ async function loadObservations(){
     bgc: document.getElementById("ovBgc").checked,
   };
 
-  for(const m of data.markers){
+  const sortedMarkers = (data.markers || []).slice().sort((a, b) => {
+    const order = { argo: 0, ctd: 1, bgc: 2, glider: 3 };
+    const pa = order[(a.platform_type || "argo").toLowerCase()] || 0;
+    const pb = order[(b.platform_type || "argo").toLowerCase()] || 0;
+    return pa - pb;
+  });
+
+  for(const m of sortedMarkers){
     const ptype = (m.platform_type || "argo").toLowerCase();
     if(!toggles[ptype]) continue;
 
@@ -1046,19 +1096,24 @@ async function loadObservations(){
     const iconUrl = PLATFORM_ICON[ptype] || 'assets/icons/argo_float.png';
     const colorCss = PLATFORM_COLOR[ptype] || '#f2a65a';
 
+    const posHeight = ptype === "glider" ? 5000.0 : 100.0;
+    const eyeOffsetVal = ptype === "glider" ? new Cesium.Cartesian3(0, 0, -5000) : new Cesium.Cartesian3(0, 0, 0);
+    const bSize = ptype === "glider" ? (isSelected ? 44 : 34) : (isSelected ? 38 : 28);
+
     const entity = viewer.entities.add({
-      position: Cesium.Cartesian3.fromDegrees(m.lon, m.lat, 100.0),
+      position: Cesium.Cartesian3.fromDegrees(m.lon, m.lat, posHeight),
       billboard: {
         image: iconUrl,
-        width: isSelected ? 38 : 28,
-        height: isSelected ? 38 : 28,
+        width: bSize,
+        height: bSize,
+        eyeOffset: eyeOffsetVal,
         verticalOrigin: Cesium.VerticalOrigin.BOTTOM
       },
       label: {
         text: m.platform_id,
         font: 'bold 11px IBM Plex Mono',
         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-        pixelOffset: new Cesium.Cartesian2(0, -32),
+        pixelOffset: new Cesium.Cartesian2(0, -36),
         fillColor: Cesium.Color.WHITE,
         show: isSelected
       }

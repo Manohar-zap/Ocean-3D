@@ -20,5 +20,6 @@ frontend/config.js
 *.pdf
 .idea/
 .vscode/
-.DS_Store
+*.log
+backend/*.log
 Thumbs.db
