@@ -64,12 +64,21 @@ class Store:
             rows = [r for r in rows if r.dataset_id == f.dataset_id]
         if f.variable:
             rows = [r for r in rows if r.variable == f.variable]
+
+        if f.min_depth == f.max_depth and rows:
+            available_depths = sorted({r.depth for r in rows})
+            if available_depths:
+                target_d = f.min_depth
+                nearest_d = min(available_depths, key=lambda d: abs(d - target_d))
+                rows = [r for r in rows if abs(r.depth - nearest_d) < 1e-4]
+        else:
+            rows = [r for r in rows if f.min_depth <= r.depth <= f.max_depth]
+
         rows = [r for r in rows
                 if f.min_lat <= r.latitude <= f.max_lat
-                and f.min_lon <= r.longitude <= f.max_lon
-                and f.min_depth <= r.depth <= f.max_depth]
+                and f.min_lon <= r.longitude <= f.max_lon]
+
         if f.time:
-            # snap to nearest available time step (grid is discrete)
             times = sorted({r.time for r in rows})
             if times:
                 nearest = min(times, key=lambda t: abs(_parse(t) - _parse(f.time)))

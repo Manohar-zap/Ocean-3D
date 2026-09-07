@@ -46,7 +46,7 @@ class Adapter(Protocol):
 
 LAT_RANGE = (-70.0, 70.0)     # Global Oceans box
 LON_RANGE = (-180.0, 180.0)
-DEPTHS = [0, 10, 25, 50, 75, 100, 150, 200, 300, 500, 750, 1000, 1500, 2000]
+DEPTHS = [0, 10, 25, 50, 75, 100, 150, 200, 300, 500, 750, 1000, 1500, 2000, 3000, 4246]
 TIME_STEPS = 8               # e.g. 8 daily steps
 GRID_N = 18                  # lat/lon grid resolution per axis (kept small: browser-renderable)
 
@@ -102,6 +102,8 @@ def _synthetic_value(variable: str, lat: float, lon: float, depth: float, step: 
     if variable == "salinity":
         base = 34.5 + 1.2 * math.cos((lat / 90.0) * math.pi) + 0.3 * ((lon + 180.0) / 360.0)
         return round(base + 0.1 * (1 - depth_decay) + 0.05 * seasonal, 3)
+    if variable == "pressure":
+        return round(1.025 * depth + 10.13, 2)
     if variable == "current_u":
         return round(0.4 * math.sin(((lon + 180.0) / 360.0) * 2 * math.pi + step * 0.3) * depth_decay, 4)
     if variable == "current_v":
@@ -116,8 +118,8 @@ def _synthetic_value(variable: str, lat: float, lon: float, depth: float, step: 
 class CopernicusMarineAdapter:
     """Official Copernicus Marine Service API & cached dataset adapter."""
 
-    VARIABLES = ["temperature", "salinity"]
-    UNITS = {"temperature": "degC", "salinity": "psu"}
+    VARIABLES = ["temperature", "salinity", "pressure"]
+    UNITS = {"temperature": "degC", "salinity": "psu", "pressure": "dbar"}
 
     def can_handle(self, source: str) -> bool:
         return "copernicus" in source or "cmems" in source
@@ -230,8 +232,8 @@ class BathymetryAdapter:
 class ModelNetCDFAdapter:
     """INCOIS ocean circulation model output adapter (ROMS NetCDF)."""
 
-    VARIABLES = ["temperature", "salinity", "current_u", "current_v"]
-    UNITS = {"temperature": "degC", "salinity": "psu", "current_u": "m/s", "current_v": "m/s"}
+    VARIABLES = ["temperature", "salinity", "pressure", "current_u", "current_v"]
+    UNITS = {"temperature": "degC", "salinity": "psu", "pressure": "dbar", "current_u": "m/s", "current_v": "m/s"}
 
     def can_handle(self, source: str) -> bool:
         return source == "incois_las_model" or source.endswith(".nc")
