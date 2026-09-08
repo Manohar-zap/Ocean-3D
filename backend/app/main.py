@@ -5,9 +5,10 @@ Run with:  uvicorn app.main:app --reload --port 8000
 Then open frontend/index.html (it points at http://localhost:8000 by default).
 """
 from __future__ import annotations
+import os
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, FileResponse
 from datetime import datetime, timezone
 from typing import Optional, Any
 
@@ -439,3 +440,37 @@ def health():
             "model_records": len(store.model_records),
             "observation_records": len(store.observation_records),
             "datasets": list(store.catalog.keys())}
+
+
+# ---------------------------------------------------------------------------
+# ETOPO1 Heightmap Server Endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/heightmap")
+def get_heightmap():
+    path = os.path.join("data", "etopo1_2048x1024.f32")
+    if not os.path.exists(path):
+        path = os.path.join("backend", "data", "etopo1_2048x1024.f32")
+    if not os.path.exists(path):
+        raise HTTPException(404, "Heightmap file not found")
+    return FileResponse(path, media_type="application/octet-stream")
+
+
+@app.get("/heightmap-meta")
+def get_heightmap_meta():
+    path = os.path.join("data", "etopo1_2048x1024.json")
+    if not os.path.exists(path):
+        path = os.path.join("backend", "data", "etopo1_2048x1024.json")
+    if not os.path.exists(path):
+        raise HTTPException(404, "Heightmap metadata not found")
+    return FileResponse(path, media_type="application/json")
+
+
+@app.get("/etopo1_2048x1024_packed.png")
+def get_heightmap_packed_png():
+    path = os.path.join("data", "etopo1_2048x1024_packed.png")
+    if not os.path.exists(path):
+        path = os.path.join("backend", "data", "etopo1_2048x1024_packed.png")
+    if not os.path.exists(path):
+        raise HTTPException(404, "Packed heightmap PNG not found")
+    return FileResponse(path, media_type="image/png")

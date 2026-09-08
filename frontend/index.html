@@ -186,7 +186,7 @@
       <div class="section-title">3D Scene Layers</div>
       <div class="toggle-row"><span>Current Vectors</span>
         <label class="switch"><input type="checkbox" id="ovVectors"><span class="slider-toggle"></span></label></div>
-      <div class="toggle-row"><span>Seabed Bathymetry (Demo Data)</span>
+      <div class="toggle-row"><span>Seabed Bathymetry (ETOPO1 / GEBCO 3D Relief)</span>
         <label class="switch"><input type="checkbox" id="ovBathymetry" checked><span class="slider-toggle"></span></label></div>
       <div class="toggle-row"><span>3D Isosurface (Preview / Planned)</span>
         <label class="switch"><input type="checkbox" id="ovIsosurface"><span class="slider-toggle"></span></label></div>
@@ -683,11 +683,13 @@ function clearModelEntities(){
   }
 }
 
-let bathymetryEntities = [];
+let bathymetryPrimitive = null;
 
 async function loadBathymetry(){
-  bathymetryEntities.forEach(e => viewer.entities.remove(e));
-  bathymetryEntities = [];
+  if(bathymetryPrimitive){
+    viewer.scene.primitives.remove(bathymetryPrimitive);
+    bathymetryPrimitive = null;
+  }
   if(!state.showBathymetry) return;
 
   const b = currentBounds();
@@ -695,41 +697,99 @@ async function loadBathymetry(){
   const res = await fetch(url);
   if(!res.ok) return;
   const data = await res.json();
+  if(!data.points || !data.points.length) return;
 
   const lats = Array.from(new Set(data.points.map(p => p.lat))).sort((a,b) => a - b);
   const lons = Array.from(new Set(data.points.map(p => p.lon))).sort((a,b) => a - b);
-
-  const latStep = (lats[lats.length - 1] - lats[0]) / Math.max(1, lats.length - 1);
-  const lonStep = (lons[lons.length - 1] - lons[0]) / Math.max(1, lons.length - 1);
+  const nLat = lats.length;
+  const nLon = lons.length;
+  if(nLat < 2 || nLon < 2) return;
 
   const depthMap = {};
   data.points.forEach(p => { depthMap[`${p.lat}_${p.lon}`] = p.depth; });
 
-  for(let i = 0; i < lats.length; i++){
-    for(let j = 0; j < lons.length; j++){
-      const lat = lats[i], lon = lons[j];
+  const numVertices = nLat * nLon;
+  const positions = new Float64Array(numVertices * 3);
+  const colors = new Uint8Array(numVertices * 4);
+
+  let vIdx = 0;
+  for(let i = 0; i < nLat; i++){
+    const lat = lats[i];
+    for(let j = 0; j < nLon; j++){
+      const lon = lons[j];
       const d = depthMap[`${lat}_${lon}`] ?? 4000;
-      const h = -d * state.verticalExaggeration * 15.0; // Real seafloor height below surface
 
-      // Scientific Bathymetric Depth Colormap (shallow teal -> deep indigo)
+      // Real 3D displaced Cartesian height based on ETOPO/GEBCO seafloor depth and vertical exaggeration
+      const h = -d * state.verticalExaggeration * 12.0;
+      const cartesian = Cesium.Cartesian3.fromDegrees(lon, lat, h);
+
+      positions[vIdx * 3]     = cartesian.x;
+      positions[vIdx * 3 + 1] = cartesian.y;
+      positions[vIdx * 3 + 2] = cartesian.z;
+
+      // Depth colormap: shallow shelf teal -> deep trench indigo/purple
       const norm = Math.min(1.0, Math.max(0.0, d / 6000.0));
-      const color = Cesium.Color.fromHsl(0.6 - norm * 0.3, 0.7, 0.15 + (1 - norm) * 0.25, 0.85);
+      const c = Cesium.Color.fromHsl(0.6 - norm * 0.35, 0.75, 0.15 + (1 - norm) * 0.30, 0.90);
 
-      const rect = viewer.entities.add({
-        rectangle: {
-          coordinates: Cesium.Rectangle.fromDegrees(
-            lon - lonStep/2, lat - latStep/2,
-            lon + lonStep/2, lat + latStep/2
-          ),
-          height: h,
-          material: new Cesium.ColorMaterialProperty(color),
-          outline: false
-        }
-      });
-      rect.userData = { bathymetryDepth: d, source: "GEBCO_2023_GRID" };
-      bathymetryEntities.push(rect);
+      colors[vIdx * 4]     = Math.floor(c.red * 255);
+      colors[vIdx * 4 + 1] = Math.floor(c.green * 255);
+      colors[vIdx * 4 + 2] = Math.floor(c.blue * 255);
+      colors[vIdx * 4 + 3] = Math.floor(c.alpha * 255);
+
+      vIdx++;
     }
   }
+
+  const numQuads = (nLat - 1) * (nLon - 1);
+  const indices = new Uint32Array(numQuads * 6);
+  let iIdx = 0;
+
+  for(let i = 0; i < nLat - 1; i++){
+    for(let j = 0; j < nLon - 1; j++){
+      const row1 = i * nLon;
+      const row2 = (i + 1) * nLon;
+
+      const p0 = row1 + j;
+      const p1 = row1 + j + 1;
+      const p2 = row2 + j;
+      const p3 = row2 + j + 1;
+
+      indices[iIdx++] = p0; indices[iIdx++] = p2; indices[iIdx++] = p1;
+      indices[iIdx++] = p1; indices[iIdx++] = p2; indices[iIdx++] = p3;
+    }
+  }
+
+  const geometry = new Cesium.Geometry({
+    attributes: {
+      position: new Cesium.GeometryAttribute({
+        componentDatatype: Cesium.ComponentDatatype.DOUBLE,
+        componentsPerAttribute: 3,
+        values: positions
+      }),
+      color: new Cesium.GeometryAttribute({
+        componentDatatype: Cesium.ComponentDatatype.UNSIGNED_BYTE,
+        componentsPerAttribute: 4,
+        normalize: true,
+        values: colors
+      })
+    },
+    indices: indices,
+    primitiveType: Cesium.PrimitiveType.TRIANGLES,
+    boundingSphere: Cesium.BoundingSphere.fromVertices(positions)
+  });
+
+  const instance = new Cesium.GeometryInstance({ geometry: geometry });
+
+  bathymetryPrimitive = new Cesium.Primitive({
+    geometryInstances: instance,
+    appearance: new Cesium.PerInstanceColorAppearance({
+      flat: false,
+      translucent: true
+    }),
+    asynchronous: false
+  });
+
+  viewer.scene.primitives.add(bathymetryPrimitive);
 }
 
 function globalModelBounds(){
