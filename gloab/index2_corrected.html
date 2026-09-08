@@ -627,6 +627,9 @@
         <div id="dataset-list" class="item-grid">
             <!-- Populated by API -->
         </div>
+        <button class="btn-tool" style="width:100%; justify-content:center; margin-top:8px; font-size:0.65rem;" onclick="exportCSV('model')">
+            <span>⬇</span> <span>EXPORT MODEL CSV</span>
+        </button>
     </div>
 
     <!-- Observation Profile Panel (Phase 4) -->
@@ -638,6 +641,9 @@
         <div id="prof-content" class="item-grid" style="font-family: var(--font-mono); font-size: 0.65rem;">
             <!-- Profile data -->
         </div>
+        <button class="btn-tool" style="width:100%; justify-content:center; margin-top:8px; font-size:0.65rem;" onclick="exportCSV('observation')">
+            <span>⬇</span> <span>EXPORT OBS CSV</span>
+        </button>
     </div>
 
     <!-- Compare Panel (Phase 5) -->
@@ -1432,6 +1438,20 @@
     document.getElementById('comp-var').value = v;
     document.getElementById('comp-depth').value = d;
     document.getElementById('comp-time').value = t;
+  };
+
+  // Phase 6: Export Integration
+  window.exportCSV = (kind) => {
+    let url = `${API_BASE}/api/export?kind=${kind}`;
+    if (kind === 'model') {
+      if (!activeDataset || !activeVariable) {
+        setStatus('SELECT DATASET BEFORE EXPORT', false);
+        return;
+      }
+      url += `&dataset_id=${activeDataset}&variable=${activeVariable}&min_lat=-40&max_lat=25&min_lon=30&max_lon=120`;
+    }
+    console.log(`Triggering export: ${url}`);
+    window.open(url, '_blank');
   };
 
   loadCatalog();
