@@ -250,6 +250,34 @@
             box-shadow: 0 0 8px var(--accent-glow);
         }
 
+        /* Profile Panel (Phase 4) */
+        #profile-panel {
+            position: absolute;
+            top: 20px;
+            left: 320px;
+            z-index: 100;
+            width: 320px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .prof-row {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr 1fr;
+            gap: 8px;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .prof-header {
+            font-weight: 800;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-glass);
+            margin-bottom: 4px;
+        }
+
         /* Main Sea Level / Evaporation Dock (Bottom Center) */
         #slider-dock {
             position: absolute;
@@ -574,6 +602,17 @@
         </div>
         <div id="dataset-list" class="item-grid">
             <!-- Populated by API -->
+        </div>
+    </div>
+
+    <!-- Observation Profile Panel (Phase 4) -->
+    <div id="profile-panel" class="glass-panel" style="display:none;">
+        <div class="panel-header">
+            <span class="panel-title" id="prof-title">PLATFORM PROFILE</span>
+            <button class="var-btn" style="padding: 2px 6px;" onclick="document.getElementById('profile-panel').style.display='none'">✕</button>
+        </div>
+        <div id="prof-content" class="item-grid" style="font-family: var(--font-mono); font-size: 0.65rem;">
+            <!-- Profile data -->
         </div>
     </div>
 
@@ -1253,7 +1292,72 @@
     modelPointsGroup.add(pointCloud);
   }
 
+  // Phase 4: Observations Integration
+  async function fetchObservations() {
+    setStatus('SYNCING OBSERVATIONS...', true);
+    try {
+      const res = await fetch(`${API_BASE}/api/observations`);
+      if (!res.ok) throw new Error(`Observations API returned ${res.status}`);
+      const data = await res.json();
+      renderObservationMarkers(data.markers);
+      setStatus('OBSERVATIONS SYNCED', false);
+    } catch (err) {
+      console.error('Observations fetch failed:', err);
+      setStatus('OBSERVATIONS OFFLINE', false);
+    }
+  }
+
+  const obsMarkerGeo = new THREE.IcosahedronGeometry(0.015, 0);
+  const obsMarkerMat = new THREE.MeshStandardMaterial({
+    color: 0xfff000,
+    emissive: 0xfff000,
+    emissiveIntensity: 0.6,
+    flatShading: true
+  });
+
+  function renderObservationMarkers(markers) {
+    obsMarkersGroup.clear();
+    markers.forEach(m => {
+      const mesh = new THREE.Mesh(obsMarkerGeo, obsMarkerMat);
+      const pos = latLonToVector3(m.lat, m.lon, 0); // markers at surface
+      mesh.position.copy(pos);
+      mesh.userData = { type: 'observation', ...m };
+      obsMarkersGroup.add(mesh);
+    });
+  }
+
+  async function showProfile(pid) {
+    const panel = document.getElementById('profile-panel');
+    const content = document.getElementById('prof-content');
+    const title = document.getElementById('prof-title');
+
+    panel.style.display = 'flex';
+    title.textContent = pid;
+    content.innerHTML = '<div class="status-indicator">LOADING PROFILE...</div>';
+
+    try {
+      const res = await fetch(`${API_BASE}/api/observations/${pid}/profile`);
+      if (!res.ok) throw new Error(`Profile API returned ${res.status}`);
+      const data = await res.json();
+
+      let html = '<div class="prof-row prof-header"><span>DEPTH</span><span>VAR</span><span>VALUE</span></div>';
+      data.profile.forEach(p => {
+        html += `
+          <div class="prof-row">
+            <span>${p.depth}m</span>
+            <span style="color:var(--text-muted)">${p.variable}</span>
+            <span style="color:var(--accent-cyan)">${p.value.toFixed(2)}</span>
+          </div>`;
+      });
+      content.innerHTML = html;
+    } catch (err) {
+      console.error('Profile fetch failed:', err);
+      content.innerHTML = '<div class="status-indicator" style="color:#ef4444">FAILED TO LOAD</div>';
+    }
+  }
+
   loadCatalog();
+  fetchObservations();
 
   // ---------------------------------------------------------------------------
   // Sea level controls
@@ -1353,6 +1457,18 @@
     }
   }
   addEventListener('pointermove', onPointerMove, { passive: true });
+
+  // Phase 4: Marker selection
+  addEventListener('pointerdown', e => {
+    mouse.x = (e.clientX / innerWidth) * 2 - 1;
+    mouse.y = -(e.clientY / innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(obsMarkersGroup.children);
+    if (intersects.length > 0) {
+      const platform = intersects[0].object.userData;
+      showProfile(platform.platform_id);
+    }
+  });
 
   // ---------------------------------------------------------------------------
   // Animation
