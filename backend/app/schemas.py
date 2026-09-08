@@ -22,15 +22,16 @@ class StandardRecord(BaseModel):
     latitude: float
     longitude: float
     depth: float                 # meters, positive down
-    time: str                    # ISO 8601
+    time: str                    # ISO 8601 observation time
     value: float
     unit: str
     source_model: Optional[str] = None      # for kind == "model"
     platform_id: Optional[str] = None       # for kind == "observation"
-    platform_type: Optional[str] = None     # argo | glider | ctd | bgc
+    platform_type: Optional[str] = None     # argo | glider | ctd | bgc | mooring
     quality_flag: Optional[str] = "good"
     source_file: Optional[str] = None
-    ingestion_ts: Optional[str] = None
+    ingestion_ts: Optional[str] = None      # Time the snapshot was retrieved (download_time)
+    is_real: bool = False                   # Flag for Copernicus vs Synthetic
     data_status: Literal["REAL DATA", "CACHED REAL DATA", "DEMONSTRATION DATA"] = "CACHED REAL DATA"
     source_organization: Optional[str] = "INCOIS / Copernicus Marine"
     product_id: Optional[str] = None

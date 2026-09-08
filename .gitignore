@@ -12,7 +12,7 @@ env/
 # IDE, Secrets, Temporary Screenshots, Documents & OS
 .env
 .env.local
-frontend/config.js
+gloab/config.js
 *.png
 *.docx
 *.doc

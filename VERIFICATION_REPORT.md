@@ -79,6 +79,6 @@ python -m uvicorn app.main:app --reload --port 8000
 
 ### Start Frontend Server
 ```bash
-python -m http.server 5500 --directory frontend
+python -m http.server 5500 --directory gloab
 ```
-Navigate to `http://localhost:5500` in browser.
+Navigate to `http://localhost:5500/index2_corrected.html` in browser.

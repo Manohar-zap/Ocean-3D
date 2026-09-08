@@ -2,7 +2,7 @@
 OCEAN 3D — API Gateway / Backend (Architecture Sec. 5.2).
 
 Run with:  uvicorn app.main:app --reload --port 8000
-Then open frontend/index.html (it points at http://localhost:8000 by default).
+Then open gloab/index2_corrected.html (it points at http://localhost:8000 by default).
 """
 from __future__ import annotations
 import json
@@ -125,23 +125,8 @@ def query_model_volume(
     }
 
 
-@app.get("/api/model/grid3d")
-def query_model_grid3d(
-    dataset_id: str = Query(...),
-    variable: str = Query(...),
-    min_lat: float = -90, max_lat: float = 90,
-    min_lon: float = -180, max_lon: float = 180,
-    min_depth: float = 0, max_depth: float = 6000,
-    time: Optional[str] = None,
-):
-    """3D scalar grid for Marching Cubes isosurface extraction."""
-    f = QueryFilters(dataset_id=dataset_id, variable=variable,
-                      min_lat=min_lat, max_lat=max_lat, min_lon=min_lon, max_lon=max_lon,
-                      min_depth=min_depth, max_depth=max_depth, time=time)
-    res = query_service.model_grid3d(f)
-    if not res or not res.get("grid"):
-        raise HTTPException(404, "No 3D grid data found for this query")
-    return res
+# NOTE: /api/model/grid3d removed (Requirement 5: API Cleanup).
+# Volumetric visualization is handled by /api/model/volume.
 
 
 @app.get("/api/bathymetry")
@@ -295,7 +280,7 @@ def export(
 
 
 # ---------------------------------------------------------------------------
-# Health
+# Health & Worker
 # ---------------------------------------------------------------------------
 
 @app.get("/api/health")
@@ -303,4 +288,11 @@ def health():
     return {"status": "ok",
             "model_records": len(store.model_records),
             "observation_records": len(store.observation_records),
-            "datasets": list(store.catalog.keys())}
+            "datasets": list(store.catalog.keys()),
+            "last_refresh": store.last_refresh_ts}
+
+@app.on_event("startup")
+async def startup_event():
+    import asyncio
+    from .storage import background_worker
+    asyncio.create_task(background_worker())

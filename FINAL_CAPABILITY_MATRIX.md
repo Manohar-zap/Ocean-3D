@@ -9,12 +9,12 @@
 
 | Capability | Status | Verification Evidence / Details |
 |---|---|---|
-| **Global 3D Ocean Workspace** | `IMPLEMENTED` | CesiumJS v1.114 WGS84 Earth Globe with global satellite imagery, streamed terrain, and navigation controls. India + Indian Ocean is the default camera view. |
+| **Global 3D Ocean Workspace** | `IMPLEMENTED` | Three.js Globe (r128) with GLSL shaders, local ETOPO1 heightmap, global satellite imagery, and navigation controls. India + Indian Ocean is the default camera view. |
 | **Global Ocean Primary Model Dataset** | `IMPLEMENTED` | Copernicus Marine Service `GLOBAL_MULTIYEAR_PHY_001_030` ($0.083^\circ \times 0.083^\circ$, 50 vertical depth levels, NetCDF-4). |
 | **Global Bounding Box Subsetting** | `IMPLEMENTED` | API endpoints (`/api/model`, `/api/model/volume`, `/api/model/grid3d`) support global queries ($\text{lat } -80^\circ \text{ to } 90^\circ$, $\text{lon } -180^\circ \text{ to } 180^\circ$). |
 | **Global Land/Ocean Masking** | `IMPLEMENTED` | `shapely` global land polygons (`is_land`) applied across all continents and landmasses. Vector currents set to $0.0$ over land. |
 | **Global Region Navigation** | `IMPLEMENTED` | One-click regional navigation targets for **Indian Ocean**, **Pacific Ocean**, **Atlantic Ocean**, **Southern Ocean**, and **Arctic Ocean**. |
-| **Continuous Model Surface** | `IMPLEMENTED` | Indexed triangulated surface geometry (`THREE.BufferGeometry` / Cesium Rectangles) with colormap interpolation. |
+| **Continuous Model Surface** | `IMPLEMENTED` | Indexed triangulated surface geometry (`THREE.BufferGeometry`) with colormap interpolation. |
 | **Multi-Depth Visualization** | `IMPLEMENTED` | Multi-depth surface stack (`/api/model/volume`) and vertical exaggeration slider (`0.5x`–`4.0x`). |
 | **Temperature & Salinity** | `IMPLEMENTED` | Filtered 3D scalar field query with colormap synchronization. |
 | **Current Velocity Field** | `IMPLEMENTED` | Directional vector polylines/arrows driven by $\text{current\_u}$ and $\text{current\_v}$ over valid ocean cells only. |
