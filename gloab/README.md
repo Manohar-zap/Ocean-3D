@@ -1,29 +1,24 @@
 # ETOPO Globe
 
-This directory contains the standalone Three.js globe and its local ETOPO1 heightmap server.
+This directory contains the standalone Three.js globe. The terrain data is managed by the backend terrain builder.
 
 ## Quick start
 
 The repository includes the generated 2048 x 1024 heightmap, so the large NOAA source archive is not needed for the normal workflow.
 
-1. Install Python 3.10 or newer.
-2. Install the server dependencies:
-
-   ```powershell
-   py -m pip install numpy tifffile pillow
-   ```
-
-3. Start the heightmap server:
-
-   ```powershell
-   py etopo_heightmap_server.py
-   ```
-
-4. Serve or open `index2_corrected.html` while the server is running. The globe loads its heightmap from `http://127.0.0.1:8765/heightmap`.
+1. Start the FastAPI backend (see `backend/README.md`).
+2. Serve or open `index2_corrected.html`. The globe loads its heightmap from the backend API.
 
 ## Regenerate the heightmap
 
-If you remove `data/etopo1_2048x1024.f32` or `data/etopo1_2048x1024.json`, the server downloads the NOAA ETOPO1 Bedrock source archive automatically and extracts the GeoTIFF locally:
+If you need to regenerate `data/etopo1_2048x1024.f32` or `data/etopo1_2048x1024.json`, use the integrated terrain builder in the backend:
+
+```powershell
+cd backend
+python -m app.terrain_builder
+```
+
+The builder downloads the NOAA ETOPO1 Bedrock source archive automatically and extracts the GeoTIFF locally:
 
 - Source: https://www.ngdc.noaa.gov/mgg/global/relief/ETOPO1/data/bedrock/grid_registered/georeferenced_tiff/ETOPO1_Bed_g_geotiff.zip
 - Downloaded archive: `data/ETOPO1_Bed_g_geotiff.zip`

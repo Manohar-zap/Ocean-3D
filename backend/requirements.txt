@@ -7,3 +7,5 @@ netCDF4==1.7.4
 xarray==2025.6.1
 scipy==1.15.2
 numpy==2.2.6
+tifffile==2025.2.18
+Pillow==11.1.0
