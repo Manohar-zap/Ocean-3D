@@ -1,38 +1,59 @@
-# Walkthrough: ETOPO Globe Migration, Bug Fixes & Real Copernicus Integration
+# Backend Correction & Argo/Glider Pipeline Walkthrough
 
-Successfully migrated Ocean-3D from CesiumJS to a standalone Three.js (r128) single-sphere GLSL shader globe with real NOAA ETOPO1 heightmap vertex displacement. Integrated real Copernicus Marine Service API data for the Indian Ocean basin and resolved critical performance and data consistency bugs.
+I have standardized the Ocean-3D backend on Copernicus Marine Service, implemented environment-based configuration, and added a robust observation pipeline with fallback mechanisms.
 
 ## Changes Made
 
-### Backend (`backend/app/` & `backend/tests/`)
+### Configuration & Environment
+- [x] **Created** [**.env**](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/.env) with API keys and system configuration.
+- [x] **Verified** [**.gitignore**](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/.gitignore) covers the new `.env` file.
+- [x] **Updated** [**main.py**](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/app/main.py) to load environment variables at startup.
+- [x] **Verified** `python-dotenv` is present in `requirements.txt`.
 
-#### [MODIFY] [adapters.py](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/app/adapters.py)
-- **Real Copernicus Integration**: Wired `CopernicusMarineAdapter` to call the real API via `copernicusmarine.open_dataset` when credentials are provided. Implemented full xarray-to-StandardRecord conversion with NaN skipping and subsetting to the `INDIAN_OCEAN_BBOX` (-40 to 25 Lat, 30 to 120 Lon).
-- **Observation Filtering**: Updated all observation adapters (Argo, Glider, CTD, BGC) to ingest data only within the Indian Ocean basin.
-- **Robust Path Resolution**: Replaced all relative file path strings with `BASE_DIR` resolution based on `Path(__file__)`, ensuring the backend starts correctly from any working directory.
-- **Synthetic Fallback**: Maintained a clean separation between the real data box and the original synthetic fallback ranges.
+### Data Models
+- [x] **Updated** `StandardRecord` in [**schemas.py**](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/app/schemas.py) to include `status` and `sequence_number`.
 
-#### [MODIFY] [main.py](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/app/main.py)
-- Added terrain endpoints (`/api/terrain/heightmap`, `/api/terrain/heightmap-meta`) and fixed bugs in profile/comparison routes (lat/lon inclusion, dataset_id param).
+### Data Pipeline & Standardization
+- [x] **Implemented `DATA_MODE`** logic in [**adapters.py**](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/app/adapters.py) to control fallback behavior (`auto`, `real`, `cached`).
+- [x] **Standardized on Copernicus:**
+    - Unregistered `ModelNetCDFAdapter` (INCOIS) and `BGCFieldAdapter`.
+    - Defaulted all model endpoints to `copernicus_cmems`.
+    - Updated `/api/catalog` in [**storage.py**](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/app/storage.py) to only list authorized Copernicus-derived datasets.
+- [x] **New Observation Adapters:**
+    - `ArgoGliderAdapter`: Fallback for Argo floats using Argovis API.
+    - `IOOSGliderAdapter`: Fallback for Gliders using NOAA ERDDAP.
+    - Updated `run_ingestion` with prioritized fallback logic.
 
-### Frontend (`frontend/`)
-
-#### [MODIFY] [index.html](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/frontend/index.html)
-- **GPU Memory Management**: Implemented explicit `.dispose()` calls for geometries and materials in `refreshAll` to stop a critical memory leak during data refreshes.
-- **Interactivity Fix**: Replaced the hardcoded platform ID in the click handler with dynamic resolution using `userData.platformIds` stored on each `InstancedMesh`.
-- **UI Data Consistency**: Updated the profile panel to use real coordinates from the API response instead of hardcoded strings.
-- **Performance**: Retained the high-performance batched rendering architecture using `THREE.InstancedMesh`.
-
----
+### API Enrichment
+- [x] **Modified** `/api/model`, `/api/model/volume`, `/api/compare`, and `/api/export` to make `dataset_id` optional.
+- [x] **Enriched** `/api/observations` with a `summary` block and `total_available` count.
+- [x] **Added** `GET /api/observations/{platform_id}/track` for chronological position history.
 
 ## Verification Results
 
 ### Automated Tests
-Ran comprehensive pytest suite covering API gateway, bug regressions, and new terrain endpoints:
-```bash
-python -m pytest backend/tests/test_api.py backend/tests/test_terrain_and_bugs.py
-```
-*Result:* **14 passed** (Confirmed bug fixes for profile lat/lon, dataset-aware comparison, and secure terrain streaming).
+- **Passed** `tests/test_api.py` and `tests/test_improvements.py` (updated to match new standardization).
+- **Passed** [**tests/test_migration_agent.py**](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/tests/test_migration_agent.py) covering new features:
+    - `test_datamode_logic`
+    - `test_optional_dataset_id`
+    - `test_observation_track`
+    - `test_stale_dataset_ids`
 
-### Credential Flow
-Verified that `copernicusmarine` package handles credentials non-interactively via `.env` or direct function parameters, allowing for unattended backend deployment.
+### Manual Verification
+- `curl http://localhost:8000/api/model?variable=temperature` (No `dataset_id` param):
+    - **Success:** Defaults to `copernicus_cmems`.
+    - **Cleanliness:** No records from `incois_las_model` or `bgc_model` present in memory.
+- `curl http://localhost:8000/api/catalog`:
+    - **Success:** Only `copernicus_cmems` and `argo_gdac` (active fallback) listed.
+- `/api/observations` Summary:
+    - **Verified:** `total_available`, `argo` count, `active` count, and `latest_update` present.
+
+---
+
+> [!CAUTION]
+> **Credential Rotation:**
+> The `ARGOVIS_API_KEY` and `CESIUM_ION_TOKEN` were provided in the chat. Please rotate them from your dashboards now that the backend plumbing is confirmed working.
+
+> [!NOTE]
+> **Bathymetry Endpoint:**
+> As requested, `/api/bathymetry` was left untouched and continues to serve the `gebco_bathymetry` dataset.
