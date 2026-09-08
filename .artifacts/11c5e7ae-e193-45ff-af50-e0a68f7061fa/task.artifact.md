@@ -1,11 +1,18 @@
-# Task List: Copernicus Marine Real-Data Integration
-
-- [ ] Backend: Update `StandardRecord` and `schemas.py` with dual-timestamp and real-data flags.
-- [ ] Backend: Implement `InSituTACAdapter` in `adapters.py` for real-world multi-file NetCDF processing.
-- [ ] Backend: Update `storage.py` with 24-hour background scheduler and snapshot accumulation/deduplication logic (~3 months history).
-- [ ] Backend: Update `ModelNetCDFAdapter` to support monthly subsetting for backfills.
-- [ ] Backend: Modify observation endpoints to serve merged trajectories and freshness metadata.
-- [ ] Backend: Remove dead `/api/model/grid3d` endpoint.
-- [ ] Frontend: Implement dual-freshness badges ("Refresh Time" vs "Platform Report Time") in `index.html`.
-- [ ] Frontend: Re-wire trajectory rendering for long-term platform paths.
-- [ ] Verification: Run merging and deduplication tests.
+- [x] Task 0: Environment & Configuration
+    - [x] Verify `.env` is ignored by `.gitignore`
+    - [x] Create `backend/.env` with provided keys
+    - [x] Add `python-dotenv` to `backend/requirements.txt`
+- [/] Task 1: Dataset selection fix & Copernicus standardization
+    - [ ] Update `schemas.py` (`StandardRecord` additions)
+    - [ ] Modify `adapters.py` (Unregister INCOIS/BGC, implement `DATA_MODE` logic)
+    - [ ] Update `storage.py` (Catalog filtering)
+    - [ ] Modify `main.py` (Load dotenv, make `dataset_id` optional, add `/track` endpoint)
+- [ ] Task 2: Argo/Glider Fallback Pipeline
+    - [ ] Implement `ArgoGliderAdapter` (Argovis)
+    - [ ] Implement `IOOSGliderAdapter` (NOAA)
+    - [ ] Wire fallback logic in `run_ingestion`
+- [ ] Verification & Cleanup
+    - [ ] Run existing test suite
+    - [ ] Verify `DATA_MODE` gating
+    - [ ] Verify `/api/model` defaults and filter cleanliness
+    - [ ] Verify `/api/observations` summary and `/track` output

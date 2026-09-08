@@ -11,6 +11,9 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, FileResponse
 from typing import Optional
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from .schemas import QueryFilters
 from .storage import store
@@ -47,8 +50,8 @@ def get_catalog():
 
 @app.get("/api/model")
 def query_model(
-    dataset_id: str = Query(..., description="e.g. incois_las_model, bgc_model"),
     variable: str = Query(...),
+    dataset_id: Optional[str] = Query("copernicus_cmems", description="e.g. copernicus_cmems"),
     min_lat: float = -90, max_lat: float = 90,
     min_lon: float = -180, max_lon: float = 180,
     min_depth: float = 0, max_depth: float = 6000,
@@ -88,8 +91,8 @@ def model_times(dataset_id: str):
 
 @app.get("/api/model/volume")
 def query_model_volume(
-    dataset_id: str = Query(...),
     variable: str = Query(...),
+    dataset_id: Optional[str] = Query("copernicus_cmems"),
     depths: Optional[str] = Query(None, description="Comma-separated depths, e.g. '0,100,200,500,1000'"),
     min_lat: float = -90, max_lat: float = 90,
     min_lon: float = -180, max_lon: float = 180,
@@ -206,8 +209,46 @@ def query_observations(
                 "value": r.value,
                 "unit": r.unit,
                 "quality_flag": r.quality_flag,
+                "status": r.status,
             }
-    return {"count": len(by_platform), "markers": list(by_platform.values())}
+
+    markers = list(by_platform.values())
+    summary = {
+        "argo": len([m for m in markers if m["platform_type"] == "argo"]),
+        "glider": len([m for m in markers if m["platform_type"] == "glider"]),
+        "active": len([m for m in markers if m["status"] == "ACTIVE"]),
+        "latest_update": max([m["time"] for m in markers]) if markers else None
+    }
+
+    return {
+        "total_available": len(markers),
+        "summary": summary,
+        "markers": markers
+    }
+
+
+@app.get("/api/observations/{platform_id}/track")
+def observation_track(platform_id: str):
+    """Chronological position history for a single platform (Requirement 9)."""
+    rows = store.observation_profile(platform_id)
+    if not rows:
+        raise HTTPException(404, f"No track data for platform '{platform_id}'")
+
+    # Return unique (lat, lon, time, depth) points sorted by time
+    track = []
+    seen = set()
+    for r in rows:
+        key = (r.latitude, r.longitude, r.time)
+        if key not in seen:
+            track.append({
+                "latitude": r.latitude,
+                "longitude": r.longitude,
+                "time": r.time,
+                "depth": r.depth,
+                "sequence_number": r.sequence_number
+            })
+            seen.add(key)
+    return track
 
 
 @app.get("/api/observations/{platform_id}/profile")
@@ -237,7 +278,7 @@ def observation_profile(platform_id: str, variable: Optional[str] = None, time: 
 # ---------------------------------------------------------------------------
 
 @app.get("/api/compare")
-def compare(platform_id: str, variable: str, depth: float, time: str, dataset_id: Optional[str] = None):
+def compare(platform_id: str, variable: str, depth: float, time: str, dataset_id: Optional[str] = "copernicus_cmems"):
     try:
         result = comparison_service.compare({
             "platform_id": platform_id, "variable": variable, "depth": depth, "time": time,
@@ -254,8 +295,8 @@ def compare(platform_id: str, variable: str, depth: float, time: str, dataset_id
 @app.get("/api/export", response_class=PlainTextResponse)
 def export(
     kind: str = Query(..., description="model | observation"),
-    dataset_id: Optional[str] = None,
     variable: Optional[str] = None,
+    dataset_id: Optional[str] = "copernicus_cmems",
     platform_type: Optional[str] = None,
     min_lat: float = -90, max_lat: float = 90,
     min_lon: float = -180, max_lon: float = 180,

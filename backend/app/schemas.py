@@ -36,6 +36,8 @@ class StandardRecord(BaseModel):
     source_organization: Optional[str] = "INCOIS / Copernicus Marine"
     product_id: Optional[str] = None
     retrieval_timestamp: Optional[str] = None
+    status: Optional[str] = "ACTIVE"
+    sequence_number: Optional[int] = None
 
 
 class DatasetMeta(BaseModel):

@@ -27,10 +27,10 @@ class TestOCEAN3DAPI(unittest.TestCase):
         self.assertIn("datasets", data)
         self.assertGreaterEqual(len(data["datasets"]), 2)
         ds_ids = [d["dataset_id"] for d in data["datasets"]]
-        self.assertIn("incois_las_model", ds_ids)
+        self.assertIn("copernicus_cmems", ds_ids)
 
     def test_model_query(self):
-        response = self.client.get("/api/model?dataset_id=incois_las_model&variable=temperature&min_depth=0&max_depth=0")
+        response = self.client.get("/api/model?variable=temperature&min_depth=0&max_depth=0")
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertGreater(data["count"], 0)
@@ -40,18 +40,18 @@ class TestOCEAN3DAPI(unittest.TestCase):
 
     def test_model_query_validation(self):
         # Invalid lat range
-        response = self.client.get("/api/model?dataset_id=incois_las_model&variable=temperature&min_lat=10&max_lat=5")
+        response = self.client.get("/api/model?variable=temperature&min_lat=10&max_lat=5")
         self.assertEqual(response.status_code, 400)
 
         # Non-existent variable/depth range -> 404
-        response = self.client.get("/api/model?dataset_id=incois_las_model&variable=nonexistent&min_depth=0&max_depth=0")
+        response = self.client.get("/api/model?variable=nonexistent&min_depth=0&max_depth=0")
         self.assertEqual(response.status_code, 404)
 
     def test_model_times(self):
-        response = self.client.get("/api/model/times?dataset_id=incois_las_model")
+        response = self.client.get("/api/model/times?dataset_id=copernicus_cmems")
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data["dataset_id"], "incois_las_model")
+        self.assertEqual(data["dataset_id"], "copernicus_cmems")
         self.assertGreater(len(data["times"]), 0)
 
         # Unknown dataset
@@ -62,8 +62,8 @@ class TestOCEAN3DAPI(unittest.TestCase):
         response = self.client.get("/api/observations?platform_type=argo")
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertGreater(data["count"], 0)
-        self.assertEqual(len(data["markers"]), data["count"])
+        self.assertGreater(data["total_available"], 0)
+        self.assertEqual(len(data["markers"]), data["total_available"])
 
     def test_observation_profile(self):
         res_obs = self.client.get("/api/observations?platform_type=argo")
@@ -96,7 +96,7 @@ class TestOCEAN3DAPI(unittest.TestCase):
         self.assertIn("observation_value", data)
 
     def test_export(self):
-        response = self.client.get("/api/export?kind=model&dataset_id=incois_las_model&variable=temperature&min_depth=0&max_depth=0")
+        response = self.client.get("/api/export?kind=model&variable=temperature&min_depth=0&max_depth=0")
         self.assertEqual(response.status_code, 200)
         self.assertIn("text/csv", response.headers["content-type"])
         lines = response.text.strip().split("\n")
@@ -104,21 +104,12 @@ class TestOCEAN3DAPI(unittest.TestCase):
         self.assertTrue(lines[0].startswith("kind,dataset_id,variable"))
 
     def test_volume(self):
-        response = self.client.get("/api/model/volume?dataset_id=incois_las_model&variable=temperature&depths=0,100,500")
+        response = self.client.get("/api/model/volume?variable=temperature&depths=0,100,500")
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data["dataset_id"], "incois_las_model")
+        self.assertEqual(data["dataset_id"], "copernicus_cmems")
         self.assertIn("layers", data)
         self.assertGreater(len(data["layers"]), 0)
-
-    def test_grid3d(self):
-        response = self.client.get("/api/model/grid3d?dataset_id=incois_las_model&variable=temperature")
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertIn("lats", data)
-        self.assertIn("lons", data)
-        self.assertIn("depths", data)
-        self.assertIn("grid", data)
 
 
 if __name__ == "__main__":

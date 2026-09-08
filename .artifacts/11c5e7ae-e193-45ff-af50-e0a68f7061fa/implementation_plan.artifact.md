@@ -1,56 +1,74 @@
-# Implementation Plan: Copernicus Marine Real-Data Integration & Persistent Daily Snapshot Caching
+# Ocean-3D Backend Correction & Argo/Glider Pipeline
 
-Migrate from synthetic data to real Copernicus Marine Service datasets for both ocean models and in-situ observations. Implement a robust 24-hour scheduled ingestion system that accumulates daily snapshots to provide approximately 3 months of historical observation trajectories.
+Standardize the backend on Copernicus Marine Service as the authoritative source, implement environment-based configuration, and add a real Argo/Glider observation pipeline with fallback mechanisms.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **Refresh Schedule:** Both Ocean Model and In-situ observations will be refreshed exactly every **24 hours**.
-> - **Historical Accumulation (3 Months):** Since the NRT in-situ dataset only provides a rolling ~30-day window, the system will **retain** every successful daily snapshot in `backend/cache/snapshots/`. Snapshots will never be deleted or overwritten. The backend will merge and deduplicate observations across all retained snapshots (~90 days) to build a continuous 3-month history.
-> - **Scientific Correctness:** Observation data will use real WMO IDs, coordinates, and timestamps. Synthetic data fallback will only be used if NO real data exists; once real data is ingested, the system will never silently revert to synthetic.
-> - **Freshness Logic:**
->   - **Cache Freshness:** Indicated as "Last successful refresh: Xh ago". Marked as STALE/OFFLINE only if the 24h refresh cycle fails.
->   - **Platform Reporting:** Per-platform status "Last reported: Xh/Xd ago". Note: Argo floats may naturally show "stale" reporting (up to 10 days) which is normal behavior, not a system error.
-> - **Data Persistence:** On refresh failure, the last successful real cache is preserved and served.
+> **CESIUM_ION_TOKEN Clarification:**
+> The provided `CESIUM_ION_TOKEN` implies a CesiumJS globe, but the current frontend (`gloab/index2_corrected.html`) uses Three.js. I will configure the token in `.env` as requested, but I will not build any new Cesium-specific infrastructure unless you confirm a planned migration.
+>
+> **Credentials Security:**
+> The shared Argovis key and Cesium token should be rotated once the integration is confirmed working, as they were shared in a chat session.
 
 ## Proposed Changes
 
-### 1. Backend: Unified In-Situ Ingestion (`adapters.py`)
-- **[NEW] `InSituTACAdapter`**:
-  - Dataset: `cmems_obs-ins_glo_phybgcwav_mynrt_na_irr`.
-  - Subsetting: `INDIAN_OCEAN_BBOX` (`lat -40 to 25`, `lon 30 to 120`).
-  - File Handling: process the directory of individual platform NetCDF files.
-  - Record Shape: Map real coordinates, timestamps, measurements (`TEMP`, `PSAL`, etc.), and real QC flags.
-  - Metadata: Distinguish between observation time and snapshot download time.
+### Configuration & Environment
 
-### 2. Backend: Scheduled Worker & Deduplication (`storage.py`)
-- **[NEW] `IngestionWorker`**: A background task running every 24 hours.
-- **Snapshot Management**:
-  - Save each subset to `backend/cache/snapshots/YYYYMMDD_HHMM/`.
-  - On load, iterate through all snapshots from the last 90 days.
-  - **Deduplication:** Merge records using `(platform_id, time, depth, variable)` as a unique key to prevent redundant points from overlapping 30-day windows.
-- **Fail-safe:** If a pull fails, the system logs the error and continues serving the previous merged state.
+#### [NEW] [.env](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/.env)
+- Store `ARGOVIS_API_KEY`, `CESIUM_ION_TOKEN`, `DATA_MODE`, `PORT`, and `HOST`.
+- **Verification:** Confirm `.gitignore` covers `backend/.env`.
 
-### 3. Backend: Provenance & Trajectory API (`main.py`, `schemas.py`, `services.py`)
-- Update `StandardRecord` to include:
-    - `observation_time`: Actual time of measurement.
-    - `download_time`: Time the snapshot was retrieved from Copernicus.
-    - `is_real`: Boolean flag.
-- Ensure `/api/observations/{id}/profile` returns the full merged trajectory (historical path) for that platform.
-- **[DELETE]** `/api/model/grid3d`: Remove dead endpoint.
+#### [MODIFY] [requirements.txt](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/requirements.txt)
+- Ensure `python-dotenv` is an explicit line item.
 
-### 4. Frontend: Dual-Freshness Provenance UI (`index.html`)
-- **Global Badge:** Display "Last successful refresh: Xh ago" in the header or side panel.
-- **Platform Tooltip:** Display "Last reported: Xh/Xd ago" for the selected instrument.
-- **Trajectory Rendering:** Re-wire observation paths to render multi-month trajectories by connecting all deduplicated positions.
+#### [MODIFY] [main.py](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/app/main.py)
+- Load `.env` using `python-dotenv` at the top of the file.
+- Update `/api/model`, `/api/model/volume`, `/api/compare`, and `/api/export` to make `dataset_id` optional (defaulting to `"copernicus_cmems"`).
+- Enrich `/api/observations` with `total_available` and `summary` metadata.
+- [NEW] Add `GET /api/observations/{platform_id}/track` endpoint.
+- **Note:** `/api/bathymetry` will remain untouched.
+
+---
+
+### Data Models
+
+#### [MODIFY] [schemas.py](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/app/schemas.py)
+- Update `StandardRecord` to include `status` (default `"ACTIVE"`) and `sequence_number`.
+
+---
+
+### Data Adapters & Pipeline
+
+#### [MODIFY] [adapters.py](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/app/adapters.py)
+- Implement `DATA_MODE` logic:
+    - `auto`: try real API → cached file → synthetic.
+    - `real`: Live API only (fail if unavailable).
+    - `cached`: Local files only.
+- **Unregister** `ModelNetCDFAdapter` (INCOIS) and `BGCFieldAdapter` from `REGISTERED_ADAPTERS`.
+- [NEW] `ArgoGliderAdapter`: Pulls from Argovis API using the environment key.
+- [NEW] `IOOSGliderAdapter`: Pulls from NOAA ERDDAP.
+- Update `run_ingestion` to use the fallback adapters only if `InSituTACAdapter` returns no data for a platform type.
+
+---
+
+### Storage Layer
+
+#### [MODIFY] [storage.py](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/app/storage.py)
+- Update `_build_catalog` to only include datasets originating from Copernicus (plus fallback datasets if active).
+
+---
 
 ## Verification Plan
 
 ### Automated Tests
-- `backend/tests/test_real_data.py`: Verify conversion of real NetCDF variables to `StandardRecord`.
-- `backend/tests/test_merging.py`: Mock two overlapping 30-day snapshots and verify the resulting `Store` contains a single deduplicated trajectory.
+- `python -m pytest backend/tests/` (Ensure existing tests pass).
+- New test: `test_datamode_logic` — Verify `DATA_MODE` accurately gates the fallback chain.
+- New test: `test_optional_dataset_id` — Verify endpoints default to `copernicus_cmems`.
+- New test: `test_observation_track` — Verify the new `/track` endpoint returns sorted points.
 
 ### Manual Verification
-- Verify `backend/cache/snapshots/` accumulates folders over multiple runs.
-- Trigger a mock "Refresh Failure" and confirm the UI shows a "Stale Cache" warning while still displaying the previous real data.
-- Confirm WMO IDs and coordinates in the side panel match real-world Indian Ocean deployments.
+- `curl http://localhost:8000/api/catalog` — Confirm only authorized dataset IDs are listed.
+- `curl http://localhost:8000/api/observations` — Verify the new `summary` block exists.
+- `curl http://localhost:8000/api/model` (No `dataset_id`): Verify it defaults to `copernicus_cmems` and contains NO records from unregistered adapters (e.g. `incois_las_model`).
+- Verify `data_status` and `source_organization` accurately reflect the source of each record.

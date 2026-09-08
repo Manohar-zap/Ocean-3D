@@ -82,7 +82,13 @@ class Store:
         for r in self.model_records + self.observation_records:
             by_dataset.setdefault(r.dataset_id, []).append(r)
 
+        # Authorized dataset prefixes for the unified catalog
+        AUTHORIZED = ("copernicus", "insitu_nrt", "argo_gdac", "ioos_glider", "synthetic_obs", "gebco_bathymetry")
+
         for dataset_id, meta in raw_meta.items():
+            if not any(dataset_id.startswith(p) for p in AUTHORIZED):
+                continue
+
             if "error" in meta: continue
             rows = by_dataset.get(dataset_id, [])
             variables = meta["variables"]
