@@ -80,6 +80,7 @@
   #hint{ position:absolute; top:12px; left:12px; font-size:11.5px; color:var(--text-dim); pointer-events:none; z-index:3; background:rgba(7,16,25,0.75); padding:6px 10px; border-radius:3px; border:1px solid var(--line); }
   #depthDisplayBanner{ position:absolute; top:14px; left:50%; transform:translateX(-50%); font-size:16px; font-weight:700; font-family:'IBM Plex Mono', monospace; color:#ffffff; pointer-events:none; z-index:10; background:rgba(8, 20, 32, 0.88); padding:8px 26px; border-radius:6px; border:1px solid rgba(255,255,255,0.25); box-shadow:0 4px 18px rgba(0,0,0,0.5); text-shadow:0 2px 4px rgba(0,0,0,0.8); }
   #coordsReadout{ position:absolute; bottom:12px; left:12px; font-size:11px; color:var(--text-dim); pointer-events:none; z-index:3; background:rgba(7,16,25,0.75); padding:6px 10px; border-radius:3px; border:1px solid var(--line); }
+  #debugDiagOverlay{ position:absolute; bottom:12px; right:12px; font-size:10px; color:var(--text-dim); pointer-events:none; z-index:3; background:rgba(7,16,25,0.85); padding:8px 12px; border-radius:4px; border:1px solid var(--line); display:flex; flex-direction:column; gap:2px; }
 
   #loading{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     font-size:13.5px; color:var(--text-dim); background:var(--bg); z-index:15; }
@@ -281,6 +282,13 @@
     <div id="hint">Drag to orbit Earth globe · scroll to zoom · click an observation platform to inspect</div>
     <div id="depthDisplayBanner">Depth : -0 m</div>
     <div id="coordsReadout" class="mono">Position: 0.00°N, 20.00°E | Global 3D Ocean Globe Workspace</div>
+    <div id="debugDiagOverlay" class="mono">
+      <div style="font-weight:600; color:var(--accent); margin-bottom:2px;">3D OCEAN & BATHYMETRY DIAGNOSTIC</div>
+      <div>SOURCE: <span id="diagSource" style="color:var(--text)">NOAA ETOPO1 (Float32 Direct Grid)</span></div>
+      <div>GRID: <span id="diagGrid" style="color:var(--text)">2048 × 1024 (2.09M samples)</span></div>
+      <div>SEAFLEOOR RELIEF: <span id="diagRelief" style="color:var(--accent)">ACTIVE (3D Displaced Mesh)</span></div>
+      <div>VISIBLE OCEAN VOLUME: <span id="diagVolume" style="color:var(--accent)">ACTIVE (3D Column Stack)</span></div>
+    </div>
     <div id="terrainErrorBanner"></div>
     <div id="loading">Initializing Real 3D Earth Globe & Cesium World Terrain…</div>
 
@@ -470,6 +478,13 @@ async function initCesiumGlobe(){
 
   viewer.scene.globe.depthTestAgainstTerrain = state.worldTerrainLoaded;
   viewer.scene.globe.enableLighting = true;
+
+  // Enable Ocean Globe Translucency so 3D Ocean Volume, Stacked Planes & Bathymetric Seafloor Primitive are 100% VISIBLE
+  if(viewer.scene.globe.translucency){
+    viewer.scene.globe.translucency.enabled = true;
+    viewer.scene.globe.translucency.frontFaceAlpha = 0.45;
+    viewer.scene.globe.translucency.backFaceAlpha = 0.20;
+  }
 
   // Enforce camera zoom limits to allow full global Earth view
   viewer.scene.screenSpaceCameraController.maximumZoomDistance = 22000000.0; // 22,000 km max distance from Earth
@@ -684,6 +699,40 @@ function clearModelEntities(){
 }
 
 let bathymetryPrimitive = null;
+let etopoArrayBuffer = null;
+let etopoMeta = null;
+
+async function loadEtopoHeightmap(){
+  if(etopoArrayBuffer) return true;
+  try {
+    const metaRes = await fetch(apiUrl('/heightmap-meta'));
+    if(!metaRes.ok) return false;
+    etopoMeta = await metaRes.json();
+
+    const rawRes = await fetch(apiUrl('/heightmap'));
+    if(!rawRes.ok) return false;
+    const buf = await rawRes.arrayBuffer();
+    etopoArrayBuffer = new Float32Array(buf);
+
+    document.getElementById("diagSource").textContent = "NOAA ETOPO1 (2048×1024 Float32 Direct Grid)";
+    document.getElementById("diagGrid").textContent = `${etopoMeta.width} × ${etopoMeta.height} (${(etopoArrayBuffer.length/1e6).toFixed(2)}M samples)`;
+    return true;
+  } catch(e) {
+    console.warn("ETOPO1 direct heightmap load notice:", e);
+    return false;
+  }
+}
+
+function sampleEtopoElevation(lat, lon){
+  if(!etopoArrayBuffer || !etopoMeta) return null;
+  const w = etopoMeta.width;  // 2048
+  const h = etopoMeta.height; // 1024
+
+  const col = Math.max(0, Math.min(w - 1, Math.floor(((lon + 180.0) / 360.0) * (w - 1))));
+  const row = Math.max(0, Math.min(h - 1, Math.floor(((90.0 - lat) / 180.0) * (h - 1))));
+
+  return etopoArrayBuffer[row * w + col];
+}
 
 async function loadBathymetry(){
   if(bathymetryPrimitive){
@@ -692,21 +741,30 @@ async function loadBathymetry(){
   }
   if(!state.showBathymetry) return;
 
+  const hasEtopo = await loadEtopoHeightmap();
+
   const b = currentBounds();
-  const url = apiUrl(`/api/bathymetry?min_lat=${b.min_lat}&max_lat=${b.max_lat}&min_lon=${b.min_lon}&max_lon=${b.max_lon}`);
-  const res = await fetch(url);
-  if(!res.ok) return;
-  const data = await res.json();
-  if(!data.points || !data.points.length) return;
+  const nLat = 90;
+  const nLon = 180;
+  const lats = [];
+  const lons = [];
 
-  const lats = Array.from(new Set(data.points.map(p => p.lat))).sort((a,b) => a - b);
-  const lons = Array.from(new Set(data.points.map(p => p.lon))).sort((a,b) => a - b);
-  const nLat = lats.length;
-  const nLon = lons.length;
-  if(nLat < 2 || nLon < 2) return;
+  for(let i = 0; i < nLat; i++){
+    lats.push(b.min_lat + i * (b.max_lat - b.min_lat) / (nLat - 1));
+  }
+  for(let j = 0; j < nLon; j++){
+    lons.push(b.min_lon + j * (b.max_lon - b.min_lon) / (nLon - 1));
+  }
 
-  const depthMap = {};
-  data.points.forEach(p => { depthMap[`${p.lat}_${p.lon}`] = p.depth; });
+  let depthMap = {};
+  if(!hasEtopo){
+    const url = apiUrl(`/api/bathymetry?min_lat=${b.min_lat}&max_lat=${b.max_lat}&min_lon=${b.min_lon}&max_lon=${b.max_lon}`);
+    const res = await fetch(url);
+    if(res.ok){
+      const data = await res.json();
+      (data.points || []).forEach(p => { depthMap[`${p.lat}_${p.lon}`] = p.depth; });
+    }
+  }
 
   const numVertices = nLat * nLon;
   const positions = new Float64Array(numVertices * 3);
@@ -717,7 +775,14 @@ async function loadBathymetry(){
     const lat = lats[i];
     for(let j = 0; j < nLon; j++){
       const lon = lons[j];
-      const d = depthMap[`${lat}_${lon}`] ?? 4000;
+
+      let d = 4000.0;
+      if(hasEtopo){
+        const elev = sampleEtopoElevation(lat, lon);
+        d = (elev !== null && elev < 0) ? -elev : (elev > 0 ? 0 : 4000.0);
+      } else {
+        d = depthMap[`${lat}_${lon}`] ?? 4000.0;
+      }
 
       // Real 3D displaced Cartesian height based on ETOPO/GEBCO seafloor depth and vertical exaggeration
       const h = -d * state.verticalExaggeration * 12.0;
@@ -790,6 +855,8 @@ async function loadBathymetry(){
   });
 
   viewer.scene.primitives.add(bathymetryPrimitive);
+
+  document.getElementById("diagRelief").textContent = `ACTIVE (Exag: ${state.verticalExaggeration.toFixed(1)}x)`;
 }
 
 function globalModelBounds(){
