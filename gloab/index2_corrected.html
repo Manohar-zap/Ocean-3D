@@ -278,6 +278,30 @@
             margin-bottom: 4px;
         }
 
+        /* Compare Panel (Phase 5) */
+        #compare-panel {
+            position: absolute;
+            top: 20px;
+            left: 660px;
+            z-index: 100;
+            width: 300px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .input-dark {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-glass);
+            color: #fff;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            padding: 4px 6px;
+            border-radius: 4px;
+            width: 150px;
+        }
+
         /* Main Sea Level / Evaporation Dock (Bottom Center) */
         #slider-dock {
             position: absolute;
@@ -613,6 +637,24 @@
         </div>
         <div id="prof-content" class="item-grid" style="font-family: var(--font-mono); font-size: 0.65rem;">
             <!-- Profile data -->
+        </div>
+    </div>
+
+    <!-- Compare Panel (Phase 5) -->
+    <div id="compare-panel" class="glass-panel" style="display:none;">
+        <div class="panel-header">
+            <span class="panel-title">Model/Obs Comparison</span>
+            <button class="var-btn" style="padding: 2px 6px;" onclick="document.getElementById('compare-panel').style.display='none'">✕</button>
+        </div>
+        <div class="item-grid" style="font-size: 0.7rem; gap: 10px;">
+            <div class="row"><span>ID:</span> <input id="comp-pid" type="text" class="input-dark"></div>
+            <div class="row"><span>Var:</span> <input id="comp-var" type="text" class="input-dark"></div>
+            <div class="row"><span>Depth:</span> <input id="comp-depth" type="number" class="input-dark"></div>
+            <div class="row"><span>Time:</span> <input id="comp-time" type="text" class="input-dark"></div>
+            <button class="btn-tool" style="width:100%; justify-content:center; margin-top:4px;" onclick="runComparison()">RUN ANALYSIS</button>
+            <div id="comp-results" style="border-top: 1px solid var(--border-glass); padding-top: 10px;">
+                <!-- Analysis results -->
+            </div>
         </div>
     </div>
 
@@ -1346,7 +1388,7 @@
           <div class="prof-row">
             <span>${p.depth}m</span>
             <span style="color:var(--text-muted)">${p.variable}</span>
-            <span style="color:var(--accent-cyan)">${p.value.toFixed(2)}</span>
+            <button class="var-btn" style="font-size:0.55rem; padding:1px 4px;" onclick="openCompare('${pid}', '${p.variable}', ${p.depth}, '${p.time}')">${p.value.toFixed(1)}</button>
           </div>`;
       });
       content.innerHTML = html;
@@ -1355,6 +1397,42 @@
       content.innerHTML = '<div class="status-indicator" style="color:#ef4444">FAILED TO LOAD</div>';
     }
   }
+
+  // Phase 5: Comparison Integration
+  window.runComparison = async () => {
+    const pid = document.getElementById('comp-pid').value;
+    const v = document.getElementById('comp-var').value;
+    const d = document.getElementById('comp-depth').value;
+    const t = document.getElementById('comp-time').value;
+    const results = document.getElementById('comp-results');
+
+    results.innerHTML = '<div class="status-indicator">CALCULATING...</div>';
+
+    try {
+      const url = `${API_BASE}/api/compare?platform_id=${pid}&variable=${v}&depth=${d}&time=${t}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Compare API returned ${res.status}`);
+      const data = await res.json();
+
+      results.innerHTML = `
+        <div class="row"><span>Observed:</span> <span class="val">${data.observation_value.toFixed(2)}</span></div>
+        <div class="row"><span>Model:</span> <span class="val">${data.model_value.toFixed(2)}</span></div>
+        <div class="row"><span>Delta:</span> <span class="val" style="color:${data.difference > 0 ? '#f43f5e' : '#2dd4bf'}">${data.difference.toFixed(4)}</span></div>
+        <div class="row"><span>Method:</span> <span class="val">${data.match_method}</span></div>
+      `;
+    } catch (err) {
+      console.error('Comparison failed:', err);
+      results.innerHTML = '<div class="status-indicator" style="color:#ef4444">NOT FOUND IN MODEL</div>';
+    }
+  };
+
+  window.openCompare = (pid, v, d, t) => {
+    document.getElementById('compare-panel').style.display = 'flex';
+    document.getElementById('comp-pid').value = pid;
+    document.getElementById('comp-var').value = v;
+    document.getElementById('comp-depth').value = d;
+    document.getElementById('comp-time').value = t;
+  };
 
   loadCatalog();
   fetchObservations();
