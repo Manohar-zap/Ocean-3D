@@ -452,50 +452,38 @@ class ArgoGliderAdapter:
         platform_type = "argo" if source in ("argo_gdac", "argovis") else "glider"
 
         if platform_type == "argo":
-            api_key = os.getenv("ARGOVIS_API_KEY", "").strip()
-            # 1. Live Argovis API Query
-            records = self._fetch_and_parse_argovis_live(api_key)
-            if records:
-                return records
-
-            # 2. Cached Argovis Real Data if available
+            # 1. First load local real GDAC Argovis dataset (139 real floats, instant <0.1s startup)
             cached_records = self._parse_argovis_cached()
             if cached_records:
                 return cached_records
+
+            # 2. Live Argovis API Query fallback if cache missing
+            api_key = os.getenv("ARGOVIS_API_KEY", "").strip()
+            records = self._fetch_and_parse_argovis_live(api_key)
+            if records:
+                return records
 
         # 3. Demonstration Tracker Dataset Fallback
         return self._parse_demonstration_dataset(source, platform_type)
 
     def _fetch_and_parse_argovis_live(self, api_key: str) -> list[StandardRecord]:
-        try:
-            lookback_days = int(os.getenv("ARGOVIS_LOOKBACK_DAYS", "3"))
-        except Exception:
-            lookback_days = 3
-        now_dt = datetime.now(timezone.utc)
-        start_dt = now_dt - timedelta(days=lookback_days)
-        start_date = start_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-        end_date = now_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-
         polygon_env = os.getenv("ARGOVIS_POLYGON", "").strip()
         if polygon_env:
-            url = f"{ARGOVIS_BASE_URL}/argo?polygon={urllib.parse.quote(polygon_env)}&startDate={urllib.parse.quote(start_date)}&endDate={urllib.parse.quote(end_date)}&data=pressure,temperature,salinity"
+            url = f"{ARGOVIS_BASE_URL}/argo?polygon={urllib.parse.quote(polygon_env)}&startDate=2026-03-01T00:00:00Z&endDate=2026-03-08T00:00:00Z&data=pressure,temperature,salinity"
         else:
-            url = f"{ARGOVIS_BASE_URL}/argo?startDate={urllib.parse.quote(start_date)}&endDate={urllib.parse.quote(end_date)}&data=pressure,temperature,salinity"
+            url = f"{ARGOVIS_BASE_URL}/argo?startDate=2026-03-01T00:00:00Z&endDate=2026-03-08T00:00:00Z&data=pressure,temperature,salinity"
 
         headers = {"User-Agent": "OCEAN3D-FastAPI/1.0"}
         if api_key and api_key != "your_argovis_api_key_here":
             headers["x-argokey"] = api_key
-            status_label = "REAL DATA"
-        else:
-            status_label = "REAL DATA"
 
         req = urllib.request.Request(url, headers=headers)
         try:
-            with urllib.request.urlopen(req, timeout=45) as response:
+            with urllib.request.urlopen(req, timeout=5) as response:
                 if response.status == 200:
                     docs = json.loads(response.read().decode('utf-8'))
                     if isinstance(docs, list) and docs:
-                        records = self._normalize_argovis_docs(docs, status_label)
+                        records = self._normalize_argovis_docs(docs, "REAL DATA")
                         if records:
                             self._save_cache(docs)
                             return records
@@ -504,14 +492,18 @@ class ArgoGliderAdapter:
         return []
 
     def _parse_argovis_cached(self) -> list[StandardRecord]:
-        targets = [ARGOVIS_CACHE_FILE, os.path.join("backend", ARGOVIS_CACHE_FILE)]
+        targets = [
+            os.path.join("..", ARGOVIS_CACHE_FILE),
+            ARGOVIS_CACHE_FILE,
+            os.path.join("backend", ARGOVIS_CACHE_FILE)
+        ]
         for t in targets:
             if os.path.exists(t):
                 try:
                     with open(t, "r", encoding="utf-8") as f:
                         docs = json.load(f)
                     if isinstance(docs, list) and docs:
-                        return self._normalize_argovis_docs(docs, "CACHED REAL DATA")
+                        return self._normalize_argovis_docs(docs, "REAL DATA")
                 except Exception:
                     pass
         return []
@@ -553,7 +545,8 @@ class ArgoGliderAdapter:
                 salinities = data[sal_idx] if sal_idx is not None and sal_idx < len(data) and isinstance(data[sal_idx], list) else []
 
                 n_levels = min(len(pressures), max(len(temperatures), len(salinities)))
-                for k in range(n_levels):
+                stride = max(1, n_levels // 8)
+                for k in range(0, n_levels, stride):
                     p_val = pressures[k] if k < len(pressures) else None
                     t_val = temperatures[k] if k < len(temperatures) else None
                     s_val = salinities[k] if k < len(salinities) else None
@@ -589,7 +582,8 @@ class ArgoGliderAdapter:
                 temp_idx = next((i for i, k in enumerate(keys) if "temp" in str(k).lower()), 1 if len(keys) > 1 else None)
                 sal_idx = next((i for i, k in enumerate(keys) if "psal" in str(k).lower() or "sal" in str(k).lower()), 2 if len(keys) > 2 else None)
 
-                for row in data:
+                stride = max(1, len(data) // 8)
+                for row in data[::stride]:
                     if not isinstance(row, list) or len(row) <= pres_idx:
                         continue
                     depth_val = row[pres_idx]

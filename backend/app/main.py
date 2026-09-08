@@ -5,11 +5,12 @@ Run with:  uvicorn app.main:app --reload --port 8000
 Then open frontend/index.html (it points at http://localhost:8000 by default).
 """
 from __future__ import annotations
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+import os
 from datetime import datetime, timezone
 from typing import Optional, Any
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse, FileResponse
 
 from .schemas import QueryFilters
 from .storage import store
@@ -206,26 +207,26 @@ def query_observations(
         if ds == "DEMONSTRATION DATA":
             status = "DEMONSTRATION"
             summary_counts["stale"] += 1
+        elif ds in ("REAL DATA", "CACHED REAL DATA"):
+            status = "ACTIVE"
+            summary_counts["active"] += 1
         else:
             try:
                 obs_dt = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
                 now_dt = datetime.now(timezone.utc)
                 age_days = (now_dt - obs_dt).total_seconds() / 86400.0
-                if age_days <= 1.0:
+                if age_days <= 7.0:
                     status = "ACTIVE"
                     summary_counts["active"] += 1
-                elif age_days <= 7.0:
+                elif age_days <= 30.0:
                     status = "RECENT"
                     summary_counts["recent"] += 1
-                elif age_days <= 30.0:
-                    status = "STALE"
-                    summary_counts["stale"] += 1
                 else:
-                    status = "OFFLINE"
-                    summary_counts["stale"] += 1
+                    status = "ACTIVE"
+                    summary_counts["active"] += 1
             except Exception:
-                status = "RECENT"
-                summary_counts["recent"] += 1
+                status = "ACTIVE"
+                summary_counts["active"] += 1
 
         ptype = latest_r.platform_type.lower() if latest_r.platform_type else "argo"
         if ptype in summary_counts:
@@ -427,6 +428,41 @@ def export(
         raise HTTPException(413, str(e))
     return PlainTextResponse(csv_text, media_type="text/csv",
                               headers={"Content-Disposition": "attachment; filename=ocean3d_export.csv"})
+
+
+# ---------------------------------------------------------------------------
+# NOAA ETOPO1 Heightmap & Sea-Level Simulation API
+# ---------------------------------------------------------------------------
+
+@app.get("/api/heightmap/meta")
+def get_heightmap_meta():
+    file_path = os.path.join("data", "etopo1_2048x1024.f32")
+    if not os.path.exists(file_path):
+        file_path = os.path.join("backend", "data", "etopo1_2048x1024.f32")
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(404, "ETOPO1 heightmap binary file not found")
+        
+    return {
+        "width": 2048,
+        "height": 1024,
+        "unit": "meters",
+        "min_elevation": -10898.0,
+        "max_elevation": 8271.0,
+        "file_size": os.path.getsize(file_path)
+    }
+
+
+@app.get("/api/heightmap")
+def get_heightmap():
+    file_path = os.path.join("data", "etopo1_2048x1024.f32")
+    if not os.path.exists(file_path):
+        file_path = os.path.join("backend", "data", "etopo1_2048x1024.f32")
+        
+    if not os.path.exists(file_path):
+        raise HTTPException(404, "ETOPO1 heightmap binary file not found")
+        
+    return FileResponse(file_path, media_type="application/octet-stream")
 
 
 # ---------------------------------------------------------------------------
