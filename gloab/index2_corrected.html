@@ -1258,17 +1258,29 @@
         const item = document.createElement('div');
         item.className = 'dataset-item';
 
-        let varsHtml = ds.variables.map(v =>
+        let varsHtml = ds.variable_list.map(v =>
           `<button class="var-btn" onclick="selectVariable('${ds.dataset_id}', '${v}', this)">${v}</button>`
         ).join('');
 
         item.innerHTML = `
-          <span class="ds-name">${ds.name || ds.dataset_id}</span>
+          <span class="ds-name">${ds.label || ds.dataset_id}</span>
           <div class="ds-vars">${varsHtml}</div>
         `;
         listEl.appendChild(item);
       });
       statusEl.textContent = 'READY';
+
+      // Auto-select Copernicus on load
+      const copernicus = data.datasets.find(d => d.dataset_id === 'copernicus_cmems');
+      if (copernicus && copernicus.variable_list.length > 0) {
+        const firstVar = copernicus.variable_list[0];
+        const btns = listEl.querySelectorAll('.var-btn');
+        // The first button in the list for copernicus_cmems
+        const targetBtn = Array.from(btns).find(b =>
+          b.getAttribute('onclick').includes(`'${copernicus.dataset_id}', '${firstVar}'`)
+        );
+        if (targetBtn) window.selectVariable(copernicus.dataset_id, firstVar, targetBtn);
+      }
     } catch (err) {
       console.error('Catalog load failed:', err);
       statusEl.textContent = 'OFFLINE';
