@@ -611,6 +611,8 @@
   // Global state for Phase 2+
   let activeDataset = null;
   let activeVariable = null;
+  let modelPointsGroup = null;
+  let obsMarkersGroup = null;
 
   // The water surface is a global equipotential shell. Its radius is driven
   // ONLY by the selected sea level, using the exact same elevation->radius
@@ -662,6 +664,19 @@
     const T_EQUATOR = 30.0, T_POLE = -1.8;
     const n = Math.max(0, Math.min(90, Math.abs(latDeg))) / 90;
     return T_POLE + (T_EQUATOR - T_POLE) * Math.cos(n * Math.PI / 2);
+  }
+
+  // Phase 3 helper: convert geo coordinates to 3D space
+  function latLonToVector3(lat, lon, elevMeters) {
+    const phi = (90 - lat) * (Math.PI / 180);
+    const theta = (lon + 180) * (Math.PI / 180);
+    // Add tiny offset (0.002) to ensure points sit visibly above the displacement shell
+    const r = BASE_RADIUS * (1 + elevMeters * TERRAIN_SCALE) + 0.002;
+    return new THREE.Vector3(
+      -r * Math.sin(phi) * Math.cos(theta),
+      r * Math.cos(phi),
+      r * Math.sin(phi) * Math.sin(theta)
+    );
   }
 
   // Builds the legend's gradient directly from thermalColor() so the legend
@@ -733,6 +748,12 @@
   }
   renderer.setSize(innerWidth, innerHeight);
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+
+  // Group containers for dynamic overlays (Phase 3 & 4)
+  modelPointsGroup = new THREE.Group();
+  scene.add(modelPointsGroup);
+  obsMarkersGroup = new THREE.Group();
+  scene.add(obsMarkersGroup);
   if ('outputEncoding' in renderer) renderer.outputEncoding = THREE.sRGBEncoding;
 
   let controls;
@@ -1170,14 +1191,67 @@
 
   // Exposed to global scope for onclick handlers
   window.selectVariable = (dsId, varId, btn) => {
-    // Phase 3 placeholder: selectVariable will trigger model overlay
     document.querySelectorAll('.var-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     activeDataset = dsId;
     activeVariable = varId;
     console.log(`Selected: ${dsId} -> ${varId}`);
-    // nextPhaseTrigger();
+    fetchModelOverlay(dsId, varId);
   };
+
+  async function fetchModelOverlay(dsId, varId) {
+    setStatus(`QUERYING ${varId.toUpperCase()}...`, true);
+    try {
+      // Basin bounds: -40..25 lat, 30..120 lon as requested
+      const url = `${API_BASE}/api/model?dataset_id=${dsId}&variable=${varId}&min_lat=-40&max_lat=25&min_lon=30&max_lon=120`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        if (res.status === 404) {
+          setStatus('NO DATA MATCHES FILTERS', false);
+          modelPointsGroup.clear();
+          return;
+        }
+        throw new Error(`Model API returned ${res.status}`);
+      }
+      const data = await res.json();
+      renderModelPoints(data.points);
+      setStatus('MODEL DATA ACTIVE', false);
+    } catch (err) {
+      console.error('Model overlay failed:', err);
+      setStatus('API ERROR: MODEL FETCH FAILED', false);
+    }
+  }
+
+  function renderModelPoints(points) {
+    modelPointsGroup.clear();
+    if (!points || points.length === 0) return;
+
+    const positions = [];
+    const colors = [];
+
+    points.forEach(p => {
+      const v3 = latLonToVector3(p.lat, p.lon, -p.depth);
+      positions.push(v3.x, v3.y, v3.z);
+
+      const [r, g, b] = thermalColor(p.value);
+      colors.push(r / 255, g / 255, b / 255);
+    });
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+    const material = new THREE.PointsMaterial({
+      size: 0.012,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.9,
+      sizeAttenuation: true
+    });
+
+    const pointCloud = new THREE.Points(geometry, material);
+    modelPointsGroup.add(pointCloud);
+  }
 
   loadCatalog();
 
