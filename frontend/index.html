@@ -1148,6 +1148,9 @@ async function loadObservations(){
 }
 
 async function refreshAll(){
+  if(viewer && viewer.scene && viewer.scene.globe){
+    viewer.scene.globe.terrainExaggeration = state.verticalExaggeration;
+  }
   clearModelEntities();
   await Promise.all([loadModelData(), loadBathymetry(), loadVectors(), loadObservations()]);
 }
