@@ -152,6 +152,104 @@
             color: var(--accent-cyan);
         }
 
+        /* Dataset Catalog Panel (Phase 2) */
+        #catalog-panel {
+            position: absolute;
+            top: 80px;
+            right: 24px;
+            z-index: 10;
+            width: 280px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-glass);
+            padding-bottom: 8px;
+        }
+
+        .panel-title {
+            font-size: 0.7rem;
+            font-weight: 800;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .status-indicator {
+            font-size: 0.6rem;
+            font-family: var(--font-mono);
+            color: var(--accent-cyan);
+        }
+
+        .item-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .item-grid::-webkit-scrollbar { width: 4px; }
+        .item-grid::-webkit-scrollbar-thumb { background: var(--border-glass); border-radius: 4px; }
+
+        .dataset-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .dataset-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--accent-cyan);
+        }
+
+        .ds-name {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: var(--text-primary);
+        }
+
+        .ds-vars {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .var-btn {
+            font-size: 0.6rem;
+            font-family: var(--font-mono);
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            padding: 3px 7px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .var-btn:hover {
+            background: var(--accent-cyan);
+            color: #000;
+        }
+
+        .var-btn.active {
+            background: var(--accent-cyan);
+            color: #000;
+            box-shadow: 0 0 8px var(--accent-glow);
+        }
+
         /* Main Sea Level / Evaporation Dock (Bottom Center) */
         #slider-dock {
             position: absolute;
@@ -468,6 +566,17 @@
         <div class="row"><span>Temperature:</span> <span class="val" id="ttTemp">3.8 °C</span></div>
     </div>
 
+    <!-- Dataset Catalog Panel (Phase 2) -->
+    <div id="catalog-panel" class="glass-panel">
+        <div class="panel-header">
+            <span class="panel-title">Scientific Catalog</span>
+            <span id="catalog-status" class="status-indicator">SYNCING...</span>
+        </div>
+        <div id="dataset-list" class="item-grid">
+            <!-- Populated by API -->
+        </div>
+    </div>
+
     <!-- ==========================================================================
          APPLICATION LOGIC: SINGLE-SPHERE GLSL SHADER + THREE.JS
          ========================================================================== -->
@@ -498,6 +607,10 @@
   let ETOPO_WIDTH = 2048;
   let ETOPO_HEIGHT = 1024;
   const EARTH_URL = 'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg';
+
+  // Global state for Phase 2+
+  let activeDataset = null;
+  let activeVariable = null;
 
   // The water surface is a global equipotential shell. Its radius is driven
   // ONLY by the selected sea level, using the exact same elevation->radius
@@ -1019,6 +1132,54 @@
   }
 
   loadLocalHeightmap();
+
+  // ---------------------------------------------------------------------------
+  // Phase 2: Catalog Integration
+  // ---------------------------------------------------------------------------
+  async function loadCatalog() {
+    const listEl = document.getElementById('dataset-list');
+    const statusEl = document.getElementById('catalog-status');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/catalog`);
+      if (!res.ok) throw new Error(`Catalog API returned ${res.status}`);
+      const data = await res.json();
+
+      listEl.innerHTML = '';
+      data.datasets.forEach(ds => {
+        const item = document.createElement('div');
+        item.className = 'dataset-item';
+
+        let varsHtml = ds.variables.map(v =>
+          `<button class="var-btn" onclick="selectVariable('${ds.dataset_id}', '${v}', this)">${v}</button>`
+        ).join('');
+
+        item.innerHTML = `
+          <span class="ds-name">${ds.name || ds.dataset_id}</span>
+          <div class="ds-vars">${varsHtml}</div>
+        `;
+        listEl.appendChild(item);
+      });
+      statusEl.textContent = 'READY';
+    } catch (err) {
+      console.error('Catalog load failed:', err);
+      statusEl.textContent = 'OFFLINE';
+      statusEl.style.color = '#ef4444';
+    }
+  }
+
+  // Exposed to global scope for onclick handlers
+  window.selectVariable = (dsId, varId, btn) => {
+    // Phase 3 placeholder: selectVariable will trigger model overlay
+    document.querySelectorAll('.var-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeDataset = dsId;
+    activeVariable = varId;
+    console.log(`Selected: ${dsId} -> ${varId}`);
+    // nextPhaseTrigger();
+  };
+
+  loadCatalog();
 
   // ---------------------------------------------------------------------------
   // Sea level controls
