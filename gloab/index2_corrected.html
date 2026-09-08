@@ -475,6 +475,8 @@
 (() => {
   'use strict';
 
+  const API_BASE = 'http://localhost:8000';
+
   // ---------------------------------------------------------------------------
   // EARNED / Earth Ocean Evaporation Explorer
   // Robust initialization: the Earth is rendered immediately. Real ETOPO1-
@@ -492,9 +494,9 @@
   const WATER_EPSILON = 0.0015;
   // Local NOAA ETOPO1 Float32 heightmap server (see etopo_heightmap_server.py).
   // Serves the real 2048x1024 elevation grid in metres, NOT an image.
-  const HEIGHT_URL = 'http://127.0.0.1:8765/heightmap';
-  const ETOPO_WIDTH = 2048;
-  const ETOPO_HEIGHT = 1024;
+  const HEIGHT_URL = `${API_BASE}/api/terrain/heightmap`;
+  let ETOPO_WIDTH = 2048;
+  let ETOPO_HEIGHT = 1024;
   const EARTH_URL = 'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg';
 
   // The water surface is a global equipotential shell. Its radius is driven
@@ -982,6 +984,19 @@
   async function loadLocalHeightmap() {
     setStatus('CONNECTING TO LOCAL ETOPO1...', true);
     try {
+      // Fetch metadata first to handle dynamic resolution
+      const metaRes = await fetch(`${API_BASE}/api/terrain/heightmap-meta`);
+      if (metaRes.ok) {
+        const meta = await metaRes.json();
+        if (meta.width && meta.height) {
+          ETOPO_WIDTH = meta.width;
+          ETOPO_HEIGHT = meta.height;
+          console.log(`Using heightmap resolution from API: ${ETOPO_WIDTH}x${ETOPO_HEIGHT}`);
+        }
+      } else {
+        console.warn('Could not fetch heightmap metadata, falling back to hardcoded resolution.');
+      }
+
       const response = await fetch(HEIGHT_URL);
       if (!response.ok) {
         throw new Error(`Local ETOPO1 server responded with HTTP ${response.status}`);
