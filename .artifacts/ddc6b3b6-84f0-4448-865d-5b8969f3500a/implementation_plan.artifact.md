@@ -1,61 +1,61 @@
-# Implementation Plan: ARGO Backend Integration into Ocean-3D (Revised)
+# Implementation Plan: ARGO Integration & Scientific Accuracy Fixes (v2)
 
-Integrate ARGO branch backend capabilities and analytical UI overlays into the current `feature/etopo-migration-agent` branch. This plan prioritizes authoritative data provenance, protects existing ETOPO/Three.js functionality, and fixes known bugs.
+Fix visual regressions, restore the real ARGO data pipeline, and implement rigorous scientific oceanographic probing.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **Authoritative Provenance:** `data_source` is now the single source of truth. `data_status` will be automatically derived from it (e.g., `real` -> `REAL DATA`).
-> - **No Alias:** The `/api/heightmap` alias will be removed to keep the ETOPO API clean and protected.
-> - **Grid3D:** The `/api/model/grid3d` endpoint integration is marked as a **Future Phase** and will not be wired into the UI in this iteration.
-> - **Dynamic Window:** Live in-situ queries (Argovis) will now use a dynamic rolling 30-day window instead of hardcoded dates.
+> - **Visual Fix:** I will disable the automatic rendering of `modelPointsGroup` on initial load to remove the unwanted "vertical spikes/rods". The point cloud will only render if explicitly selected by the user.
+> - **Authoritative ARGO Pipeline:** I will restore the intended priority: **REAL REMOTE API** -> **CACHED REAL NetCDF DATA** -> **UNAVAILABLE**. Silent synthetic fallbacks will be removed.
+> - **Water-Validation:** ARGO markers will only be rendered if their location is currently submerged in the simulation (`ETOPO elevation < currentSeaLevelMeters`).
+> - **Scientific Depth Probe:** The tooltip will now dynamically distinguish between land and water, calculate water depth relative to the slider, and query the 3D model for depth-aware temperature.
 
 ## Proposed Changes
 
 ### [Backend]
 
-#### [MODIFY] [schemas.py](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/app/schemas.py)
-- Change default `data_source` in `StandardRecord` and `DatasetMeta` from `"cached"` to `"unavailable"`.
-
 #### [MODIFY] [adapters.py](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/app/adapters.py)
-- Update all adapters to use `data_source` as the authoritative provenance field.
-- Implement logic to ensure `data_status` consistently derives from `data_source`:
-    - `real` -> `REAL DATA`
-    - `cached` -> `CACHED REAL DATA`
-    - `synthetic` -> `DEMONSTRATION DATA`
-    - `unavailable` -> `UNAVAILABLE`
-- **ArgoGliderAdapter:** Change `_fetch_and_parse_argovis_live` to calculate a rolling 30-day window from `datetime.now()`.
-- **BathymetryAdapter:** If `sample_bathymetry_gebco.nc` is missing, `metadata()` will report `data_source="unavailable"` and `parse()` will return an empty list.
-- **Variable Narrowing:** Ensure all Copernicus/Argovis adapters maintain strict variable selection (e.g., `data=pressure,temperature,salinity`) to avoid large downloads.
+- **Path Correction:** Update `run_ingestion` to look for local real data in `BASE_DIR.parent / "insitu_data" / "indian_ocean_insitu_recent"`.
+- **Remove Silent Fallbacks:** Update `ArgoGliderAdapter.parse` and `run_ingestion` to return an empty list/error rather than synthetic data if the real API/cache fails, unless `DATA_MODE` is explicitly set to `"synthetic"`.
+- **Dynamic Dates:** Update `_fetch_and_parse_argovis_live` to calculate the 30-day window dynamically from `datetime.now(timezone.utc)`.
+- **Provenance Derivation:** Ensure `data_status` is always derived from the authoritative `data_source` field in `StandardRecord` using the mapping: `real` -> `REAL DATA`, `cached` -> `CACHED REAL DATA`, `synthetic` -> `DEMONSTRATION DATA`, `unavailable` -> `UNAVAILABLE`.
+- **Bathymetry Fix:** If GEBCO NetCDF is missing, report `data_source="unavailable"` and return no data.
 
 #### [MODIFY] [main.py](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/app/main.py)
-- Revert the `/api/heightmap` and `/api/heightmap/meta` aliases added in the previous turn.
-- **Bug Fix:** Ensure `/api/observations/{platform_id}/profile` response includes `latitude` and `longitude` fields for every point in the profile to enable 3D path rendering.
-- Add ARGO endpoints: `/api/observations/platforms/latest` and `/api/observations/{platform_id}/track`.
-
-#### [MODIFY] [storage.py](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/backend/app/storage.py)
-- Ensure `Store._build_catalog` correctly maps `data_source` and `data_status` from adapter metadata.
+- **New Probe Endpoint:** Add `GET /api/model/probe` accepting `lat`, `lon`, and `depth`. It will perform spatial/depth interpolation on the `cmems_mod_glo_phy-thetao_anfc_0.083deg_P1D-m` dataset.
+- **Profile Coordinate Fix:** Ensure `/api/observations/{id}/profile` returns the authoritative `latitude` and `longitude` of the profile in the response.
 
 ---
 
 ### [Frontend]
 
 #### [MODIFY] [index2_corrected.html](file:///C:/Users/Asus/Documents/Ocean-3D-feature-etopo-ocean/gloab/index2_corrected.html)
-- **Independent ARGO Layer:** Add observation markers and drift tracks as an additive Three.js layer.
-- **3D Water Column:** Port the Three.js-based vertical profile renderer into the observation panel.
-- **Provenance Badges:** Display badges (Real, Cached, Synthetic, Unavailable) driven by the `data_source` field in the API response.
-- **Error Isolation:** Wrap ARGO fetch calls in `try/catch` to ensure failures do not impact the core globe/ETOPO rendering.
+- **Remove Spikes:** Disable the auto-selection of the Copernicus dataset in `loadCatalog`, ensuring `modelPointsGroup` is empty on load.
+- **Dynamic Observation Control:**
+    - Update `renderObservationMarkers` to sample ETOPO elevation at each platform coordinate.
+    - Marker visibility logic: `sprite.visible = (sampledElevation < currentSeaLevelMeters)`.
+    - Trigger `updateMarkerVisibility()` whenever `updateSeaLevel` is called.
+- **Scientific Tooltip (Depth Probe):**
+    - Refactor `onPointerMove` to implement **Case A (LAND)** vs **Case B (WATER)** logic.
+    - Case B (WATER): Calculate `waterDepth = currentSeaLevelMeters - seafloorElevation`.
+    - **Throttled Probing:** Fetch temperature from `/api/model/probe` at the calculated depth, throttled to avoid excessive requests.
+- **Indian Ocean Filtering:**
+    - Add UI selector for "All", "Indian Ocean" (Core), and "Near Indian Ocean" (10° buffer).
+    - core: `lat: [-40, 25], lon: [30, 120]`.
+    - near: `lat: [-50, 35], lon: [20, 130]`.
+- **Depth-Aware Visualization:** Adjust the water shader or a sampled visualization layer to reflect model temperature at the current simulated depth.
 
 ## Verification Plan
 
 ### Automated Tests
-- `pytest backend/tests/` verifying all endpoints.
-- New test case: Verify profile endpoint returns non-null `latitude` and `longitude`.
+- `pytest backend/tests/test_argo_integration.py` updated with:
+    - Provenance mapping checks (all 4 states).
+    - Profile response `latitude`/`longitude` presence.
+    - `/api/model/probe` accuracy test.
 
-### Manual Verification (Evidence Required)
-- `git status` and `git diff --stat`.
-- Raw JSON response from `/api/terrain/heightmap-meta` (showing ETOPO is healthy).
-- Raw JSON response from `/api/observations/platforms/latest` (showing `data_source` field).
-- Raw JSON response from `/api/observations/{platform_id}/profile` (showing `latitude`/`longitude`).
-- UI check: Verify "Synthetic" badge appears for BGC/Demo data.
-- ETOPO Stability check: Manually block ARGO backend ports and verify the globe/ETOPO still works.
+### Manual Verification (Runtime Evidence Required)
+- **Visual:** Globe surface is clean on load; ARGO markers appear as high-quality sprites.
+- **Pipeline:** Platform panel shows "REAL DATA" or "CACHED REAL DATA" using the 30-day dynamic window.
+- **Water Logic:** Markers disappear when the sea level is lowered below their seafloor elevation.
+- **Scientific Probe:** Tooltip correctly switches from "EXPOSED TERRAIN" to "OCEAN WATER", calculates depth, and shows depth-aware temperature.
+- **Filters:** Verify "Visible platforms: X" updates correctly with region and water filters.

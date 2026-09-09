@@ -62,6 +62,29 @@ class QueryService:
             "unit": rows[0].unit if rows else "",
         }
 
+    def probe(self, lat: float, lon: float, depth: float, dataset_id: str = "copernicus_cmems", variable: str = "temperature") -> dict:
+        """3D spatial/depth interpolation for a single point probe (Requirement 7 & 12)."""
+        f = QueryFilters(dataset_id=dataset_id, variable=variable)
+        rows = store.query_model(f)
+        if not rows:
+            return {"error": "No model data available"}
+
+        # Find nearest neighbor in 3D (lat, lon, depth)
+        def dist(r: StandardRecord) -> float:
+            return (r.latitude - lat)**2 + (r.longitude - lon)**2 + ((r.depth - depth)/500.0)**2
+
+        best = min(rows, key=dist)
+        return {
+            "value": best.value,
+            "unit": best.unit,
+            "latitude": best.latitude,
+            "longitude": best.longitude,
+            "depth": best.depth,
+            "time": best.time,
+            "data_source": best.data_source,
+            "data_status": best.data_status
+        }
+
 
 class ComparisonService:
     """Model <-> observation matching and difference (FR-029-032, Sec. 12)."""

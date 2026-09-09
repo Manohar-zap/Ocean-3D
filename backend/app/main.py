@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, FileResponse
 from typing import Optional
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -147,6 +148,21 @@ def query_model_grid3d(
     return res
 
 
+@app.get("/api/model/probe")
+def probe_model(
+    lat: float = Query(...),
+    lon: float = Query(...),
+    depth: float = Query(...),
+    dataset_id: str = "copernicus_cmems",
+    variable: str = "temperature"
+):
+    """Scientific point probe with 3D interpolation (Requirement 7 & 12)."""
+    result = query_service.probe(lat, lon, depth, dataset_id, variable)
+    if "error" in result:
+        raise HTTPException(404, result["error"])
+    return result
+
+
 @app.get("/api/bathymetry")
 def query_bathymetry(
     min_lat: float = -90, max_lat: float = 90,
@@ -208,31 +224,35 @@ def query_observations(
                       time_start=time_start, time_end=time_end)
     rows = query_service.observations(f)
 
-    # collapse to one marker per platform (shallowest sample) for map display;
+    # collapse to one marker per platform (latest sample) for map display;
     # full depth resolution is fetched via /api/observations/{platform_id}/profile
-    by_platform: dict[str, dict] = {}
+    by_platform: dict[str, StandardRecord] = {}
     for r in rows:
         cur = by_platform.get(r.platform_id)
-        if cur is None or r.depth < cur["depth"]:
-            by_platform[r.platform_id] = {
-                "platform_id": r.platform_id,
-                "platform_type": r.platform_type,
-                "lat": r.latitude,
-                "lon": r.longitude,
-                "depth": r.depth,
-                "time": r.time,
-                "variable": r.variable,
-                "value": r.value,
-                "unit": r.unit,
-                "quality_flag": r.quality_flag,
-                "status": r.status,
-            }
+        if cur is None or r.time > cur.time:
+            by_platform[r.platform_id] = r
 
-    markers = list(by_platform.values())
+    markers = []
+    for pid, r in by_platform.items():
+        markers.append({
+            "platform_id": r.platform_id,
+            "platform_type": r.platform_type,
+            "lat": r.latitude,
+            "lon": r.longitude,
+            "depth": r.depth,
+            "time": r.time,
+            "variable": r.variable,
+            "value": r.value,
+            "unit": r.unit,
+            "quality_flag": r.quality_flag,
+            "data_source": r.data_source,
+            "data_status": r.data_status,
+        })
+
     summary = {
         "argo": len([m for m in markers if m["platform_type"] == "argo"]),
         "glider": len([m for m in markers if m["platform_type"] == "glider"]),
-        "active": len([m for m in markers if m["status"] == "ACTIVE"]),
+        "active": len(markers),
         "latest_update": max([m["time"] for m in markers]) if markers else None
     }
 
@@ -307,6 +327,12 @@ def observation_profile(platform_id: str, variable: Optional[str] = None, time: 
         rows = [r for r in rows if r.time == time]
     if not rows:
         raise HTTPException(404, f"No profile data for platform '{platform_id}' with the given filters")
+
+    # Ensure chronological latest cycle if time not specified
+    if not time:
+        latest_time = max(r.time for r in rows)
+        rows = [r for r in rows if r.time == latest_time]
+
     rows = sorted(rows, key=lambda r: r.depth)
     return {
         "platform_id": platform_id,

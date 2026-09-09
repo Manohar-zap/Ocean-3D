@@ -644,6 +644,17 @@
             <span class="panel-title">Scientific Catalog</span>
             <span id="catalog-status" class="status-indicator">SYNCING...</span>
         </div>
+
+        <div style="padding: 8px 0; border-bottom: 1px solid var(--border-glass); margin-bottom: 8px;">
+            <div style="font-size: 0.65rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 700;">OBSERVATION REGION</div>
+            <select id="region-filter" class="input-dark" style="width: 100%; font-size: 0.7rem;" onchange="fetchObservations()">
+                <option value="all">All Available</option>
+                <option value="indian">Indian Ocean</option>
+                <option value="near_indian">Near Indian Ocean</option>
+            </select>
+            <div style="font-size: 0.65rem; color: var(--accent-cyan); margin-top: 4px; font-family: var(--font-mono);" id="platform-count">Visible platforms: 0</div>
+        </div>
+
         <div id="dataset-list" class="item-grid">
             <!-- Populated by API -->
         </div>
@@ -1315,17 +1326,7 @@
       });
       statusEl.textContent = 'READY';
 
-      // Auto-select Copernicus on load
-      const copernicus = data.datasets.find(d => d.dataset_id === 'copernicus_cmems');
-      if (copernicus && copernicus.variable_list.length > 0) {
-        const firstVar = copernicus.variable_list[0];
-        const btns = listEl.querySelectorAll('.var-btn');
-        // The first button in the list for copernicus_cmems
-        const targetBtn = Array.from(btns).find(b =>
-          b.getAttribute('onclick').includes(`'${copernicus.dataset_id}', '${firstVar}'`)
-        );
-        if (targetBtn) window.selectVariable(copernicus.dataset_id, firstVar, targetBtn);
-      }
+      // NOTE: Auto-selection removed to prevent vertical spikes on load (Requirement 1 & 11)
     } catch (err) {
       console.error('Catalog load failed:', err);
       statusEl.textContent = 'OFFLINE';
@@ -1400,13 +1401,22 @@
   // Phase 4: Observations Integration
   async function fetchObservations() {
     setStatus('SYNCING OBSERVATIONS...', true);
+    const region = document.getElementById('region-filter').value;
     try {
       const res = await fetch(`${API_BASE}/api/observations/platforms/latest`);
       if (!res.ok) throw new Error(`Platforms API returned ${res.status}`);
       const data = await res.json();
 
-      // Adapt the platforms data to the marker format expected by renderObservationMarkers
-      const markers = data.platforms.map(p => ({
+      // Geographic Filtering (Requirement 5 & 8)
+      let filtered = data.platforms;
+      if (region === 'indian') {
+          filtered = data.platforms.filter(p => p.latitude >= -40 && p.latitude <= 25 && p.longitude >= 30 && p.longitude <= 120);
+      } else if (region === 'near_indian') {
+          filtered = data.platforms.filter(p => p.latitude >= -50 && p.latitude <= 35 && p.longitude >= 20 && p.longitude <= 130);
+      }
+
+      // Adapt the platforms data to the marker format
+      const markers = filtered.map(p => ({
           platform_id: p.platform_id,
           platform_type: p.platform_type,
           lat: p.latitude,
@@ -1443,9 +1453,19 @@
 
   function renderObservationMarkers(markers) {
     obsMarkersGroup.clear();
+    let visibleCount = 0;
+
     markers.forEach(m => {
       const ptype = (m.platform_type || 'default').toLowerCase();
       const iconUrl = ICON_MAP[ptype] || ICON_MAP.default;
+
+      // Water Validation (Requirement 4 & 7)
+      const u = (m.lon + 180) / 360;
+      const v = (m.lat + 90) / 180;
+      const elevation = sampleElevation(u, v);
+
+      // Only render if underwater in current simulation
+      if (elevation >= currentSeaLevelMeters) return;
 
       const spriteMat = new THREE.SpriteMaterial({
           map: textureLoader.load(iconUrl),
@@ -1457,9 +1477,25 @@
 
       const pos = latLonToVector3(m.lat, m.lon, 0); // markers at surface
       sprite.position.copy(pos);
-      sprite.userData = { type: 'observation', ...m };
+      sprite.userData = { type: 'observation', ...m, elevation: elevation };
       obsMarkersGroup.add(sprite);
+      visibleCount++;
     });
+
+    const countEl = document.getElementById('platform-count');
+    if (countEl) countEl.textContent = `Visible platforms: ${visibleCount}`;
+  }
+
+  function updateMarkerVisibility() {
+      let visibleCount = 0;
+      obsMarkersGroup.children.forEach(obj => {
+          if (obj.userData && obj.userData.type === 'observation') {
+              obj.visible = (obj.userData.elevation < currentSeaLevelMeters);
+              if (obj.visible) visibleCount++;
+          }
+      });
+      const countEl = document.getElementById('platform-count');
+      if (countEl) countEl.textContent = `Visible platforms: ${visibleCount}`;
   }
 
   function renderPlatformTrack(trackPoints) {
@@ -1656,6 +1692,9 @@
       else if (currentSeaLevelMeters <= -500) stageDesc.textContent = 'CONTINENTAL SHELVES EXPOSED';
       else stageDesc.textContent = 'ICE-AGE SEA LEVEL — SHALLOW SHELVES EXPOSED';
     }
+
+    // Update ARGO visibility based on new sea level (Requirement 4 & 7)
+    if (typeof updateMarkerVisibility === 'function') updateMarkerVisibility();
   }
 
   window.setEvapLevel = updateSeaLevel;
@@ -1703,37 +1742,64 @@
   // ---------------------------------------------------------------------------
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
-  let tooltipTimer = null;
-  function onPointerMove(e) {
+  let lastProbeTime = 0;
+  const PROBE_THROTTLE = 200; // ms (Requirement 8)
+  let activeProbeController = null;
+
+  async function onPointerMove(e) {
     mouse.x = (e.clientX / innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / innerHeight) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
     const hit = raycaster.intersectObject(terrainMesh, false)[0];
     if (!hit || !heightReady) { if (tooltip) tooltip.style.opacity = '0'; return; }
+
     const u = hit.uv?.x ?? 0.5;
     const v = hit.uv?.y ?? 0.5;
     const elev = sampleElevation(u, v);
-    const depth = Math.max(0, currentSeaLevelMeters - elev);
-    const submerged = elev <= currentSeaLevelMeters;
+    const submerged = elev < currentSeaLevelMeters; // Requirement 4
+    const depth = submerged ? currentSeaLevelMeters - elev : 0;
     const lon = ((u * 360 + 180) % 360) - 180;
     const lat = v * 180 - 90;
-    if (ttCoords) ttCoords.textContent = `${Math.abs(lat).toFixed(1)}° ${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lon).toFixed(1)}° ${lon >= 0 ? 'E' : 'W'}`;
-    if (ttElevation) ttElevation.textContent = submerged ? `${Math.round(depth).toLocaleString()} m water depth` : `${Math.round(elev).toLocaleString()} m elevation`;
-    if (ttState) ttState.textContent = submerged ? `Submerged (${Math.round(depth).toLocaleString()}m water)` : 'Exposed land / ocean floor';
-    // Same shared model the water shader uses: latitude is the PRIMARY
-    // driver (equator warm, poles cold, symmetric by |latitude|), with only
-    // a small bounded cooling for very deep submerged water. This is the
-    // exact fix for the old bug where submerged points used a depth-only
-    // formula that ignored latitude entirely, making tooltip and globe
-    // colours disagree ("reversed" look).
-    if (ttTemp) {
-      const baseTemp = latitudeTemperature(lat);
-      const temp = submerged ? baseTemp - 3.0 * Math.min(1, depth / 6000) : baseTemp;
-      ttTemp.textContent = `${temp.toFixed(1)} °C`;
-      const [tr, tg, tb] = thermalColor(temp);
-      ttTemp.style.color = `rgb(${tr}, ${tg}, ${tb})`;
+
+    if (ttCoords) ttCoords.textContent = `${Math.abs(lat).toFixed(2)}° ${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lon).toFixed(2)}° ${lon >= 0 ? 'E' : 'W'}`;
+
+    if (!submerged) {
+        // CASE A: LAND / EXPOSED TERRAIN (Requirement 10)
+        if (ttBadge) { ttBadge.textContent = 'EXPOSED TERRAIN'; ttBadge.className = 'badge badge-land'; }
+        if (ttElevation) ttElevation.textContent = `${Math.round(elev).toLocaleString()} m elevation`;
+        if (ttState) ttState.textContent = 'Exposed land / ocean floor';
+        if (ttTemp) { ttTemp.textContent = 'Unavailable'; ttTemp.style.color = 'var(--text-muted)'; }
+    } else {
+        // CASE B: OCEAN WATER (Requirement 10)
+        if (ttBadge) { ttBadge.textContent = 'OCEAN WATER'; ttBadge.className = 'badge badge-ocean'; }
+        if (ttElevation) ttElevation.textContent = `${Math.round(depth).toLocaleString()} m water depth`;
+        if (ttState) ttState.textContent = `Submerged (Seafloor: ${Math.round(elev).toLocaleString()}m)`;
+
+        // Throttled Scientific Probe (Requirement 6, 7, 8)
+        const now = Date.now();
+        if (now - lastProbeTime > PROBE_THROTTLE) {
+            lastProbeTime = now;
+            if (activeProbeController) activeProbeController.abort();
+            activeProbeController = new AbortController();
+
+            try {
+                const probeUrl = `${API_BASE}/api/model/probe?lat=${lat}&lon=${lon}&depth=${depth}`;
+                const resp = await fetch(probeUrl, { signal: activeProbeController.signal });
+                if (resp.ok) {
+                    const pData = await resp.json();
+                    ttTemp.textContent = `${pData.value.toFixed(1)} °C (${pData.data_source})`;
+                    const [tr, tg, tb] = thermalColor(pData.value);
+                    ttTemp.style.color = `rgb(${tr}, ${tg}, ${tb})`;
+                } else {
+                    ttTemp.textContent = 'Unavailable';
+                    ttTemp.style.color = 'var(--text-muted)';
+                }
+            } catch (err) {
+                if (err.name !== 'AbortError') console.error('Probe failed:', err);
+            }
+        }
     }
-    if (ttBadge) ttBadge.textContent = submerged ? 'Active Ocean Water' : 'Exposed Terrain';
+
     if (tooltip) {
       tooltip.style.left = Math.min(e.clientX + 16, innerWidth - 300) + 'px';
       tooltip.style.top = Math.min(e.clientY + 16, innerHeight - 170) + 'px';

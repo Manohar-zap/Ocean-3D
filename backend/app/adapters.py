@@ -126,7 +126,6 @@ class CopernicusMarineAdapter:
             "units": {"temperature": "degC", "salinity": "psu", "current_u": "m/s", "current_v": "m/s"},
             "platform_type": None,
             "data_source": source,
-            "data_status": "REAL DATA" if source == "real" else "CACHED REAL DATA",
             "source_organization": "Copernicus Marine Service",
             "product_id": "cmems_mod_glo_phy-thetao_anfc_0.083deg_P1D-m",
             "retrieval_timestamp": datetime.now(timezone.utc).isoformat(),
@@ -208,8 +207,8 @@ class CopernicusMarineAdapter:
                 except Exception:
                     pass
 
-        # 3. Fallback to synthetic if auto mode and NOT in strict real/cached mode
-        if get_data_mode() == "auto":
+        # 3. Fallback to synthetic if explicitly in synthetic mode
+        if get_data_mode() == "synthetic":
             return parse_synthetic_grid("copernicus_cmems", ["temperature"], {"temperature": "degC"}, "DEMONSTRATION DATA", "Copernicus Marine Service", "GLOBAL_MULTIYEAR_PHY_001_030")
 
         return []
@@ -271,7 +270,6 @@ class BathymetryAdapter:
                                 data_source="cached",
                                 source_model="GEBCO_2023_GRID",
                                 source_file=str(target_file),
-                                data_status="CACHED REAL DATA",
                                 source_organization="GEBCO",
                                 product_id="GEBCO_2023_GRID",
                                 retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
@@ -298,14 +296,13 @@ class ModelNetCDFAdapter:
     def metadata(self) -> dict:
         import os
         has_file = (BASE_DIR / "sample_incois_model.nc").exists()
-        source = "cached" if has_file else "synthetic"
+        source = "cached" if has_file else "unavailable"
         return {
             "source_name": "INCOIS Ocean Circulation Model (ROMS)",
             "variables": self.VARIABLES,
             "units": self.UNITS,
             "platform_type": None,
             "data_source": source,
-            "data_status": "CACHED REAL DATA" if source == "cached" else "DEMONSTRATION DATA",
             "source_organization": "INCOIS (Indian National Centre for Ocean Information Services)",
             "product_id": "INCOIS-ROMS-IND-01",
             "retrieval_timestamp": datetime.now(timezone.utc).isoformat(),
@@ -325,7 +322,9 @@ class ModelNetCDFAdapter:
             except Exception:
                 pass
 
-        return parse_synthetic_grid("incois_las_model", self.VARIABLES, self.UNITS, "DEMONSTRATION DATA", "INCOIS", "INCOIS-ROMS-IND-01")
+        if get_data_mode() == "synthetic":
+            return parse_synthetic_grid("incois_las_model", self.VARIABLES, self.UNITS, "DEMONSTRATION DATA", "INCOIS", "INCOIS-ROMS-IND-01")
+        return []
 
 
 
@@ -334,45 +333,58 @@ def parse_netcdf_records(filepath: str, dataset_id: str, data_status: str, sourc
     records: list[StandardRecord] = []
     try:
         import numpy as np
-        from scipy.io import netcdf
-        units = {"temperature": "degC", "salinity": "psu", "current_u": "m/s", "current_v": "m/s"}
-        with netcdf.netcdf_file(filepath, 'r', mmap=False) as f:
-            lats = np.array(f.variables.get('lat', f.variables.get('latitude')).data)
-            lons = np.array(f.variables.get('lon', f.variables.get('longitude')).data)
-            depths = np.array(f.variables.get('depth', [0]).data)
-            for var in ["temperature", "salinity", "current_u", "current_v"]:
-                data = np.array(f.variables[var].data) if var in f.variables else None
-                for i, lat in enumerate(lats):
-                    for j, lon in enumerate(lons):
+        import netCDF4
+        units = {"temperature": "degC", "salinity": "psu", "current_u": "m/s", "current_v": "m/s", "thetao": "degC"}
+        with netCDF4.Dataset(filepath, 'r') as f:
+            lats = np.array(f.variables.get('lat', f.variables.get('latitude', f.variables.get('LATITUDE'))))
+            lons = np.array(f.variables.get('lon', f.variables.get('longitude', f.variables.get('LONGITUDE'))))
+            depths = np.array(f.variables.get('depth', f.variables.get('DEPH', f.variables.get('PRES', [0]))))
+
+            # Map common names
+            var_map = {"temperature": ["temperature", "thetao", "TEMP"], "salinity": ["salinity", "so", "PSAL"]}
+
+            for std_name, aliases in var_map.items():
+                actual_var = None
+                for a in aliases:
+                    if a in f.variables:
+                        actual_var = a
+                        break
+                if not actual_var: continue
+
+                data = np.array(f.variables[actual_var][:])
+                for i, lat in enumerate(lats[:20]): # Limit for demo performance
+                    for j, lon in enumerate(lons[:20]):
                         for k, d in enumerate(depths[:8]):
-                            lat_f, lon_f = float(lat), float(lon)
-                            if data is not None:
-                                val = float(data[0, k, i, j]) if data.ndim == 4 else float(data[k, i, j])
-                            else:
-                                val = _synthetic_value(var, lat_f, lon_f, float(d), 0)
-                            
-                            if var in ("current_u", "current_v") and is_land(lat_f, lon_f):
-                                val = 0.0
+                            try:
+                                if data.ndim == 4: val = float(data[0, k, i, j])
+                                elif data.ndim == 3: val = float(data[k, i, j])
+                                else: val = float(data[i, j])
                                 
-                            records.append(StandardRecord(
-                                kind="model",
-                                dataset_id=dataset_id,
-                                variable=var,
-                                latitude=round(lat_f, 4),
-                                longitude=round(lon_f, 4),
-                                depth=float(d),
-                                time=_time_at(0),
-                                value=round(val, 4),
-                                unit=units.get(var, "unknown"),
-                                data_source="cached",
-                                source_model=source_org,
-                                source_file=filepath,
-                                source_organization=source_org,
-                                product_id=product_id,
-                                retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
-                            ))
-    except Exception:
-        pass
+                                if np.isnan(val) or val > 999: continue
+
+                                lat_f, lon_f = float(lat), float(lon)
+                                if is_land(lat_f, lon_f): continue
+
+                                records.append(StandardRecord(
+                                    kind="model",
+                                    dataset_id=dataset_id,
+                                    variable=std_name,
+                                    latitude=round(lat_f, 4),
+                                    longitude=round(lon_f, 4),
+                                    depth=float(d),
+                                    time=_time_at(0),
+                                    value=round(val, 4),
+                                    unit=units.get(actual_var, "unknown"),
+                                    data_source="cached",
+                                    source_model=source_org,
+                                    source_file=filepath,
+                                    source_organization=source_org,
+                                    product_id=product_id,
+                                    retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
+                                ))
+                            except: continue
+    except Exception as e:
+        print(f"Error parsing NetCDF {filepath}: {e}")
     return records
 
 
@@ -437,7 +449,6 @@ class BGCFieldAdapter:
             "units": self.UNITS,
             "platform_type": None,
             "data_source": "synthetic",
-            "data_status": "DEMONSTRATION DATA",
         }
 
     def parse(self, source: str) -> list[StandardRecord]:
@@ -487,8 +498,7 @@ class InSituTACAdapter:
             "variables": list(self.VAR_MAP.values()),
             "units": {"temperature": "degC", "salinity": "psu", "oxygen": "umol/kg", "chlorophyll": "mg/m3"},
             "platform_type": "multi",
-            "data_source": "real",
-            "data_status": "REAL DATA",
+            "data_source": "cached",
             "source_organization": "Copernicus Marine Service",
             "product_id": "cmems_obs-ins_glo_phybgcwav_mynrt_na_irr",
             "retrieval_timestamp": datetime.now(timezone.utc).isoformat(),
@@ -500,7 +510,7 @@ class InSituTACAdapter:
         downloaded via copernicusmarine.subset().
         """
         import numpy as np
-        from scipy.io import netcdf
+        import netCDF4
 
         input_dir = Path(source)
         if not input_dir.is_dir():
@@ -512,39 +522,51 @@ class InSituTACAdapter:
         # Iterate over all NetCDF files in the directory
         for nc_file in input_dir.glob("*.nc"):
             try:
-                with netcdf.netcdf_file(str(nc_file), 'r', mmap=False) as f:
+                with netCDF4.Dataset(str(nc_file), 'r') as f:
                     # Platform metadata
-                    platform_id = getattr(f, 'platform_code', nc_file.stem).decode('utf-8') if isinstance(getattr(f, 'platform_code', b''), bytes) else str(getattr(f, 'platform_code', nc_file.stem))
+                    platform_id = str(getattr(f, 'platform_code', nc_file.stem))
 
                     # Classify platform type
-                    data_type = getattr(f, 'data_type', b'').decode('utf-8').lower() if isinstance(getattr(f, 'data_type', b''), bytes) else str(getattr(f, 'data_type', '')).lower()
+                    data_type = str(getattr(f, 'data_type', b'')).lower()
                     if "argo" in data_type: ptype = "argo"
                     elif "glider" in data_type: ptype = "glider"
                     elif "mooring" in data_type: ptype = "mooring"
                     elif "ctd" in data_type: ptype = "ctd"
                     else: ptype = "observation"
 
-                    # Get coordinates
-                    lats = np.array(f.variables['LATITUDE'].data)
-                    lons = np.array(f.variables['LONGITUDE'].data)
-                    times = np.array(f.variables['TIME'].data) # Days since 1950-01-01
-                    depths = np.array(f.variables['DEPH'].data) if 'DEPH' in f.variables else np.array(f.variables['PRES'].data) # meters or dbar
+                    # Get coordinates (Robust case-insensitive check)
+                    lats = np.array(f.variables['LATITUDE'][:] if 'LATITUDE' in f.variables else f.variables['latitude'][:])
+                    lons = np.array(f.variables['LONGITUDE'][:] if 'LONGITUDE' in f.variables else f.variables['longitude'][:])
+                    times = np.array(f.variables['TIME'][:] if 'TIME' in f.variables else f.variables['time'][:])
 
-                    epoch = datetime(1950, 1, 1, tzinfo=timezone.utc)
+                    # Handle DEPTH vs DEPH vs depth
+                    if 'DEPH' in f.variables: depths = np.array(f.variables['DEPH'][:])
+                    elif 'depth' in f.variables: depths = np.array(f.variables['depth'][:])
+                    elif 'PRES' in f.variables: depths = np.array(f.variables['PRES'][:])
+                    else: depths = np.zeros_like(times)
+
+                    # Determine epoch
+                    epoch = datetime(1950, 1, 1, tzinfo=timezone.utc) # Default for Copernicus
+                    time_var = f.variables['TIME'] if 'TIME' in f.variables else f.variables['time']
+                    if hasattr(time_var, 'units'):
+                        if "1970" in time_var.units: epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
                     # Process each variable
                     for cmems_var, std_var in self.VAR_MAP.items():
-                        if cmems_var not in f.variables:
-                            continue
+                        actual_var = cmems_var if cmems_var in f.variables else (cmems_var.lower() if cmems_var.lower() in f.variables else None)
+                        if not actual_var: continue
 
-                        data = np.array(f.variables[cmems_var].data)
-                        qc_var = cmems_var + "_QC"
-                        qc = np.array(f.variables[qc_var].data) if qc_var in f.variables else None
+                        data = np.array(f.variables[actual_var][:])
+                        qc_var = actual_var + "_QC"
+                        qc = np.array(f.variables[qc_var][:]) if qc_var in f.variables else None
 
                         # In-situ TAC data often has dimensions [TIME, DEPTH] or just [TIME]
                         # We flatten to (time, lat, lon, depth, value)
                         for t_idx in range(len(times)):
-                            obs_time = (epoch + timedelta(days=float(times[t_idx]))).isoformat()
+                            try:
+                                obs_time = (epoch + timedelta(days=float(times[t_idx]))).isoformat()
+                            except: continue
+
                             lat = float(lats[t_idx])
                             lon = float(lons[t_idx])
 
@@ -574,8 +596,7 @@ class InSituTACAdapter:
                                             source_file=nc_file.name,
                                             ingestion_ts=download_time,
                                             is_real=True,
-                                            data_source="real",
-                                            data_status="REAL DATA",
+                                            data_source="cached",
                                             source_organization="Copernicus Marine Service",
                                             product_id="cmems_obs-ins_glo_phybgcwav_mynrt_na_irr",
                                             retrieval_timestamp=download_time
@@ -600,8 +621,7 @@ class InSituTACAdapter:
                                         source_file=nc_file.name,
                                         ingestion_ts=download_time,
                                         is_real=True,
-                                        data_source="real",
-                                        data_status="REAL DATA",
+                                        data_source="cached",
                                         source_organization="Copernicus Marine Service",
                                         product_id="cmems_obs-ins_glo_phybgcwav_mynrt_na_irr",
                                         retrieval_timestamp=download_time
@@ -632,9 +652,9 @@ class ArgoGliderAdapter:
             elif has_cache:
                 source = "cached"
             else:
-                source = "synthetic"
+                source = "unavailable"
         else:
-            source = "synthetic"
+            source = "unavailable"
 
         return {
             "source_name": f"{platform.title()} in-situ profiles ({source.upper()})",
@@ -642,7 +662,6 @@ class ArgoGliderAdapter:
             "units": {"temperature": "degC", "salinity": "psu"},
             "platform_type": platform,
             "data_source": source,
-            "data_status": "REAL DATA" if source == "real" else ("CACHED REAL DATA" if source == "cached" else "DEMONSTRATION DATA"),
             "source_organization": "Argo GDAC / Argovis" if platform == "argo" else "Glider DAC (demo)",
             "product_id": f"{platform.upper()}-DAC-IND",
             "retrieval_timestamp": datetime.now(timezone.utc).isoformat(),
@@ -668,7 +687,7 @@ class ArgoGliderAdapter:
                 return records
 
         # 3. Demonstration Tracker Dataset Fallback
-        if get_data_mode() == "auto":
+        if get_data_mode() == "synthetic":
             return self._parse_demonstration_dataset(source, platform_type)
         return []
 
@@ -770,14 +789,13 @@ class IOOSGliderAdapter:
             "units": {"temperature": "degC", "salinity": "psu"},
             "platform_type": "glider",
             "data_source": "synthetic",
-            "data_status": "DEMONSTRATION DATA",
             "source_organization": "IOOS Glider DAC / NOAA",
             "product_id": "ioos_erddap_fallback",
             "retrieval_timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     def parse(self, source: str) -> list[StandardRecord]:
-        if get_data_mode() == "auto":
+        if get_data_mode() == "synthetic":
             return self._generate_demo_gliders()
         return []
 
@@ -793,7 +811,6 @@ class IOOSGliderAdapter:
                 platform_id=pid, platform_type="glider",
                 data_source="synthetic",
                 source_organization="IOOS Glider DAC (Demo)",
-                data_status="DEMONSTRATION DATA"
             ))
         return records
 
@@ -812,7 +829,6 @@ class CTD_ERDDAP_Adapter:
             "units": {"temperature": "degC", "salinity": "psu"},
             "platform_type": "ctd",
             "data_source": source,
-            "data_status": "CACHED REAL DATA" if source == "cached" else "UNAVAILABLE",
             "source_organization": "NOAA / IOOS ERDDAP",
             "product_id": "NOAA-ERDDAP-CTD-V1",
             "retrieval_timestamp": datetime.now(timezone.utc).isoformat(),
@@ -863,7 +879,6 @@ class BGCArgoAdapter:
             "units": {"oxygen": "umol/kg", "chlorophyll": "mg/m3", "temperature": "degC", "salinity": "psu"},
             "platform_type": "bgc",
             "data_source": source,
-            "data_status": "CACHED REAL DATA" if source == "cached" else "UNAVAILABLE",
             "source_organization": "Argo GDAC / Argovis BGC",
             "product_id": "ARGOVIS-V2-BGC-ARGO",
             "retrieval_timestamp": datetime.now(timezone.utc).isoformat(),
@@ -927,7 +942,8 @@ def run_ingestion() -> tuple[list[StandardRecord], dict[str, dict]]:
         if not adapter: continue
         try:
             if source == "insitu_nrt":
-                cache_dir = BASE_DIR / "cache" / "insitu_latest"
+                # Real data folder verified in workspace root
+                cache_dir = BASE_DIR.parent.parent / "insitu_data" / "indian_ocean_insitu_recent"
                 if not cache_dir.exists(): continue
                 records = adapter.parse(str(cache_dir))
             else:
@@ -958,8 +974,8 @@ def run_ingestion() -> tuple[list[StandardRecord], dict[str, dict]]:
                 all_records.extend(recs)
                 catalog["ioos_glider"] = adapter.metadata()
 
-    # Final Fallback: Synthetic observations if auto mode and still nothing
-    if get_data_mode() == "auto" and not any(r.kind == "observation" for r in all_records):
+    # Final Fallback: Synthetic observations ONLY in synthetic mode
+    if get_data_mode() == "synthetic" and not any(r.kind == "observation" for r in all_records):
         print("Generating synthetic fallback observations...")
         recs = _generate_synthetic_observations()
         all_records.extend(recs)
@@ -993,4 +1009,3 @@ def _generate_synthetic_observations() -> list[StandardRecord]:
                 retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
             ))
     return records
-

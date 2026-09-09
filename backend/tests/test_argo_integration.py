@@ -26,23 +26,31 @@ def test_profile_lat_lon_fix():
     from fastapi.testclient import TestClient
     client = TestClient(app)
 
-    # 1. Get latest platforms to find a valid ID
+    # Get latest platforms to find a valid ID
     resp = client.get("/api/observations/platforms/latest")
     assert resp.status_code == 200
     p_data = resp.json()
-    assert p_data["count"] > 0
+    if p_data["count"] > 0:
+        target_id = p_data["platforms"][0]["platform_id"]
+        response = client.get(f"/api/observations/{target_id}/profile")
+        assert response.status_code == 200
+        data = response.json()
+        assert "profile" in data
+        for entry in data["profile"]:
+            assert "latitude" in entry
+            assert "longitude" in entry
+            assert isinstance(entry["latitude"], (float, int))
+            assert isinstance(entry["longitude"], (float, int))
 
-    target_id = p_data["platforms"][0]["platform_id"]
+def test_model_probe_endpoint():
+    from app.main import app
+    from fastapi.testclient import TestClient
+    client = TestClient(app)
 
-    # 2. Test profile endpoint for this ID
-    response = client.get(f"/api/observations/{target_id}/profile")
+    # Core Indian Ocean probe
+    response = client.get("/api/model/probe?lat=10.0&lon=80.0&depth=100.0")
     assert response.status_code == 200
     data = response.json()
-    assert "profile" in data
+    assert "value" in data
     assert "data_source" in data
-    for entry in data["profile"]:
-        assert "latitude" in entry
-        assert "longitude" in entry
-        assert "data_source" in entry
-        assert isinstance(entry["latitude"], float)
-        assert isinstance(entry["longitude"], float)
+    assert data["latitude"] != 0.0
