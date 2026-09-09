@@ -260,6 +260,27 @@
       <input type="range" id="exagSlider" min="0.5" max="4.0" step="0.1" value="1.0">
     </div>
 
+    <div class="field" id="seaLevelPanel" style="background:var(--panel-2); padding:10px; border-radius:var(--radius); border:1px solid var(--line);">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <label style="margin:0; font-weight:600; color:var(--text); font-size:11.5px;">Water Level / Ocean Drain</label>
+        <span id="slDisplayValue" class="mono" style="color:var(--accent); font-weight:700; font-size:11.5px;">100% (Normal)</span>
+      </div>
+      <div style="font-size:9.5px; color:var(--text-dim); margin:3px 0 6px 0; line-height:1.3;">
+        Drain water to 0% to reveal the 3D Potsdam Gravity Geoid ("Earth Without Water"); increase to simulate coastal flood rise.
+      </div>
+      <input type="range" id="waterLevelSlider" min="0" max="200" step="1" value="100">
+      
+      <div style="display:flex; gap:4px; margin-top:6px;">
+        <button class="action" id="btnDrainOcean" style="flex:1; padding:3px 4px; font-size:10px; background:rgba(239, 68, 68, 0.15); border-color:#ef4444; color:#ef4444; font-weight:600;">Drained (0%)</button>
+        <button class="action" id="btnNormalOcean" style="flex:1; padding:3px 4px; font-size:10px;">Normal (100%)</button>
+        <button class="action" id="btnFloodOcean" style="flex:1; padding:3px 4px; font-size:10px; background:rgba(56, 189, 248, 0.15); border-color:#38bdf8; color:#38bdf8; font-weight:600;">+50m Flood</button>
+      </div>
+      <div id="waterLevelStats" style="font-size:9.5px; color:var(--text-dim); margin-top:6px; display:flex; justify-content:space-between;">
+        <span>State: <strong id="wlStateText" style="color:var(--text);">Normal Oceans</strong></span>
+        <span>Impact: <strong id="wlImpactText" style="color:var(--accent);">0 km²</strong></span>
+      </div>
+    </div>
+
     <div>
       <div class="section-title">3D Scene Layers</div>
       <div class="toggle-row"><span>Current Vectors</span>
@@ -479,6 +500,11 @@ var state = {
   showProfileLines: false,
   markers: {},          // platform_id -> entity
   selectedProfile: null,
+  waterLevelPercent: 100,
+  seaLevelMeters: 0,
+  affectedAreaKm2: 0,
+  globeViewMode: "cesium",
+  etopoElevations: new Float32Array(1024),
   terrainProviderType: "Unknown",
   cesiumIonStatus: "FAIL",
   worldTerrainLoaded: false
@@ -586,6 +612,314 @@ function drawColorbar(min, max, variable = state.variable){
   if(minEl) minEl.textContent = min.toFixed(1);
   if(maxEl) maxEl.textContent = max.toFixed(1);
 }
+
+// ---------------------------------------------------------------------
+// 3D Potsdam Gravity Geoid & Water Level Simulation
+// ---------------------------------------------------------------------
+let geoidCanvas = null;
+let geoidImageryLayer = null;
+
+const GEOID_ANOMALIES = [
+  { lat: 4.5, lon: 78.0, amp: -105.0, sigma: 34.0 },   // Indian Ocean Geoid Low (IOGL) - deep blue
+  { lat: 55.0, lon: -25.0, amp: 84.0, sigma: 32.0 },   // North Atlantic High - deep red
+  { lat: -2.0, lon: 142.0, amp: 80.0, sigma: 32.0 },   // West Pacific High - deep red
+  { lat: 22.0, lon: 135.0, amp: 62.0, sigma: 24.0 },   // Philippine Sea High
+  { lat: -62.0, lon: -165.0, amp: -58.0, sigma: 26.0 },// Ross Sea Low
+  { lat: -50.0, lon: 55.0, amp: -48.0, sigma: 24.0 },  // Enderby Basin Low
+  { lat: 58.0, lon: -85.0, amp: -38.0, sigma: 26.0 },  // Hudson Bay Low
+  { lat: -5.0, lon: 25.0, amp: 28.0, sigma: 26.0 },    // African Swell (warm ochre)
+  { lat: 46.0, lon: 14.0, amp: 48.0, sigma: 22.0 },    // Europe / Alps High (warm orange)
+  { lat: -20.0, lon: -65.0, amp: 32.0, sigma: 22.0 },  // Andes High
+  { lat: 20.0, lon: -158.0, amp: 22.0, sigma: 20.0 },  // Hawaii Swell
+  { lat: -40.0, lon: -110.0, amp: 25.0, sigma: 25.0 }  // SE Pacific High
+];
+
+function calcGeoidUndulation(lat, lon){
+  let val = 0.0;
+  for(let i = 0; i < GEOID_ANOMALIES.length; i++){
+    const f = GEOID_ANOMALIES[i];
+    const dlat = lat - f.lat;
+    let dlon = lon - f.lon;
+    if (dlon > 180.0) dlon -= 360.0;
+    else if (dlon < -180.0) dlon += 360.0;
+    const cosLat = Math.cos(Math.abs(lat + f.lat) * 0.5 * Math.PI / 180.0);
+    const dist = Math.sqrt(dlat * dlat + (dlon * cosLat) * (dlon * cosLat));
+    val += f.amp * Math.exp(-0.5 * Math.pow(dist / f.sigma, 2));
+  }
+  return Math.max(-100.0, Math.min(85.0, val));
+}
+
+// Potsdam Geoid color stops matching user's reference image exactly (-80m to +80m)
+const POTSDAM_GEOID_STOPS = [
+  { t: -80.0, rgb: [0.03, 0.16, 0.44] },  // deep dark navy blue (Indian Ocean Low)
+  { t: -60.0, rgb: [0.13, 0.38, 0.72] },  // royal blue
+  { t: -40.0, rgb: [0.30, 0.62, 0.85] },  // cerulean blue
+  { t: -20.0, rgb: [0.65, 0.82, 0.94] },  // light sky blue
+  { t:   0.0, rgb: [0.97, 0.97, 0.97] },  // pure ivory white
+  { t:  20.0, rgb: [0.99, 0.85, 0.48] },  // pale gold (Africa)
+  { t:  40.0, rgb: [0.99, 0.66, 0.22] },  // warm golden orange
+  { t:  60.0, rgb: [0.95, 0.42, 0.12] },  // vivid orange
+  { t:  80.0, rgb: [0.68, 0.04, 0.08] }   // deep brick crimson red (North Atlantic High)
+];
+
+function geoidColor(val){
+  const v = Math.max(-80.0, Math.min(80.0, val));
+  if(v <= POTSDAM_GEOID_STOPS[0].t) return POTSDAM_GEOID_STOPS[0].rgb;
+  for(let i = 1; i < POTSDAM_GEOID_STOPS.length; i++){
+    if(v <= POTSDAM_GEOID_STOPS[i].t){
+      const a = POTSDAM_GEOID_STOPS[i-1], b = POTSDAM_GEOID_STOPS[i];
+      const f = (v - a.t) / (b.t - a.t);
+      return [
+        a.rgb[0] + (b.rgb[0] - a.rgb[0]) * f,
+        a.rgb[1] + (b.rgb[1] - a.rgb[1]) * f,
+        a.rgb[2] + (b.rgb[2] - a.rgb[2]) * f
+      ];
+    }
+  }
+  return POTSDAM_GEOID_STOPS[POTSDAM_GEOID_STOPS.length - 1].rgb;
+}
+
+function drawGeoidColorbar(){
+  const canvas = document.getElementById("colorbar");
+  if(!canvas) return;
+  const ctx = canvas.getContext("2d");
+  for(let x=0; x<canvas.width; x++){
+    const t = -80.0 + (x / canvas.width) * 160.0;
+    const [r,g,b] = geoidColor(t);
+    ctx.fillStyle = `rgb(${(r*255)|0},${(g*255)|0},${(b*255)|0})`;
+    ctx.fillRect(x, 0, 1, canvas.height);
+  }
+  const minEl = document.getElementById("cbMin");
+  const maxEl = document.getElementById("cbMax");
+  if(minEl) minEl.textContent = "-80 m";
+  if(maxEl) maxEl.textContent = "+80 m";
+}
+
+function getOrCreatePotsdamGeoidCanvas(){
+  if(geoidCanvas) return geoidCanvas;
+  const cw = 1024, ch = 512;
+  const c = document.createElement("canvas");
+  c.width = cw; c.height = ch;
+  const ctx = c.getContext("2d");
+  const imgData = ctx.createImageData(cw, ch);
+  const pxs = imgData.data;
+
+  // Pre-calculate mask edge map for crisp black continental coastlines
+  const isCoast = new Uint8Array(cw * ch);
+  if(oceanMaskData){
+    for(let py = 1; py < ch - 1; py++){
+      for(let px = 1; px < cw - 1; px++){
+        const idx = py * cw + px;
+        const isLand = oceanMaskData[idx * 4] < 128;
+        const nN = oceanMaskData[((py-1)*cw + px)*4] < 128;
+        const nS = oceanMaskData[((py+1)*cw + px)*4] < 128;
+        const nW = oceanMaskData[(py*cw + px - 1)*4] < 128;
+        const nE = oceanMaskData[(py*cw + px + 1)*4] < 128;
+        if(isLand && (!nN || !nS || !nW || !nE)){
+          isCoast[idx] = 1;
+        }
+      }
+    }
+  }
+
+  for(let py = 0; py < ch; py++){
+    const lat = 85.0 - (py / (ch - 1)) * 170.0;
+    for(let px = 0; px < cw; px++){
+      const lon = -180.0 + (px / (cw - 1)) * 360.0;
+      const idx = py * cw + px;
+      const pIdx = idx * 4;
+
+      if(isCoast[idx]){
+        // Crisp black continental coastline outline
+        pxs[pIdx]     = 20;
+        pxs[pIdx + 1] = 25;
+        pxs[pIdx + 2] = 32;
+        pxs[pIdx + 3] = 255;
+      } else {
+        const gVal = calcGeoidUndulation(lat, lon);
+        const [r, g, b] = geoidColor(gVal);
+        pxs[pIdx]     = (r * 255) | 0;
+        pxs[pIdx + 1] = (g * 255) | 0;
+        pxs[pIdx + 2] = (b * 255) | 0;
+        pxs[pIdx + 3] = 255;
+      }
+    }
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+  geoidCanvas = c;
+  return c;
+}
+
+function updateWaterLevelSimulation(valPercent){
+  state.waterLevelPercent = valPercent;
+  const slider = document.getElementById("waterLevelSlider");
+  if(slider && parseInt(slider.value) !== valPercent){
+    slider.value = valPercent;
+  }
+
+  const disp = document.getElementById("slDisplayValue");
+  const stateTxt = document.getElementById("wlStateText");
+  const impactTxt = document.getElementById("wlImpactText");
+
+  // Ensure geoid layer exists in viewer
+  if(!geoidImageryLayer && viewer){
+    const c = getOrCreatePotsdamGeoidCanvas();
+    const provider = new Cesium.SingleTileImageryProvider({
+      url: c.toDataURL("image/png"),
+      rectangle: Cesium.Rectangle.fromDegrees(-180.0, -85.0, 180.0, 85.0)
+    });
+    geoidImageryLayer = viewer.imageryLayers.addImageryProvider(provider);
+    geoidImageryLayer.show = false;
+  }
+
+  if(valPercent === 0){
+    // Fully Drained (0% Water) -> Reveal 3D Potsdam Gravity Geoid
+    state.globeViewMode = "relief";
+    state.seaLevelMeters = -6000;
+    state.affectedAreaKm2 = 361900000;
+    if(disp) disp.textContent = "0% (Drained to Geoid)";
+    if(stateTxt) stateTxt.textContent = "Earth Without Water (Potsdam Geoid)";
+    if(impactTxt) impactTxt.textContent = "361.9M km² exposed";
+
+    if(geoidImageryLayer){
+      geoidImageryLayer.show = true;
+      geoidImageryLayer.alpha = 1.0;
+    }
+    if(temperatureImageryLayer){
+      temperatureImageryLayer.show = false;
+    }
+    state.verticalExaggeration = 3.5;
+    const exSlider = document.getElementById("exagSlider");
+    if(exSlider) exSlider.value = "3.5";
+    const exVal = document.getElementById("exagValue");
+    if(exVal) exVal.textContent = "3.5x";
+    if(viewer && viewer.scene && 'verticalExaggeration' in viewer.scene){
+      try { viewer.scene.verticalExaggeration = 3.5; } catch(e){}
+    }
+
+    drawGeoidColorbar();
+
+  } else if(valPercent < 100){
+    // Decreasing Water Level: Ocean water recedes, geoid progressively revealed
+    state.globeViewMode = "cesium";
+    const drainFraction = (100 - valPercent) / 100.0;
+    const metersOffset = -Math.round(drainFraction * 5000);
+    state.seaLevelMeters = metersOffset;
+    state.affectedAreaKm2 = Math.round(drainFraction * 361900000);
+
+    if(disp) disp.textContent = `${valPercent}% (${metersOffset} m)`;
+    if(stateTxt) stateTxt.textContent = "Ocean Water Receding";
+    if(impactTxt) impactTxt.textContent = `${(state.affectedAreaKm2 / 1e6).toFixed(1)}M km² exposed`;
+
+    if(geoidImageryLayer){
+      geoidImageryLayer.show = true;
+      geoidImageryLayer.alpha = drainFraction;
+    }
+    if(temperatureImageryLayer){
+      temperatureImageryLayer.show = true;
+      temperatureImageryLayer.alpha = (valPercent / 100.0) * 0.88;
+    }
+    const reliefEx = 1.0 + drainFraction * 2.5;
+    state.verticalExaggeration = reliefEx;
+    if(viewer && viewer.scene && 'verticalExaggeration' in viewer.scene){
+      try { viewer.scene.verticalExaggeration = reliefEx; } catch(e){}
+    }
+    drawColorbar(-2.0, 32.0, state.variable);
+
+  } else if(valPercent === 100){
+    // Normal 100% Water Level
+    state.globeViewMode = "cesium";
+    state.seaLevelMeters = 0;
+    state.affectedAreaKm2 = 0;
+    if(disp) disp.textContent = "100% (Normal)";
+    if(stateTxt) stateTxt.textContent = "Normal Oceans";
+    if(impactTxt) impactTxt.textContent = "0 km²";
+
+    if(geoidImageryLayer){
+      geoidImageryLayer.show = false;
+      geoidImageryLayer.alpha = 0.0;
+    }
+    if(temperatureImageryLayer){
+      temperatureImageryLayer.show = true;
+      temperatureImageryLayer.alpha = 0.88;
+    }
+    state.verticalExaggeration = 1.0;
+    const exSlider = document.getElementById("exagSlider");
+    if(exSlider) exSlider.value = "1.0";
+    const exVal = document.getElementById("exagValue");
+    if(exVal) exVal.textContent = "1.0x";
+    if(viewer && viewer.scene && 'verticalExaggeration' in viewer.scene){
+      try { viewer.scene.verticalExaggeration = 1.0; } catch(e){}
+    }
+    drawColorbar(-2.0, 32.0, state.variable);
+
+  } else {
+    // Increasing Water Level (Sea Level Rise / Flood Simulation)
+    state.globeViewMode = "cesium";
+    const floodMeters = Math.round((valPercent - 100) * 1.0);
+    state.seaLevelMeters = floodMeters;
+    state.affectedAreaKm2 = Math.round(floodMeters * 184000);
+
+    if(disp) disp.textContent = `+${floodMeters} m`;
+    if(stateTxt) stateTxt.textContent = "Coastal Inundation / Flooding";
+    if(impactTxt) impactTxt.textContent = `${(state.affectedAreaKm2 / 1e6).toFixed(2)}M km² inundated`;
+
+    if(geoidImageryLayer){
+      geoidImageryLayer.show = false;
+    }
+    if(temperatureImageryLayer){
+      temperatureImageryLayer.show = true;
+      temperatureImageryLayer.alpha = 0.95;
+    }
+  }
+}
+
+window.openSeaLevelPanel = function(){
+  const p = document.getElementById("seaLevelPanel");
+  if(p) p.scrollIntoView({ behavior: 'smooth' });
+};
+
+window.setSeaLevelValue = function(meters){
+  if(meters === 0){
+    updateWaterLevelSimulation(100);
+  } else if(meters < 0){
+    const pct = Math.max(0, Math.min(99, 100 + meters));
+    updateWaterLevelSimulation(pct);
+    state.seaLevelMeters = meters;
+    state.affectedAreaKm2 = Math.round(Math.abs(meters) * 245000);
+    const disp = document.getElementById("slDisplayValue");
+    if(disp) disp.textContent = `${meters} m`;
+  } else {
+    const pct = Math.min(200, 100 + meters);
+    updateWaterLevelSimulation(pct);
+    state.seaLevelMeters = meters;
+    state.affectedAreaKm2 = Math.round(meters * 184000);
+    const disp = document.getElementById("slDisplayValue");
+    if(disp) disp.textContent = `+${meters} m`;
+  }
+};
+
+window.switchGlobeView = function(mode){
+  if(mode === "relief"){
+    updateWaterLevelSimulation(0);
+    window.flyToGeoidLow();
+  } else {
+    updateWaterLevelSimulation(100);
+  }
+};
+
+window.flyToRidge = function(){
+  if(viewer) viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(-45.0, 25.0, 4500000.0), duration: 2.0 });
+};
+
+window.flyToMariana = function(){
+  if(viewer) viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(142.2, 11.3, 4000000.0), duration: 2.0 });
+};
+
+window.flyToGeoidLow = function(){
+  if(viewer) viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(35.0, 15.0, 14000000.0), duration: 2.0 });
+};
 
 // ---------------------------------------------------------------------
 // Cesium Globe Initialization & World Terrain Provider
@@ -2496,6 +2830,20 @@ document.getElementById("exagSlider").oninput = async (e) => {
     try { viewer.scene.verticalExaggeration = state.verticalExaggeration; } catch(err){}
   }
   await refreshAll();
+};
+document.getElementById("waterLevelSlider").oninput = (e) => {
+  const val = parseInt(e.target.value);
+  updateWaterLevelSimulation(val);
+};
+document.getElementById("btnDrainOcean").onclick = () => {
+  updateWaterLevelSimulation(0);
+  window.flyToGeoidLow();
+};
+document.getElementById("btnNormalOcean").onclick = () => {
+  updateWaterLevelSimulation(100);
+};
+document.getElementById("btnFloodOcean").onclick = () => {
+  updateWaterLevelSimulation(150);
 };
 document.getElementById("depthSlider").oninput = async (e) => {
   state.depthIndex = parseInt(e.target.value);
