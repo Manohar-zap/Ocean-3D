@@ -444,6 +444,17 @@ def compare(platform_id: str, variable: str, depth: float, time: str):
     return result.model_dump()
 
 
+@app.get("/api/observations/{platform_id}/validation")
+def observation_validation(platform_id: str, variable: str = "temperature", dataset_id: Optional[str] = None):
+    """Full vertical profile co-validation: overlays observed in-situ curve with numerical model forecast,
+    interpolating along depth and returning operational forecasting skill metrics (Bias, RMSE, R², Willmott)."""
+    try:
+        return comparison_service.validate_profile(platform_id, variable, dataset_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+
 # ---------------------------------------------------------------------------
 # Export Service  (FR-041-043)
 # ---------------------------------------------------------------------------

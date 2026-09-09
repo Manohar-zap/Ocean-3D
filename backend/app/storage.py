@@ -115,7 +115,14 @@ class Store:
 
 
 def _parse(t: str) -> datetime:
-    return datetime.fromisoformat(t.replace("Z", ""))
+    s = t.replace("Z", "+00:00")
+    try:
+        dt = datetime.fromisoformat(s)
+        if dt.tzinfo is not None:
+            dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return dt
+    except Exception:
+        return datetime.fromisoformat(t[:19])
 
 
 # Singleton store, loaded once at process start (Architecture Sec. 6:
