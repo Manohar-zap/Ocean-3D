@@ -563,6 +563,41 @@
   </footer>
 </div>
 
+<!-- Guided Science Communication "Ocean Stories" Modal -->
+<div id="oceanStoriesModal" style="position:fixed; inset:0; background:rgba(4,10,18,0.82); backdrop-filter:blur(8px); z-index:9999; display:none; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:#091522; border:1px solid rgba(63,224,197,0.35); border-radius:10px; width:680px; max-width:96vw; max-height:92vh; overflow-y:auto; box-shadow:0 12px 48px rgba(0,0,0,0.8); display:flex; flex-direction:column;">
+    <!-- Modal Header -->
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid rgba(255,255,255,0.1); background:#0d1e2e;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:18px;">📖</span>
+        <span style="font-size:13.5px; font-weight:700; color:#e2e8f0; letter-spacing:0.3px;">INCOIS GUIDED OCEAN STORIES & SCIENCE TOURS</span>
+      </div>
+      <button id="btnCloseOceanStories" style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer; padding:2px 6px;">✕</button>
+    </div>
+
+    <!-- Story Tabs -->
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; border-bottom:1px solid rgba(255,255,255,0.1); background:#060f18;">
+      <button class="story-tab active" onclick="switchOceanStory('upwelling')" id="tabStoryUpwelling" style="padding:10px 8px; border:none; background:rgba(63,224,197,0.18); color:#3fe0c5; font-size:11.5px; font-weight:600; cursor:pointer; border-bottom:2px solid #3fe0c5;">🌊 Monsoon Upwelling</button>
+      <button class="story-tab" onclick="switchOceanStory('cyclone')" id="tabStoryCyclone" style="padding:10px 8px; border:none; background:transparent; color:#94a3b8; font-size:11.5px; font-weight:600; cursor:pointer; border-bottom:2px solid transparent;">🌀 Bay of Bengal Plume</button>
+      <button class="story-tab" onclick="switchOceanStory('argo')" id="tabStoryArgo" style="padding:10px 8px; border:none; background:transparent; color:#94a3b8; font-size:11.5px; font-weight:600; cursor:pointer; border-bottom:2px solid transparent;">🤖 10-Day Argo Float</button>
+    </div>
+
+    <!-- Story Body -->
+    <div id="storyContentBody" style="padding:18px; display:flex; flex-direction:column; gap:12px; font-size:12.5px; line-height:1.55; color:#cbd5e1;">
+      <!-- Injected via renderOceanStoryCard() -->
+    </div>
+
+    <!-- Story Footer Actions -->
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 18px; border-top:1px solid rgba(255,255,255,0.1); background:#0d1e2e;">
+      <span id="storyStepIndicator" style="font-size:11px; color:#94a3b8; font-family:'IBM Plex Mono', monospace;">Tour Ready</span>
+      <div style="display:flex; gap:8px;">
+        <button id="btnStoryPrevStep" class="action" style="padding:6px 14px; font-size:12px; width:auto; display:none;">⏮ Prev Step</button>
+        <button id="btnStoryNextStep" class="action primary" style="padding:6px 14px; font-size:12px; width:auto;">▶ Start Guided Tour</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 // Domain Constants
 const LAT_RANGE = [-90, 90];
@@ -4486,10 +4521,14 @@ function prevStoryStep(){
   }
 }
 
-document.getElementById("btnOpenOceanStories").onclick = openOceanStoriesModal;
-document.getElementById("btnCloseOceanStories").onclick = closeOceanStoriesModal;
-document.getElementById("btnStoryNextStep").onclick = nextStoryStep;
-document.getElementById("btnStoryPrevStep").onclick = prevStoryStep;
+const btnOpenStories = document.getElementById("btnOpenOceanStories");
+if(btnOpenStories) btnOpenStories.onclick = openOceanStoriesModal;
+const btnCloseStories = document.getElementById("btnCloseOceanStories");
+if(btnCloseStories) btnCloseStories.onclick = closeOceanStoriesModal;
+const btnNextStory = document.getElementById("btnStoryNextStep");
+if(btnNextStory) btnNextStory.onclick = nextStoryStep;
+const btnPrevStory = document.getElementById("btnStoryPrevStep");
+if(btnPrevStory) btnPrevStory.onclick = prevStoryStep;
 
 // ---------------------------------------------------------------------
 // Boot Sequence
@@ -4525,40 +4564,5 @@ document.getElementById("btnStoryPrevStep").onclick = prevStoryStep;
   }
 })();
 </script>
-
-<!-- Guided Science Communication "Ocean Stories" Modal -->
-<div id="oceanStoriesModal" style="position:fixed; inset:0; background:rgba(4,10,18,0.82); backdrop-filter:blur(8px); z-index:9999; display:none; align-items:center; justify-content:center; padding:16px;">
-  <div style="background:#091522; border:1px solid rgba(63,224,197,0.35); border-radius:10px; width:680px; max-width:96vw; max-height:92vh; overflow-y:auto; box-shadow:0 12px 48px rgba(0,0,0,0.8); display:flex; flex-direction:column;">
-    <!-- Modal Header -->
-    <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid rgba(255,255,255,0.1); background:#0d1e2e;">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <span style="font-size:18px;">📖</span>
-        <span style="font-size:13.5px; font-weight:700; color:#e2e8f0; letter-spacing:0.3px;">INCOIS GUIDED OCEAN STORIES & SCIENCE TOURS</span>
-      </div>
-      <button id="btnCloseOceanStories" style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer; padding:2px 6px;">✕</button>
-    </div>
-
-    <!-- Story Tabs -->
-    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; border-bottom:1px solid rgba(255,255,255,0.1); background:#060f18;">
-      <button class="story-tab active" onclick="switchOceanStory('upwelling')" id="tabStoryUpwelling" style="padding:10px 8px; border:none; background:rgba(63,224,197,0.18); color:#3fe0c5; font-size:11.5px; font-weight:600; cursor:pointer; border-bottom:2px solid #3fe0c5;">🌊 Monsoon Upwelling</button>
-      <button class="story-tab" onclick="switchOceanStory('cyclone')" id="tabStoryCyclone" style="padding:10px 8px; border:none; background:transparent; color:#94a3b8; font-size:11.5px; font-weight:600; cursor:pointer; border-bottom:2px solid transparent;">🌀 Bay of Bengal Plume</button>
-      <button class="story-tab" onclick="switchOceanStory('argo')" id="tabStoryArgo" style="padding:10px 8px; border:none; background:transparent; color:#94a3b8; font-size:11.5px; font-weight:600; cursor:pointer; border-bottom:2px solid transparent;">🤖 10-Day Argo Float</button>
-    </div>
-
-    <!-- Story Body -->
-    <div id="storyContentBody" style="padding:18px; display:flex; flex-direction:column; gap:12px; font-size:12.5px; line-height:1.55; color:#cbd5e1;">
-      <!-- Injected via renderOceanStoryCard() -->
-    </div>
-
-    <!-- Story Footer Actions -->
-    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 18px; border-top:1px solid rgba(255,255,255,0.1); background:#0d1e2e;">
-      <span id="storyStepIndicator" style="font-size:11px; color:#94a3b8; font-family:'IBM Plex Mono', monospace;">Tour Ready</span>
-      <div style="display:flex; gap:8px;">
-        <button id="btnStoryPrevStep" class="action" style="padding:6px 14px; font-size:12px; width:auto; display:none;">⏮ Prev Step</button>
-        <button id="btnStoryNextStep" class="action primary" style="padding:6px 14px; font-size:12px; width:auto;">▶ Start Guided Tour</button>
-      </div>
-    </div>
-  </div>
-</div>
 </body>
 </html>
