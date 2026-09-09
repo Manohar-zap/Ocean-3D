@@ -1090,7 +1090,9 @@
         float fresnel = pow(1.0 - max(dot(normalize(vNormal), viewDir), 0.0), 3.0);
         col *= (0.82 + fresnel * 0.32);
 
-        gl_FragColor = vec4(col, (0.55 + fresnel * 0.24) * waterMask);
+        // OPAQUE ocean surface fix: set alpha to 1.0 (masked by waterMask for coastlines)
+        // Previous semi-transparent value was: (0.55 + fresnel * 0.24) * waterMask
+        gl_FragColor = vec4(col, waterMask);
       }
     `
   });
