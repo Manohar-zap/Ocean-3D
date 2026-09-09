@@ -1234,6 +1234,26 @@ async function loadObservations(){
     };
     profileEntities.push(entity);
     state.markers[m.platform_id] = entity;
+
+    // 3D Vertical Water-Column Profile Lines descending through ocean depth in Cesium Globe
+    if(state.showProfileLines){
+      const depthVal = ptype === "glider" ? -120000.0 : -200000.0;
+      const lineEntity = viewer.entities.add({
+        polyline: {
+          positions: Cesium.Cartesian3.fromDegreesArrayHeights([
+            m.lon, m.lat, 500.0,
+            m.lon, m.lat, depthVal
+          ]),
+          width: isSelected ? 3.0 : 1.8,
+          material: new Cesium.PolylineGlowMaterialProperty({
+            glowPower: 0.3,
+            taperPower: 0.5,
+            color: Cesium.Color.fromCssColorString(colorCss).withAlpha(isSelected ? 0.95 : 0.7)
+          })
+        }
+      });
+      profileEntities.push(lineEntity);
+    }
   }
 }
 
