@@ -147,6 +147,7 @@ def query_bathymetry(
         "dataset_id": "gebco_bathymetry",
         "source_organization": "GEBCO (General Bathymetric Chart of the Oceans)",
         "product_id": "GEBCO_2023_GRID",
+        "data_source": rows[0].data_source,
         "data_status": rows[0].data_status,
         "unit": "meters",
         "count": len(rows),
@@ -173,6 +174,15 @@ def get_terrain_heightmap_meta():
     if not json_path.exists():
         raise HTTPException(404, "Heightmap metadata json not found")
     return json.loads(json_path.read_text(encoding="utf-8"))
+
+# ARGO Legacy Alias (Requirement 2)
+@app.get("/api/heightmap")
+def get_heightmap_alias():
+    return get_terrain_heightmap()
+
+@app.get("/api/heightmap/meta")
+def get_heightmap_meta_alias():
+    return get_terrain_heightmap_meta()
 
 
 @app.get("/api/observations")
@@ -227,28 +237,58 @@ def query_observations(
     }
 
 
+@app.get("/api/observations/platforms/latest")
+def latest_platforms():
+    """Return latest surface position record per observation platform (ARGO feature)."""
+    rows = query_service.observations(QueryFilters())
+    by_platform: dict[str, dict] = {}
+    for r in rows:
+        cur = by_platform.get(r.platform_id)
+        if cur is None or r.time > cur["timestamp"]:
+            by_platform[r.platform_id] = {
+                "platform_id": r.platform_id,
+                "platform_type": r.platform_type,
+                "latitude": r.latitude,
+                "longitude": r.longitude,
+                "depth": r.depth,
+                "timestamp": r.time,
+                "data_source": r.data_source,
+                "data_status": r.data_status,
+                "source_organization": r.source_organization,
+            }
+    return {"count": len(by_platform), "platforms": list(by_platform.values())}
+
+
 @app.get("/api/observations/{platform_id}/track")
 def observation_track(platform_id: str):
-    """Chronological position history for a single platform (Requirement 9)."""
-    rows = store.observation_profile(platform_id)
+    """Chronological position history for a single platform (Requirement 9 + ARGO detail)."""
+    rows = query_service.profile(platform_id)
     if not rows:
         raise HTTPException(404, f"No track data for platform '{platform_id}'")
 
     # Return unique (lat, lon, time, depth) points sorted by time
     track = []
     seen = set()
-    for r in rows:
+    # Sort by time to ensure chronological track
+    rows_sorted = sorted(rows, key=lambda r: r.time)
+    for r in rows_sorted:
         key = (r.latitude, r.longitude, r.time)
         if key not in seen:
             track.append({
                 "latitude": r.latitude,
                 "longitude": r.longitude,
                 "time": r.time,
+                "timestamp": r.time, # Alias for ARGO frontend compatibility
                 "depth": r.depth,
-                "sequence_number": r.sequence_number
+                "sequence_number": len(track) + 1
             })
             seen.add(key)
-    return track
+    return {
+        "platform_id": platform_id,
+        "platform_type": rows[0].platform_type,
+        "data_source": rows[0].data_source,
+        "track": track
+    }
 
 
 @app.get("/api/observations/{platform_id}/profile")
@@ -265,9 +305,11 @@ def observation_profile(platform_id: str, variable: Optional[str] = None, time: 
     return {
         "platform_id": platform_id,
         "platform_type": rows[0].platform_type,
+        "data_source": rows[0].data_source,
         "profile": [
             {"depth": r.depth, "variable": r.variable, "value": r.value, "unit": r.unit,
-             "time": r.time, "quality_flag": r.quality_flag, "latitude": r.latitude, "longitude": r.longitude}
+             "time": r.time, "quality_flag": r.quality_flag, "latitude": r.latitude, "longitude": r.longitude,
+             "data_source": r.data_source}
             for r in rows
         ],
     }

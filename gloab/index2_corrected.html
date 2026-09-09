@@ -250,6 +250,22 @@
             box-shadow: 0 0 8px var(--accent-glow);
         }
 
+        /* Provenance Badge */
+        .prov-badge {
+            display: inline-block;
+            font-size: 0.6rem;
+            font-family: var(--font-mono);
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            font-weight: 700;
+            margin-left: 8px;
+        }
+        .prov-real { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); }
+        .prov-cached { background: rgba(56, 189, 248, 0.2); color: #7dd3fc; border: 1px solid rgba(56, 189, 248, 0.4); }
+        .prov-synthetic { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+        .prov-unavailable { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+
         /* Profile Panel (Phase 4) */
         #profile-panel {
             position: absolute;
@@ -636,8 +652,15 @@
     <div id="profile-panel" class="glass-panel" style="display:none;">
         <div class="panel-header">
             <span class="panel-title" id="prof-title">PLATFORM PROFILE</span>
-            <button class="var-btn" style="padding: 2px 6px;" onclick="document.getElementById('profile-panel').style.display='none'">✕</button>
+            <div id="prof-badge-container"></div>
+            <button class="var-btn" style="padding: 2px 6px;" onclick="document.getElementById('profile-panel').style.display='none'; if(typeof renderPlatformTrack === 'function') renderPlatformTrack(null);">✕</button>
         </div>
+
+        <!-- 3D Water Column Analytical View (ARGO Integration) -->
+        <div id="wc-container" style="width:100%; height:180px; background: rgba(0,0,0,0.2); border-radius: 8px; margin-bottom: 8px; overflow:hidden; border: 1px solid var(--border-glass);">
+            <!-- Three.js will inject canvas here -->
+        </div>
+
         <div id="prof-content" class="item-grid" style="font-family: var(--font-mono); font-size: 0.65rem;">
             <!-- Profile data -->
         </div>
@@ -700,6 +723,14 @@
   let activeVariable = null;
   let modelPointsGroup = null;
   let obsMarkersGroup = null;
+  let trackLine = null; // Single track line for selected platform
+
+  function getProvenanceBadge(source) {
+      if (!source) return '';
+      const cls = `prov-${source}`;
+      const label = source === 'cached' ? 'Cached Real' : source;
+      return `<span class="prov-badge ${cls}">${label}</span>`;
+  }
 
   // The water surface is a global equipotential shell. Its radius is driven
   // ONLY by the selected sea level, using the exact same elevation->radius
@@ -1263,7 +1294,10 @@
         ).join('');
 
         item.innerHTML = `
-          <span class="ds-name">${ds.label || ds.dataset_id}</span>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+            <span class="ds-name" style="margin-bottom:0;">${ds.label || ds.dataset_id}</span>
+            ${getProvenanceBadge(ds.data_source)}
+          </div>
           <div class="ds-vars">${varsHtml}</div>
         `;
         listEl.appendChild(item);
@@ -1375,30 +1409,140 @@
     flatShading: true
   });
 
+  const ICON_MAP = {
+      argo: 'assets/icons/argo_float.png',
+      glider: 'assets/icons/glider.png',
+      ctd: 'assets/icons/ctd.png',
+      bgc: 'assets/icons/bgc.png',
+      default: 'assets/icons/argo_float.png'
+  };
+
+  const textureLoader = new THREE.TextureLoader();
+
   function renderObservationMarkers(markers) {
     obsMarkersGroup.clear();
     markers.forEach(m => {
-      const mesh = new THREE.Mesh(obsMarkerGeo, obsMarkerMat);
+      const ptype = (m.platform_type || 'default').toLowerCase();
+      const iconUrl = ICON_MAP[ptype] || ICON_MAP.default;
+
+      const spriteMat = new THREE.SpriteMaterial({
+          map: textureLoader.load(iconUrl),
+          transparent: true,
+          depthTest: false
+      });
+      const sprite = new THREE.Sprite(spriteMat);
+      sprite.scale.set(0.06, 0.06, 1);
+
       const pos = latLonToVector3(m.lat, m.lon, 0); // markers at surface
-      mesh.position.copy(pos);
-      mesh.userData = { type: 'observation', ...m };
-      obsMarkersGroup.add(mesh);
+      sprite.position.copy(pos);
+      sprite.userData = { type: 'observation', ...m };
+      obsMarkersGroup.add(sprite);
     });
+  }
+
+  function renderPlatformTrack(trackPoints) {
+    if (trackLine) {
+        obsMarkersGroup.remove(trackLine);
+        trackLine = null;
+    }
+    if (!trackPoints || trackPoints.length < 2) return;
+
+    const positions = [];
+    trackPoints.forEach(pt => {
+        const v = latLonToVector3(pt.latitude, pt.longitude, 0);
+        positions.push(v);
+    });
+
+    const geometry = new THREE.BufferGeometry().setFromPoints(positions);
+    const material = new THREE.LineBasicMaterial({ color: 0x00f0ff, linewidth: 2 });
+    trackLine = new THREE.Line(geometry, material);
+    obsMarkersGroup.add(trackLine);
+  }
+
+  let wcScene, wcCamera, wcRenderer, wcGroup;
+  function initWaterColumn(containerId) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+
+      wcScene = new THREE.Scene();
+      wcCamera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+      wcCamera.position.set(0, 1.5, 4);
+      wcCamera.lookAt(0, -1, 0);
+
+      wcRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      wcRenderer.setSize(container.clientWidth, container.clientHeight);
+      container.innerHTML = '';
+      container.appendChild(wcRenderer.domElement);
+
+      wcScene.add(new THREE.AmbientLight(0xffffff, 1.0));
+      const dl = new THREE.DirectionalLight(0xffffff, 0.8);
+      dl.position.set(2, 2, 2);
+      wcScene.add(dl);
+
+      wcGroup = new THREE.Group();
+      wcScene.add(wcGroup);
+
+      function animateWC() {
+          if (!wcRenderer) return;
+          requestAnimationFrame(animateWC);
+          wcGroup.rotation.y += 0.005;
+          wcRenderer.render(wcScene, wcCamera);
+      }
+      animateWC();
+  }
+
+  function renderWCProfile(profile) {
+      if (!wcGroup) return;
+      wcGroup.clear();
+      if (!profile || profile.length === 0) return;
+
+      const maxDepth = Math.max(...profile.map(p => p.depth), 100);
+      const points = [];
+
+      profile.forEach(p => {
+          const y = -(p.depth / maxDepth) * 3;
+          const [r, g, b] = thermalColor(p.value);
+          const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(r/255, g/255, b/255) });
+          const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.08, 16, 16), mat);
+          sphere.position.set(0, y, 0);
+          wcGroup.add(sphere);
+          points.push(new THREE.Vector3(0, y, 0));
+      });
+
+      if (points.length >= 2) {
+          const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+          const lineMat = new THREE.LineBasicMaterial({ color: 0xf2a65a, linewidth: 2 });
+          wcGroup.add(new THREE.Line(lineGeo, lineMat));
+      }
   }
 
   async function showProfile(pid) {
     const panel = document.getElementById('profile-panel');
     const content = document.getElementById('prof-content');
     const title = document.getElementById('prof-title');
+    const badgeContainer = document.getElementById('prof-badge-container');
 
     panel.style.display = 'flex';
     title.textContent = pid;
     content.innerHTML = '<div class="status-indicator">LOADING PROFILE...</div>';
+    badgeContainer.innerHTML = '';
+
+    if (!wcRenderer) initWaterColumn('wc-container');
 
     try {
+      // Fetch Track first
+      const trackRes = await fetch(`${API_BASE}/api/observations/${pid}/track`);
+      if (trackRes.ok) {
+          const trackData = await trackRes.json();
+          renderPlatformTrack(trackData.track);
+      }
+
       const res = await fetch(`${API_BASE}/api/observations/${pid}/profile`);
       if (!res.ok) throw new Error(`Profile API returned ${res.status}`);
       const data = await res.json();
+
+      badgeContainer.innerHTML = getProvenanceBadge(data.data_source);
+      renderWCProfile(data.profile);
 
       let html = '<div class="prof-row prof-header"><span>DEPTH</span><span>VAR</span><span>VALUE</span></div>';
       data.profile.forEach(p => {

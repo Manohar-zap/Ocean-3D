@@ -32,6 +32,7 @@ class StandardRecord(BaseModel):
     source_file: Optional[str] = None
     ingestion_ts: Optional[str] = None      # Time the snapshot was retrieved (download_time)
     is_real: bool = False                   # Flag for Copernicus vs Synthetic
+    data_source: Literal["real", "cached", "synthetic", "unavailable"] = "cached"
     data_status: Literal["REAL DATA", "CACHED REAL DATA", "DEMONSTRATION DATA"] = "CACHED REAL DATA"
     source_organization: Optional[str] = "INCOIS / Copernicus Marine"
     product_id: Optional[str] = None
@@ -50,6 +51,7 @@ class DatasetMeta(BaseModel):
     source_url: Optional[str] = None
     last_updated: Optional[str] = None
     kind: RecordKind
+    data_source: Literal["real", "cached", "synthetic", "unavailable"] = "cached"
     data_status: Literal["REAL DATA", "CACHED REAL DATA", "DEMONSTRATION DATA"] = "CACHED REAL DATA"
     source_organization: Optional[str] = "INCOIS / Copernicus Marine"
     product_id: Optional[str] = None

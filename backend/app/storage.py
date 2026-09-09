@@ -106,6 +106,7 @@ class Store:
                 provenance=meta["source_name"],
                 last_updated=self.last_refresh_ts,
                 kind="model" if rows and rows[0].kind == "model" else "observation",
+                data_source=meta.get("data_source", "cached"),
                 data_status=meta.get("data_status", "CACHED REAL DATA"),
                 source_organization=meta.get("source_organization", "INCOIS / Copernicus Marine"),
                 product_id=meta.get("product_id", dataset_id),
