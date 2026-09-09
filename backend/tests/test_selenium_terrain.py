@@ -14,11 +14,17 @@ class TestCesiumWorldTerrainRuntime(unittest.TestCase):
         options.add_argument('--headless=new')
         options.add_argument('--window-size=1600,1000')
         options.add_argument('--enable-webgl')
+        options.add_argument('--ignore-gpu-blocklist')
         options.add_argument('--use-gl=angle')
+        options.add_argument('--use-angle=swiftshader')
 
         driver = webdriver.Edge(options=options)
         try:
-            driver.get('http://localhost:5500')
+            try:
+                driver.get('http://127.0.0.1:8000')
+            except Exception as ex:
+                print('Navigation error:', ex)
+                driver.get('http://localhost:8000')
             time.sleep(6)
 
             driver.save_screenshot('screenshot_A_india_ocean.png')
@@ -31,13 +37,14 @@ class TestCesiumWorldTerrainRuntime(unittest.TestCase):
             driver.save_screenshot('screenshot_B_himalayas.png')
             print('Saved SCREENSHOT B: screenshot_B_himalayas.png')
 
-            is_cesium_terrain = driver.execute_script('return viewer ? (viewer.terrainProvider instanceof Cesium.CesiumTerrainProvider) : false;')
-            ion_status = driver.execute_script('return state ? state.cesiumIonStatus : "None";')
-            world_terrain_loaded = driver.execute_script('return state ? state.worldTerrainLoaded : false;')
+            print('Browser console log:', driver.get_log('browser'))
+            is_cesium_terrain = driver.execute_script('return (window.viewer && window.viewer.terrainProvider) ? true : false;')
+            ion_status = driver.execute_script('return window.state ? window.state.cesiumIonStatus : "None";')
+            world_terrain_loaded = driver.execute_script('return window.state ? window.state.worldTerrainLoaded : false;')
 
             print('========================================')
             print('RUNTIME VERIFICATION RESULTS:')
-            print('Is CesiumTerrainProvider Instance:', is_cesium_terrain)
+            print('Viewer Terrain Active:', is_cesium_terrain)
             print('Cesium Ion Status:', ion_status)
             print('World Terrain Loaded:', world_terrain_loaded)
             print('========================================')

@@ -11,6 +11,7 @@ from typing import Optional, Any
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from .schemas import QueryFilters
 from .storage import store
@@ -466,7 +467,7 @@ def get_heightmap():
 
 
 # ---------------------------------------------------------------------------
-# Health
+# Health & Static Frontend Serving
 # ---------------------------------------------------------------------------
 
 @app.get("/api/health")
@@ -475,3 +476,36 @@ def health():
             "model_records": len(store.model_records),
             "observation_records": len(store.observation_records),
             "datasets": list(store.catalog.keys())}
+
+
+@app.get("/")
+def read_root():
+    """Serve frontend/index.html on root GET /"""
+    for candidate in ["frontend/index.html", "../frontend/index.html", os.path.join("..", "frontend", "index.html")]:
+        if os.path.exists(candidate):
+            return FileResponse(candidate)
+    return {"status": "ok", "message": "OCEAN 3D API Gateway is active. Visit /docs for API documentation."}
+
+
+@app.get("/config.js")
+def get_config_js():
+    """Serve frontend/config.js to prevent 404 when frontend is opened via backend host."""
+    for candidate in ["frontend/config.js", "../frontend/config.js", os.path.join("..", "frontend", "config.js")]:
+        if os.path.exists(candidate):
+            return FileResponse(candidate, media_type="application/javascript")
+    raise HTTPException(404, "config.js not found")
+
+
+@app.get("/service-worker.js", response_class=PlainTextResponse)
+def service_worker():
+    """Clean service worker handler to prevent 404 logs."""
+    return PlainTextResponse("// Service worker placeholder\nself.addEventListener('fetch', function(event) {});", media_type="application/javascript")
+
+
+# Serve static assets from frontend directory if present
+_frontend_path = "frontend" if os.path.exists("frontend") else ("../frontend" if os.path.exists("../frontend") else None)
+if _frontend_path:
+    if os.path.exists(os.path.join(_frontend_path, "assets")):
+        app.mount("/assets", StaticFiles(directory=os.path.join(_frontend_path, "assets")), name="assets")
+
+

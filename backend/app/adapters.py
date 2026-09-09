@@ -70,12 +70,12 @@ SRI_LANKA = Polygon([
     (79.5, 9.9), (81.9, 9.9), (82.0, 6.7), (80.0, 5.8), (79.5, 9.9)
 ])
 
-NORTH_AMERICA = Polygon([(-170.0, 70.0), (-55.0, 70.0), (-55.0, 15.0), (-110.0, 15.0), (-170.0, 70.0)])
+NORTH_AMERICA = Polygon([(-168.0, 65.0), (-150.0, 60.0), (-130.0, 50.0), (-124.0, 48.0), (-117.0, 32.0), (-105.0, 20.0), (-90.0, 14.0), (-80.0, 8.0), (-80.0, 25.0), (-75.0, 35.0), (-60.0, 45.0), (-55.0, 60.0), (-80.0, 75.0), (-168.0, 65.0)])
 SOUTH_AMERICA = Polygon([(-82.0, 12.0), (-35.0, -5.0), (-55.0, -55.0), (-75.0, -55.0), (-82.0, 12.0)])
-EURASIA = Polygon([(0.0, 35.0), (180.0, 70.0), (140.0, 35.0), (120.0, 20.0), (60.0, 25.0), (35.0, 30.0), (0.0, 35.0)])
+EURASIA = Polygon([(-9.0, 36.0), (-9.0, 43.0), (-5.0, 48.0), (10.0, 55.0), (25.0, 70.0), (180.0, 70.0), (170.0, 65.0), (160.0, 58.0), (140.0, 52.0), (130.0, 42.0), (122.0, 30.0), (108.0, 20.0), (100.0, 7.0), (92.0, 22.0), (68.0, 24.0), (60.0, 25.0), (43.0, 12.0), (32.0, 30.0), (36.0, 36.0), (-9.0, 36.0)])
 AFRICA = Polygon([(-18.0, 35.0), (51.0, 12.0), (40.0, -35.0), (10.0, -35.0), (-18.0, 35.0)])
 AUSTRALIA = Polygon([(113.0, -11.0), (153.0, -11.0), (153.0, -39.0), (113.0, -39.0), (113.0, -11.0)])
-ANTARCTICA = Polygon([(-180.0, -60.0), (180.0, -60.0), (180.0, -90.0), (-180.0, -90.0), (-180.0, -60.0)])
+ANTARCTICA = Polygon([(-180.0, -68.0), (180.0, -68.0), (180.0, -90.0), (-180.0, -90.0), (-180.0, -68.0)])
 
 LAND_POLYGONS = MultiPolygon([INDIA, SRI_LANKA, NORTH_AMERICA, SOUTH_AMERICA, EURASIA, AFRICA, AUSTRALIA, ANTARCTICA])
 
@@ -186,7 +186,7 @@ class BathymetryAdapter:
 
     def parse(self, source: str) -> list[StandardRecord]:
         import os, numpy as np
-        from scipy.io import netcdf
+        from scipy.io import netcdf_file
         
         target_file = "sample_bathymetry_gebco.nc"
         if not os.path.exists(target_file):
@@ -196,7 +196,7 @@ class BathymetryAdapter:
         records: list[StandardRecord] = []
         if os.path.exists(target_file):
             try:
-                with netcdf.netcdf_file(target_file, 'r', mmap=False) as f:
+                with netcdf_file(target_file, 'r', mmap=False) as f:
                     lats = np.array(f.variables['lat'].data)
                     lons = np.array(f.variables['lon'].data)
                     elevation = np.array(f.variables['elevation'].data)
@@ -278,9 +278,9 @@ def parse_netcdf_records(filepath: str, dataset_id: str, data_status: str, sourc
     records: list[StandardRecord] = []
     try:
         import numpy as np
-        from scipy.io import netcdf
+        from scipy.io import netcdf_file
         units = {"temperature": "degC", "salinity": "psu", "current_u": "m/s", "current_v": "m/s"}
-        with netcdf.netcdf_file(filepath, 'r', mmap=False) as f:
+        with netcdf_file(filepath, 'r', mmap=False) as f:
             lats = np.array(f.variables.get('lat', f.variables.get('latitude')).data)
             lons = np.array(f.variables.get('lon', f.variables.get('longitude')).data)
             depths = np.array(f.variables.get('depth', [0]).data)

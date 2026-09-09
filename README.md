@@ -1,7 +1,30 @@
 # Ocean-3D
 Web-based interactive 3D visualization platform that integrates numerical ocean model outputs and in-situ observations.
 
-Background
+## Quick Start — Running Backend & Frontend
+
+For detailed instructions, see [`RUN_BACKEND.md`](file:///C:/Users/zapma/Downloads/OCEAN3D_prototype/ocean3d/RUN_BACKEND.md).
+
+### 1. Start Backend Server (Port 8000)
+```bash
+cd backend
+python -m venv .venv
+# Activate virtualenv (.venv\Scripts\Activate.ps1 on Windows / source .venv/bin/activate on Linux/macOS)
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### 2. Launch Frontend
+Open `frontend/index.html` directly in your web browser, or serve via a local static web server:
+```bash
+cd frontend
+python -m http.server 8080
+```
+Then visit [http://localhost:8080](http://localhost:8080).
+
+---
+
+## Background
 
 India's vast Exclusive Economic Zone (EEZ) and coastline demand continuous, high-resolution monitoring of ocean state variables. INCOIS routinely generates and archives large volumes of ocean model outputs - including three-dimensional fields of temperature, salinity, current vectors, chlorophyll, etc. - as well as real-time and delayed-mode observations from autonomous instruments such as Argo profiling floats and underwater Gliders. These datasets are stored in NetCDF and ASCII/text formats and span multiple depth levels, spatial grids, and time steps.
 

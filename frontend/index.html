@@ -100,9 +100,9 @@
   .cb-label{ font-size:11px; color:var(--text-dim); }
 
   /* Profile / compare side panel */
-  #profilePanel{ position:absolute; top:0; right:0; width:320px; height:100%; background:var(--panel);
+  #profilePanel{ position:absolute; top:0; right:0; width:450px; height:100%; background:var(--panel);
     border-left:1px solid var(--line); transform:translateX(100%); transition:transform .2s ease; z-index:6;
-    display:flex; flex-direction:column; padding:16px; gap:12px; overflow-y:auto; }
+    display:flex; flex-direction:column; padding:18px; gap:14px; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--accent) var(--panel-2); }
   #profilePanel.open{ transform:translateX(0); }
   #profilePanel h3{ margin:0; font-size:14px; font-weight:600; }
   #profilePanel .meta{ font-size:11.5px; color:var(--text-dim); }
@@ -294,17 +294,70 @@
         <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Type</span><span id="obsType" class="mono">--</span></div>
         <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Latitude</span><span id="obsLat" class="mono">--</span></div>
         <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Longitude</span><span id="obsLon" class="mono">--</span></div>
-        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim); font-weight:600;">Selected Depth</span><span id="obsDepth" class="mono" style="color:var(--accent); font-weight:600; font-size:13.5px;">--</span></div>
+        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim); font-weight:600;">Selected Depth</span><span id="obsDepth" class="mono" style="color:#38bdf8; font-weight:700; font-size:13.5px;">--</span></div>
+        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Pressure</span><span id="obsPres" class="mono">--</span></div>
         <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Temperature</span><span id="obsTemp" class="mono">--</span></div>
         <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Salinity</span><span id="obsSal" class="mono">--</span></div>
+        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Density (σ₀)</span><span id="obsDensity" class="mono">--</span></div>
         <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Quality Status</span><span id="obsQC" class="mono" style="color:var(--accent);">--</span></div>
         <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Last Updated</span><span id="obsLastUpdated" class="mono">--</span></div>
         <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Platform Status</span><span id="obsPlatformStatus" class="mono" style="color:var(--accent); font-weight:600;">--</span></div>
         <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Data Status</span><span id="obsDataStatus" class="mono" style="color:var(--accent);">--</span></div>
       </div>
 
-      <div class="section-title" style="margin-top:6px;">3D Water-Column Analytical View</div>
-      <div id="waterColumnWrap" style="position:relative; width:100%; height:210px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;">
+      <!-- Vertical Profile Graph Section -->
+      <div id="profileGraphWrap" style="background:#07121d; border:1px solid rgba(255,255,255,0.12); border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div id="graphTitle" style="font-size:12px; font-weight:700; color:#e2e8f0; font-family:'IBM Plex Sans', sans-serif;">Temperature (°C)</div>
+          <div id="graphTabs" style="display:flex; gap:4px;">
+            <button class="graph-tab active" onclick="switchGraphVar('temperature')" id="tabTemp" style="padding:3px 8px; font-size:10px; font-weight:600; border-radius:4px; border:1px solid #38bdf8; background:#0284c7; color:#fff; cursor:pointer;">Temp</button>
+            <button class="graph-tab" onclick="switchGraphVar('salinity')" id="tabSal" style="padding:3px 8px; font-size:10px; font-weight:600; border-radius:4px; border:1px solid rgba(255,255,255,0.2); background:rgba(15,23,42,0.6); color:#cbd5e1; cursor:pointer;">Salinity</button>
+            <button class="graph-tab" onclick="switchGraphVar('density')" id="tabDensity" style="padding:3px 8px; font-size:10px; font-weight:600; border-radius:4px; border:1px solid rgba(255,255,255,0.2); background:rgba(15,23,42,0.6); color:#cbd5e1; cursor:pointer;">Density</button>
+          </div>
+        </div>
+        <div style="position:relative; width:100%; height:260px;">
+          <canvas id="profileCanvas" width="390" height="260" style="width:100%; height:100%; display:block;"></canvas>
+        </div>
+      </div>
+
+      <div class="section-title" style="margin-top:10px; font-size:12px; font-weight:700; letter-spacing:0.8px; color:#e2e8f0; text-transform:uppercase;">3D WATER-COLUMN VISUALIZATION</div>
+      <div id="waterColumnWrap" style="position:relative; width:100%; height:250px; background:#060e18; border:1px solid rgba(255,255,255,0.12); border-radius:8px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.4);">
+        <!-- Compact Radio Controls (Top Right) -->
+        <div id="wcColorByPanel" style="position:absolute; top:8px; right:8px; z-index:10; font-size:9.5px; color:#cbd5e1; display:flex; flex-direction:column; gap:2px; background:rgba(11,23,38,0.75); padding:5px 7px; border-radius:5px; border:1px solid rgba(255,255,255,0.1); backdrop-filter:blur(4px);">
+          <span style="font-weight:700; color:#94a3b8; font-size:9px; letter-spacing:0.3px; margin-bottom:1px;">Color by:</span>
+          <label style="display:flex; align-items:center; gap:4px; cursor:pointer; user-select:none;">
+            <input type="radio" name="wcVar" value="temperature" checked style="accent-color:#38bdf8; cursor:pointer;"> Temp
+          </label>
+          <label style="display:flex; align-items:center; gap:4px; cursor:pointer; user-select:none;">
+            <input type="radio" name="wcVar" value="salinity" style="accent-color:#38bdf8; cursor:pointer;"> Salinity
+          </label>
+          <label style="display:flex; align-items:center; gap:4px; cursor:pointer; user-select:none;">
+            <input type="radio" name="wcVar" value="density" style="accent-color:#38bdf8; cursor:pointer;"> Density
+          </label>
+        </div>
+
+        <!-- Left Vertical Depth Axis & Ticks -->
+        <div id="wcDepthAxis" style="position:absolute; top:20px; left:8px; bottom:20px; z-index:10; width:48px; pointer-events:none; display:flex; flex-direction:column; justify-content:space-between; font-family:'IBM Plex Mono', monospace; font-size:9px; color:#94a3b8;">
+          <div style="display:flex; align-items:center; gap:3px;"><span id="wcTick0">0 m</span><div style="width:5px; height:1px; background:#64748b;"></div></div>
+          <div style="display:flex; align-items:center; gap:3px;"><span id="wcTick1">500 m</span><div style="width:5px; height:1px; background:#64748b;"></div></div>
+          <div style="display:flex; align-items:center; gap:3px;"><span id="wcTick2">1000 m</span><div style="width:5px; height:1px; background:#64748b;"></div></div>
+          <div style="display:flex; align-items:center; gap:3px;"><span id="wcTick3">1500 m</span><div style="width:5px; height:1px; background:#64748b;"></div></div>
+          <div style="display:flex; align-items:center; gap:3px;"><span id="wcTick4">2000 m</span><div style="width:5px; height:1px; background:#64748b;"></div></div>
+        </div>
+
+        <!-- Compact Right Colorbar Legend (Bottom Right) -->
+        <div id="wcLegendWrap" style="position:absolute; bottom:8px; right:8px; z-index:10; display:flex; align-items:center; gap:5px; font-size:9px; color:#94a3b8; background:rgba(11,23,38,0.75); padding:4px 7px; border-radius:5px; border:1px solid rgba(255,255,255,0.1); backdrop-filter:blur(4px);">
+          <div id="wcLegendBar" style="width:7px; height:65px; border-radius:2px; background:linear-gradient(to bottom, #ef4444, #f97316, #eab308, #06b6d4, #1d4ed8); border:1px solid rgba(255,255,255,0.08);"></div>
+          <div style="display:flex; flex-direction:column; justify-content:space-between; height:65px; font-family:'IBM Plex Mono', monospace;">
+            <span id="wcLegendMax" style="color:#f87171; font-weight:600;">Warm (28°C)</span>
+            <span id="wcLegendMin" style="color:#60a5fa; font-weight:600;">Cold (2°C)</span>
+          </div>
+        </div>
+
+        <!-- Dynamic Floating Badge for Current Selected Depth -->
+        <div id="wcDepthBadge" style="position:absolute; z-index:15; background:#0f172a; border:1px solid #38bdf8; color:#38bdf8; font-family:'IBM Plex Mono', monospace; font-size:10.5px; font-weight:700; padding:3px 7px; border-radius:4px; box-shadow:0 0 10px rgba(56,189,248,0.5); display:none; pointer-events:none; transform:translate(16px, -50%); white-space:nowrap;">-- m</div>
+
+        <!-- Three.js Canvas Container -->
         <div id="threeWaterColumnContainer" style="width:100%; height:100%;"></div>
       </div>
 
@@ -365,8 +418,16 @@ var state = {
   cesiumIonStatus: "FAIL",
   worldTerrainLoaded: false
 };
+window.state = state;
 
 function apiUrl(path){ return state.apiBase.replace(/\/$/, "") + path; }
+
+function formatDateOnly(dtStr){
+  if(!dtStr) return "--";
+  const s = String(dtStr).trim();
+  const match = s.match(/^\d{4}-\d{2}-\d{2}/);
+  return match ? match[0] : s;
+}
 
 // Thermal stops matching repo thermal color model
 const THERMAL_STOPS = [
@@ -423,39 +484,24 @@ async function initCesiumGlobe(){
     state.cesiumIonStatus = "FAILED (Missing Token in config.js or .env)";
   }
 
-  // Esri World Imagery MapServer (High-resolution global satellite imagery)
-  const esriImagery = new Cesium.ArcGisMapServerImageryProvider({
-    url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
-  });
-
-  // Attempt Cesium World Terrain Provider Initialization
-  let terrainProvider = null;
-  if(state.cesiumIonStatus === "SUCCESS"){
-    try {
-      terrainProvider = await Cesium.createWorldTerrainAsync({
-        requestVertexNormals: true,
-        requestWaterMask: true
-      });
-      state.worldTerrainLoaded = true;
-      state.terrainProviderType = "CesiumTerrainProvider (Cesium World Terrain)";
-    } catch(err) {
-      console.warn("Cesium World Terrain Error:", err);
-      showTerrainError("Cesium World Terrain authentication error: Token rejected by Cesium Ion service.");
-    }
+  // Fast synchronous base imagery layer for instant Earth Globe rendering
+  let baseLayer = null;
+  try {
+    const osmProvider = new Cesium.UrlTemplateImageryProvider({
+      url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      maximumLevel: 19,
+      credit: 'OpenStreetMap contributors'
+    });
+    baseLayer = new Cesium.ImageryLayer(osmProvider);
+  } catch(e) {
+    console.warn("Base imagery layer notice:", e);
+    baseLayer = undefined;
   }
 
-  if(!terrainProvider){
-    terrainProvider = new Cesium.EllipsoidTerrainProvider();
-    state.worldTerrainLoaded = false;
-    state.terrainProviderType = "EllipsoidTerrainProvider (Smooth WGS84 Ellipsoid)";
-    if(state.cesiumIonStatus !== "SUCCESS"){
-      showTerrainError("Cesium World Terrain Notice: CESIUM_ION_TOKEN required for streamed 3D terrain elevation. Draping satellite imagery on WGS84 ellipsoid.");
-    }
-  }
-
+  // Create Cesium Viewer IMMEDIATELY using EllipsoidTerrainProvider (0 ms blocking delay)
   viewer = new Cesium.Viewer('cesiumContainer', {
-    imageryProvider: esriImagery,
-    terrainProvider: terrainProvider,
+    baseLayer: baseLayer,
+    terrainProvider: new Cesium.EllipsoidTerrainProvider(),
     timeline: false,
     animation: false,
     sceneModePicker: false,
@@ -467,6 +513,42 @@ async function initCesiumGlobe(){
     selectionIndicator: true,
     infoBox: false
   });
+  window.viewer = viewer;
+
+  state.worldTerrainLoaded = false;
+  state.terrainProviderType = "EllipsoidTerrainProvider (Smooth WGS84 Ellipsoid)";
+
+  // Add high-resolution ArcGis satellite imagery asynchronously in background
+  try {
+    if(Cesium.ArcGisMapServerImageryProvider.fromUrl){
+      Cesium.ArcGisMapServerImageryProvider.fromUrl(
+        'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
+      ).then(provider => {
+        if(viewer && viewer.imageryLayers){
+          viewer.imageryLayers.addImageryProvider(provider, 0);
+        }
+      }).catch(err => console.warn("ArcGisImageryProvider notice:", err));
+    }
+  } catch(e) {
+    console.warn("ArcGisImageryProvider fallback:", e);
+  }
+
+  // Upgrade to streamed 3D Cesium World Terrain asynchronously in background
+  if(state.cesiumIonStatus === "SUCCESS" && Cesium.createWorldTerrainAsync){
+    Cesium.createWorldTerrainAsync({
+      requestVertexNormals: true,
+      requestWaterMask: true
+    }).then(terrain => {
+      if(viewer && terrain){
+        viewer.terrainProvider = terrain;
+        state.worldTerrainLoaded = true;
+        state.terrainProviderType = "CesiumTerrainProvider (Cesium World Terrain)";
+        viewer.scene.globe.depthTestAgainstTerrain = true;
+      }
+    }).catch(err => {
+      console.warn("Cesium World Terrain Notice:", err);
+    });
+  }
 
   viewer.scene.globe.depthTestAgainstTerrain = state.worldTerrainLoaded;
   viewer.scene.globe.enableLighting = true;
@@ -501,7 +583,7 @@ async function initCesiumGlobe(){
       const uData = entity.userData;
 
       if(uData.isTrackPoint){
-        const tsStr = (uData.timestamp || "").replace("T", " ").replace("Z", " UTC");
+        const tsStr = formatDateOnly(uData.timestamp);
         document.getElementById("coordsReadout").textContent = `${uData.platform_id} | Obs #${uData.sequence_number} | ${tsStr} | Position: ${uData.lat.toFixed(2)}°N, ${uData.lon.toFixed(2)}°E`;
       }
 
@@ -566,6 +648,13 @@ function flyToRegion(region){
     document.getElementById("maxLon").value = target.bounds[3];
   }
 
+  if(region !== "indian" && state.dataset_id === "incois_las_model"){
+    state.dataset_id = "copernicus_cmems";
+    const dsSel = document.getElementById("datasetSelect");
+    if(dsSel) dsSel.value = "copernicus_cmems";
+    populateVariables();
+  }
+
   viewer.camera.flyTo({
     destination: Cesium.Cartesian3.fromDegrees(target.lon, target.lat, target.alt),
     orientation: {
@@ -577,8 +666,7 @@ function flyToRegion(region){
   });
 
   setTimeout(() => {
-    loadObservations();
-    if(typeof loadModelData === "function") loadModelData();
+    refreshAll();
   }, 300);
 }
 
@@ -645,7 +733,7 @@ function populateVariables(){
     document.getElementById("provSource").textContent = ds.source_organization || ds.provenance || "INCOIS / Copernicus";
     document.getElementById("provStatus").textContent = ds.data_status || "CACHED REAL DATA";
     document.getElementById("provProduct").textContent = ds.product_id || ds.dataset_id;
-    document.getElementById("provTime").textContent = (ds.last_updated || ds.retrieval_timestamp || "2026-09-04").substring(0, 10);
+    document.getElementById("provTime").textContent = formatDateOnly(ds.last_updated || ds.retrieval_timestamp || "2026-09-04");
   }
 }
 
@@ -758,7 +846,7 @@ async function loadSingleSlice(){
   const data = await res.json();
 
   renderCesiumSurfaceGrid(data.points, depth, 0.88);
-  document.getElementById("timeLabel").textContent = (data.time || "").replace("T"," ").replace("Z","");
+  document.getElementById("timeLabel").textContent = formatDateOnly(data.time);
 }
 
 async function loadVolumeStack(){
@@ -800,11 +888,11 @@ const LAND_POLYGONS_JS = [
    [88.0, 28.0], [80.0, 31.0], [74.0, 33.0], [70.0, 29.0], [68.0, 23.5]],
   [[79.5, 9.9], [81.9, 9.9], [82.0, 6.7], [80.0, 5.8], [79.5, 9.9]],
   [[-18.0, 35.0], [51.0, 12.0], [40.0, -35.0], [10.0, -35.0], [-18.0, 35.0]],
-  [[0.0, 35.0], [180.0, 70.0], [140.0, 35.0], [120.0, 20.0], [60.0, 25.0], [35.0, 30.0], [0.0, 35.0]],
+  [[-9.0, 36.0], [-9.0, 43.0], [-5.0, 48.0], [10.0, 55.0], [25.0, 70.0], [180.0, 70.0], [170.0, 65.0], [160.0, 58.0], [140.0, 52.0], [130.0, 42.0], [122.0, 30.0], [108.0, 20.0], [100.0, 7.0], [92.0, 22.0], [68.0, 24.0], [60.0, 25.0], [43.0, 12.0], [32.0, 30.0], [36.0, 36.0], [-9.0, 36.0]],
   [[113.0, -11.0], [153.0, -11.0], [153.0, -39.0], [113.0, -39.0], [113.0, -11.0]],
-  [[-170.0, 70.0], [-55.0, 70.0], [-55.0, 15.0], [-110.0, 15.0], [-170.0, 70.0]],
+  [[-168.0, 65.0], [-150.0, 60.0], [-130.0, 50.0], [-124.0, 48.0], [-117.0, 32.0], [-105.0, 20.0], [-90.0, 14.0], [-80.0, 8.0], [-80.0, 25.0], [-75.0, 35.0], [-60.0, 45.0], [-55.0, 60.0], [-80.0, 75.0], [-168.0, 65.0]],
   [[-82.0, 12.0], [-35.0, -5.0], [-55.0, -55.0], [-75.0, -55.0], [-82.0, 12.0]],
-  [[-180.0, -60.0], [180.0, -60.0], [180.0, -90.0], [-180.0, -90.0], [-180.0, -60.0]]
+  [[-180.0, -68.0], [180.0, -68.0], [180.0, -90.0], [-180.0, -90.0], [-180.0, -68.0]]
 ];
 
 function isLandCoordinateJS(lat, lon) {
@@ -877,7 +965,9 @@ function renderCesiumSurfaceGrid(points, depth, alpha = 0.82){
         for(let k = 0; k < dataPts.length; k += 2){
           const pt = dataPts[k];
           const dLat = lat - pt.lat;
-          const dLon = lon - pt.lon;
+          let dLon = lon - pt.lon;
+          if (dLon > 180.0) dLon -= 360.0;
+          else if (dLon < -180.0) dLon += 360.0;
           const distSq = dLat * dLat + dLon * dLon;
           if(distSq < 600.0){
             const w = 1.0 / (distSq + 1.0);
@@ -1080,7 +1170,7 @@ async function loadObservations(){
     document.getElementById("cntCtd").textContent = data.summary.ctd || 0;
     document.getElementById("cntBgc").textContent = data.summary.bgc || 0;
     document.getElementById("cntTotal").textContent = data.count || 0;
-    document.getElementById("lblLatestUpdate").textContent = (data.summary.latest_update || "").replace("T", " ").replace("Z", " UTC");
+    document.getElementById("lblLatestUpdate").textContent = formatDateOnly(data.summary.latest_update);
 
     const sampleMarker = data.markers && data.markers[0];
     const isDemo = !sampleMarker || sampleMarker.data_status === "DEMONSTRATION DATA";
@@ -1157,6 +1247,24 @@ async function refreshAll(){
 // ---------------------------------------------------------------------
 let depthCursorEntity = null;
 
+function calcSeawaterDensity(temp, sal) {
+  if (temp === null || temp === undefined || sal === null || sal === undefined) return null;
+  const t = Number(temp);
+  const s = Number(sal);
+  if (isNaN(t) || isNaN(s)) return null;
+
+  const rho0 = 999.842594 + 6.793952e-2 * t - 9.09529e-3 * t*t + 1.001685e-4 * Math.pow(t, 3) - 1.120083e-6 * Math.pow(t, 4) + 6.536332e-9 * Math.pow(t, 5)
+               + (0.824493 - 4.0899e-3 * t + 7.6438e-5 * t*t - 8.2467e-7 * Math.pow(t, 3) + 5.3875e-9 * Math.pow(t, 4)) * s
+               + (-5.72466e-3 + 1.0227e-4 * t - 1.6546e-6 * t*t) * Math.pow(s, 1.5)
+               + 4.8314e-4 * s*s;
+  return rho0 - 1000.0;
+}
+
+let wcCurrentPres = null;
+let wcCurrentTemp = null;
+let wcCurrentSal = null;
+let wcCurrentDensity = null;
+
 function update3DDepthCursor(){
   if(!state.selectedProfile) return;
   const requestedDepth = DEPTHS[state.depthIndex];
@@ -1166,6 +1274,7 @@ function update3DDepthCursor(){
   // Find nearest actual profile sample to requested depth
   const tempSamples = profileList.filter(r => r.variable === "temperature");
   const salSamples = profileList.filter(r => r.variable === "salinity");
+  const presSamples = profileList.filter(r => r.variable === "pressure");
   const candidateList = tempSamples.length ? tempSamples : profileList;
 
   const activeSample = candidateList.reduce((a, b) =>
@@ -1180,14 +1289,26 @@ function update3DDepthCursor(){
   const salSample = salSamples.find(r => Math.abs(r.depth - activeSample.depth) < 1.0)
                  || salSamples.reduce((a,b) => Math.abs(b.depth-activeSample.depth) < Math.abs(a.depth-activeSample.depth) ? b : a, null);
 
+  const presSample = presSamples.find(r => Math.abs(r.depth - activeSample.depth) < 2.0);
+
   const pid = state.selectedProfile.platform_id;
   const ptype = (state.selectedProfile.platform_type || "ARGO").toUpperCase();
   const lat = activeSample.latitude ?? state.selectedProfile.lat;
   const lon = activeSample.longitude ?? state.selectedProfile.lon;
 
-  const depthM = activeSample.depth !== undefined && activeSample.depth !== null ? `${activeSample.depth} m` : "N/A";
-  const tempVal = tempSample && tempSample.value !== undefined ? `${tempSample.value} ${tempSample.unit}` : "N/A";
-  const salVal = salSample && salSample.value !== undefined ? `${salSample.value} ${salSample.unit}` : "N/A";
+  const dM = activeSample.depth;
+  const pVal = presSample && presSample.value !== undefined ? Math.round(presSample.value) : Math.round(dM * 1.005);
+  const tNum = tempSample && tempSample.value !== undefined ? tempSample.value : null;
+  const sNum = salSample && salSample.value !== undefined ? salSample.value : null;
+
+  const densityNum = (tNum !== null && sNum !== null) ? calcSeawaterDensity(tNum, sNum) : null;
+
+  wcCurrentTargetDepth = dM;
+  wcCurrentPres = pVal;
+  wcCurrentTemp = tNum;
+  wcCurrentSal = sNum;
+  wcCurrentDensity = densityNum;
+
   const qc = activeSample.quality_flag ?? "good";
   const ds = state.selectedProfile.data_status || activeSample.data_status || "DEMONSTRATION DATA";
   const obsTime = activeSample.time || state.selectedProfile.latest_time;
@@ -1198,11 +1319,13 @@ function update3DDepthCursor(){
   document.getElementById("obsType").textContent = ptype;
   document.getElementById("obsLat").textContent = (lat !== undefined && lat !== null) ? `${lat.toFixed(2)}° N` : "N/A";
   document.getElementById("obsLon").textContent = (lon !== undefined && lon !== null) ? `${lon.toFixed(2)}° E` : "N/A";
-  document.getElementById("obsDepth").textContent = depthM;
-  document.getElementById("obsTemp").textContent = tempVal;
-  document.getElementById("obsSal").textContent = salVal;
+  document.getElementById("obsDepth").textContent = `${dM.toFixed(1)} m`;
+  document.getElementById("obsPres").textContent = `${pVal} dbar`;
+  document.getElementById("obsTemp").textContent = tNum !== null ? `${tNum.toFixed(3)} °C` : "N/A";
+  document.getElementById("obsSal").textContent = sNum !== null ? `${sNum.toFixed(3)} PSU` : "N/A";
+  document.getElementById("obsDensity").textContent = densityNum !== null ? `${densityNum.toFixed(2)} kg/m³` : "N/A";
   document.getElementById("obsQC").textContent = qc;
-  document.getElementById("obsLastUpdated").textContent = (obsTime || "").replace("T", " ").replace("Z", " UTC");
+  document.getElementById("obsLastUpdated").textContent = formatDateOnly(obsTime);
   document.getElementById("obsPlatformStatus").textContent = platformStatus;
   document.getElementById("obsDataStatus").textContent = ds;
 
@@ -1223,15 +1346,19 @@ function update3DDepthCursor(){
   // depthCursorEntity points to the single selected platform marker on the globe
   depthCursorEntity = state.markers[pid] || null;
 
+  renderProfileGraph();
   renderRightPanelWaterColumn();
 }
 
 let waterColumnScene, waterColumnCamera, waterColumnRenderer;
-let wcLayersGroup, wcProfileGroup, waterColumnCursorMesh;
+let wcCylinderMesh, wcSurfaceMesh, wcSeabedMesh, wcCableMesh, wcPayloadGroup, wcCrosshairMesh;
+let wcSelectedVar = "temperature";
 let wcIsDragging = false;
 let wcPrevMouse = { x: 0, y: 0 };
-let wcSpherical = { radius: 6.2, theta: 0.6, phi: 1.1 };
-const wcTarget = new THREE.Vector3(0, -1.2, 0);
+let wcSpherical = { radius: 6.5, theta: 0.35, phi: 1.25 };
+const wcTarget = new THREE.Vector3(0, -1.6, 0);
+let wcCurrentTargetY = -1.6;
+let wcCurrentTargetDepth = 0;
 
 function updateWCCamera(){
   if(!waterColumnCamera) return;
@@ -1242,19 +1369,238 @@ function updateWCCamera(){
   waterColumnCamera.lookAt(wcTarget);
 }
 
+function updateWCBadgePosition(){
+  const badge = document.getElementById("wcDepthBadge");
+  if(!badge || !waterColumnCamera || !waterColumnRenderer || !wcPayloadGroup) return;
+
+  const pos3D = new THREE.Vector3(0, wcCurrentTargetY - 0.16, 0);
+  pos3D.project(waterColumnCamera);
+
+  const container = document.getElementById("threeWaterColumnContainer");
+  if(!container) return;
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+
+  const x = (pos3D.x * 0.5 + 0.5) * w;
+  const y = (-(pos3D.y * 0.5) + 0.5) * h;
+
+  badge.style.left = `${x}px`;
+  badge.style.top = `${y}px`;
+  badge.style.display = "block";
+  badge.innerHTML = `
+    <div style="font-size:11px; color:#38bdf8; font-weight:700; margin-bottom:2px;">Selected Depth: ${wcCurrentTargetDepth.toFixed(1)} m</div>
+    <div style="color:#cbd5e1; font-weight:500;">Pressure: ${wcCurrentPres !== null && wcCurrentPres !== undefined ? wcCurrentPres + ' dbar' : '--'}</div>
+    <div style="color:#cbd5e1; font-weight:500;">Temp: ${wcCurrentTemp !== null && wcCurrentTemp !== undefined ? wcCurrentTemp.toFixed(3) + ' °C' : '--'}</div>
+    <div style="color:#cbd5e1; font-weight:500;">Salinity: ${wcCurrentSal !== null && wcCurrentSal !== undefined ? wcCurrentSal.toFixed(3) + ' PSU' : '--'}</div>
+    <div style="color:#cbd5e1; font-weight:500;">Density (σ₀): ${wcCurrentDensity !== null && wcCurrentDensity !== undefined ? wcCurrentDensity.toFixed(2) + ' kg/m³' : '--'}</div>
+  `;
+}
+
+let graphSelectedVar = "temperature";
+
+function switchGraphVar(v) {
+  graphSelectedVar = v;
+  ["tabTemp", "tabSal", "tabDensity"].forEach(id => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    const isTarget = (id === "tabTemp" && v === "temperature") ||
+                     (id === "tabSal" && v === "salinity") ||
+                     (id === "tabDensity" && v === "density");
+    btn.style.background = isTarget ? "#0284c7" : "rgba(15,23,42,0.6)";
+    btn.style.border = isTarget ? "1px solid #38bdf8" : "1px solid rgba(255,255,255,0.2)";
+    btn.style.color = isTarget ? "#ffffff" : "#cbd5e1";
+  });
+  renderProfileGraph();
+}
+
+function renderProfileGraph() {
+  const canvas = document.getElementById("profileCanvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width;
+  const h = canvas.height;
+
+  ctx.clearRect(0, 0, w, h);
+
+  if (!state.selectedProfile) return;
+  const profileList = state.selectedProfile.profile || [];
+  if (!profileList.length) return;
+
+  const titleEl = document.getElementById("graphTitle");
+  let varName = "Temperature (°C)";
+  let unit = "°C";
+  let samples = [];
+  let minV = 0, maxV = 30;
+  let lineColor = "#f97316";
+
+  if (graphSelectedVar === "salinity") {
+    varName = "Salinity (PSU)";
+    unit = "PSU";
+    samples = profileList.filter(p => p.variable === "salinity");
+    minV = 32; maxV = 38;
+    lineColor = "#a855f7";
+  } else if (graphSelectedVar === "density") {
+    varName = "Density (σ₀ kg/m³)";
+    unit = "kg/m³";
+    samples = profileList.filter(p => p.variable === "temperature").map(p => {
+      const salP = profileList.find(s => s.variable === "salinity" && Math.abs(s.depth - p.depth) < 10);
+      const sal = salP ? salP.value : 35.0;
+      const rho = calcSeawaterDensity(p.value, sal);
+      return { depth: p.depth, value: rho !== null ? rho : 27.0 };
+    });
+    minV = 22; maxV = 29;
+    lineColor = "#38bdf8";
+  } else {
+    varName = "Temperature (°C)";
+    unit = "°C";
+    samples = profileList.filter(p => p.variable === "temperature" || p.variable === state.variable);
+    minV = 0; maxV = 30;
+    lineColor = "#f97316";
+  }
+
+  if (titleEl) titleEl.textContent = varName;
+
+  if (samples.length) {
+    const vals = samples.map(s => s.value);
+    const low = Math.floor(Math.min(...vals));
+    const high = Math.ceil(Math.max(...vals));
+    if (high - low > 1) {
+      minV = Math.max(0, low - 1);
+      maxV = high + 1;
+    }
+  }
+
+  const obsDepths = Array.from(new Set(profileList.map(p => p.depth))).sort((a,b) => a - b);
+  const maxD = Math.max(...obsDepths, 2000);
+
+  const margin = { top: 32, bottom: 25, left: 45, right: 30 };
+  const pw = w - margin.left - margin.right;
+  const ph = h - margin.top - margin.bottom;
+
+  // Background Grid
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+  ctx.lineWidth = 1;
+
+  // Top X Axis Ticks & Grid
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "10px 'IBM Plex Mono', monospace";
+  ctx.textAlign = "center";
+  const numXTicks = 6;
+  for (let i = 0; i <= numXTicks; i++) {
+    const v = minV + (i / numXTicks) * (maxV - minV);
+    const x = margin.left + (i / numXTicks) * pw;
+    ctx.beginPath();
+    ctx.moveTo(x, margin.top);
+    ctx.lineTo(x, margin.top + ph);
+    ctx.stroke();
+    ctx.fillText(v.toFixed(0), x, margin.top - 8);
+  }
+
+  // Left Y Axis Ticks (Depth) & Grid
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  const depthTicks = [0, 500, 1000, 1500, 2000];
+  depthTicks.forEach(d => {
+    if (d <= maxD) {
+      const y = margin.top + (d / maxD) * ph;
+      ctx.beginPath();
+      ctx.moveTo(margin.left, y);
+      ctx.lineTo(margin.left + pw, y);
+      ctx.stroke();
+      ctx.fillText(`${d}`, margin.left - 6, y);
+    }
+  });
+
+  // Y Axis Label
+  ctx.save();
+  ctx.translate(12, margin.top + ph / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = "center";
+  ctx.fillText("Depth (m)", 0, 0);
+  ctx.restore();
+
+  // Draw Curve & Dots
+  const sorted = samples.slice().sort((a,b) => a.depth - b.depth);
+  if (sorted.length >= 2) {
+    ctx.beginPath();
+    sorted.forEach((p, idx) => {
+      const x = margin.left + ((p.value - minV) / (maxV - minV)) * pw;
+      const y = margin.top + (p.depth / maxD) * ph;
+      if (idx === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    sorted.forEach(p => {
+      const x = margin.left + ((p.value - minV) / (maxV - minV)) * pw;
+      const y = margin.top + (p.depth / maxD) * ph;
+      ctx.beginPath();
+      ctx.arc(x, y, 3.5, 0, 2 * Math.PI);
+      ctx.fillStyle = lineColor;
+      ctx.fill();
+    });
+  }
+
+  // Active Depth Guideline & Callout
+  const requestedDepth = state.selectedSample ? state.selectedSample.depth : DEPTHS[state.depthIndex];
+  const activeY = margin.top + (Math.min(maxD, requestedDepth) / maxD) * ph;
+
+  ctx.save();
+  ctx.setLineDash([4, 4]);
+  ctx.strokeStyle = "rgba(56, 189, 248, 0.7)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(margin.left, activeY);
+  ctx.lineTo(margin.left + pw, activeY);
+  ctx.stroke();
+  ctx.restore();
+
+  let activeVal = null;
+  if (sorted.length) {
+    const near = sorted.reduce((a,b) => Math.abs(b.depth - requestedDepth) < Math.abs(a.depth - requestedDepth) ? b : a, sorted[0]);
+    activeVal = near.value;
+  }
+
+  if (activeVal !== null) {
+    const activeX = margin.left + Math.max(0, Math.min(1, (activeVal - minV) / (maxV - minV))) * pw;
+
+    ctx.beginPath();
+    ctx.arc(activeX, activeY, 7, 0, 2 * Math.PI);
+    ctx.fillStyle = "#ef4444";
+    ctx.fill();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    const calloutX = Math.min(w - 110, activeX + 12);
+    const calloutY = activeY - 14;
+
+    ctx.fillStyle = "#38bdf8";
+    ctx.font = "bold 11.5px 'IBM Plex Mono', monospace";
+    ctx.textAlign = "left";
+    ctx.fillText(`${activeVal.toFixed(3)} ${unit}`, calloutX, calloutY);
+
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "10px 'IBM Plex Mono', monospace";
+    ctx.fillText(`at ${requestedDepth.toFixed(1)} m`, calloutX, calloutY + 12);
+  }
+}
+
 function initThreeWaterColumn(){
   if(typeof THREE === 'undefined') return;
   const container = document.getElementById("threeWaterColumnContainer");
   if(!container || waterColumnRenderer) return;
 
-  const width = container.clientWidth || 280;
-  const height = container.clientHeight || 210;
+  const width = container.clientWidth || 300;
+  const height = container.clientHeight || 250;
 
   try {
     waterColumnScene = new THREE.Scene();
-    waterColumnScene.background = new THREE.Color(0x10212e);
+    waterColumnScene.background = new THREE.Color(0x060e18);
 
-    waterColumnCamera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
+    waterColumnCamera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
     updateWCCamera();
 
     waterColumnRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -1262,20 +1608,121 @@ function initThreeWaterColumn(){
     waterColumnRenderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
     container.appendChild(waterColumnRenderer.domElement);
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.3);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
     waterColumnScene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
-    dirLight.position.set(4, 6, 5);
-    waterColumnScene.add(dirLight);
+    const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.1);
+    dirLight1.position.set(5, 8, 6);
+    waterColumnScene.add(dirLight1);
 
-    wcLayersGroup = new THREE.Group();
-    waterColumnScene.add(wcLayersGroup);
+    const dirLight2 = new THREE.DirectionalLight(0x38bdf8, 0.6);
+    dirLight2.position.set(-4, -5, -4);
+    waterColumnScene.add(dirLight2);
 
-    wcProfileGroup = new THREE.Group();
-    waterColumnScene.add(wcProfileGroup);
+    // 1. Standard Volumetric Water Column Cylinder (Height: 3.2, Radius: 0.85)
+    const cylGeo = new THREE.CylinderGeometry(0.85, 0.85, 3.2, 36, 64, true);
+    cylGeo.translate(0, -1.6, 0);
 
-    // Mouse drag orbit & wheel zoom controls for user-controlled 3D view
+    const count = cylGeo.attributes.position.count;
+    const colors = new Float32Array(count * 3);
+    for(let i = 0; i < count; i++){
+      colors[i*3] = 0.1; colors[i*3+1] = 0.5; colors[i*3+2] = 0.8;
+    }
+    cylGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const cylMat = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.82,
+      side: THREE.DoubleSide,
+      roughness: 0.25,
+      metalness: 0.1
+    });
+    wcCylinderMesh = new THREE.Mesh(cylGeo, cylMat);
+    waterColumnScene.add(wcCylinderMesh);
+
+    // 2. Top Ocean Water Wave Cap
+    const surfGroup = new THREE.Group();
+    const surfCapGeo = new THREE.CylinderGeometry(0.95, 0.95, 0.04, 24);
+    const surfCapMat = new THREE.MeshStandardMaterial({
+      color: 0x38bdf8, transparent: true, opacity: 0.55, roughness: 0.1, metalness: 0.2
+    });
+    const surfCap = new THREE.Mesh(surfCapGeo, surfCapMat);
+    surfGroup.add(surfCap);
+
+    const waveGeo = new THREE.ConeGeometry(1.0, 0.12, 8);
+    waveGeo.rotateX(Math.PI);
+    const waveMat = new THREE.MeshStandardMaterial({
+      color: 0x7dd3fc, transparent: true, opacity: 0.4, wireframe: true
+    });
+    const waveMesh = new THREE.Mesh(waveGeo, waveMat);
+    waveMesh.position.y = 0.04;
+    surfGroup.add(waveMesh);
+    surfGroup.position.set(0, 0, 0);
+    wcSurfaceMesh = surfGroup;
+    waterColumnScene.add(wcSurfaceMesh);
+
+    // 3. Bottom Seabed Bathymetry Floor
+    const seabedGroup = new THREE.Group();
+    const bedGeo = new THREE.CylinderGeometry(1.05, 1.35, 0.35, 24, 4);
+    const posAttr = bedGeo.attributes.position;
+    for(let i = 0; i < posAttr.count; i++){
+      const y = posAttr.getY(i);
+      if(y < 0){
+        posAttr.setY(i, y + (Math.sin(i * 1.5) * 0.06));
+      }
+    }
+    bedGeo.computeVertexNormals();
+
+    const bedMat = new THREE.MeshStandardMaterial({
+      color: 0x1e293b, roughness: 0.9, metalness: 0.1
+    });
+    const bedMesh = new THREE.Mesh(bedGeo, bedMat);
+    seabedGroup.add(bedMesh);
+    seabedGroup.position.set(0, -3.35, 0);
+    wcSeabedMesh = seabedGroup;
+    waterColumnScene.add(wcSeabedMesh);
+
+    // 4. Central Cable / Tether Line
+    const cableGeo = new THREE.CylinderGeometry(0.010, 0.010, 3.2, 8);
+    cableGeo.translate(0, -1.6, 0);
+    const cableMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+    wcCableMesh = new THREE.Mesh(cableGeo, cableMat);
+    waterColumnScene.add(wcCableMesh);
+
+    // 5. 3D Yellow Instrument Payload (Argo Float / Glider)
+    wcPayloadGroup = new THREE.Group();
+
+    const bodyGeo = new THREE.CylinderGeometry(0.065, 0.065, 0.35, 16);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.25, metalness: 0.3 });
+    const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+    wcPayloadGroup.add(bodyMesh);
+
+    const capGeo = new THREE.SphereGeometry(0.065, 12, 12);
+    const capMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.4 });
+    const topCap = new THREE.Mesh(capGeo, capMat);
+    topCap.position.y = 0.175;
+    const botCap = new THREE.Mesh(capGeo, capMat);
+    botCap.position.y = -0.175;
+    wcPayloadGroup.add(topCap);
+    wcPayloadGroup.add(botCap);
+
+    const antGeo = new THREE.CylinderGeometry(0.008, 0.008, 0.20, 8);
+    antGeo.translate(0, 0.10, 0);
+    const antMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0 });
+    const antMesh = new THREE.Mesh(antGeo, antMat);
+    antMesh.position.y = 0.23;
+    wcPayloadGroup.add(antMesh);
+
+    const crosshairGeo = new THREE.SphereGeometry(0.03, 12, 12);
+    const crosshairMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    wcCrosshairMesh = new THREE.Mesh(crosshairGeo, crosshairMat);
+    wcCrosshairMesh.position.y = -0.175;
+    wcPayloadGroup.add(wcCrosshairMesh);
+
+    waterColumnScene.add(wcPayloadGroup);
+
+    // Mouse Controls
     container.addEventListener('mousedown', (e) => {
       wcIsDragging = true;
       wcPrevMouse = { x: e.clientX, y: e.clientY };
@@ -1296,15 +1743,24 @@ function initThreeWaterColumn(){
     container.addEventListener('wheel', (e) => {
       e.preventDefault();
       if(!waterColumnCamera) return;
-      wcSpherical.radius = Math.max(2.0, Math.min(15.0, wcSpherical.radius + e.deltaY * 0.005));
+      wcSpherical.radius = Math.max(2.5, Math.min(12.0, wcSpherical.radius + e.deltaY * 0.005));
       updateWCCamera();
     }, { passive: false });
 
-    // Render loop renders scene state - NO auto-rotation
+    // Radio Listeners
+    const radios = document.querySelectorAll('input[name="wcVar"]');
+    radios.forEach(r => {
+      r.addEventListener('change', (e) => {
+        wcSelectedVar = e.target.value;
+        renderRightPanelWaterColumn();
+      });
+    });
+
     function animateWC(){
       requestAnimationFrame(animateWC);
       if(waterColumnScene && waterColumnCamera && waterColumnRenderer){
         waterColumnRenderer.render(waterColumnScene, waterColumnCamera);
+        updateWCBadgePosition();
       }
     }
     animateWC();
@@ -1316,104 +1772,109 @@ function initThreeWaterColumn(){
 function renderRightPanelWaterColumn(){
   if(typeof THREE === 'undefined') return;
   if(!waterColumnRenderer) initThreeWaterColumn();
-  if(!waterColumnScene) return;
-
-  // Clear previous Three.js objects
-  while(wcLayersGroup.children.length > 0){
-    const obj = wcLayersGroup.children[0];
-    if(obj.geometry) obj.geometry.dispose();
-    if(obj.material) obj.material.dispose();
-    wcLayersGroup.remove(obj);
-  }
-  while(wcProfileGroup.children.length > 0){
-    const obj = wcProfileGroup.children[0];
-    if(obj.geometry) obj.geometry.dispose();
-    if(obj.material) obj.material.dispose();
-    wcProfileGroup.remove(obj);
-  }
+  if(!waterColumnScene || !wcCylinderMesh) return;
 
   if(!state.selectedProfile) return;
 
   const profileList = state.selectedProfile.profile || [];
   const targetDepth = state.selectedSample ? state.selectedSample.depth : DEPTHS[state.depthIndex];
 
-  // Dynamically derive depth levels directly from actual profile records
   const obsDepths = Array.from(new Set(profileList.map(p => p.depth))).sort((a,b) => a - b);
-  const activeDepths = obsDepths.length ? obsDepths : [0, 50, 100, 250, 500, 1000, 2000];
-  const maxD = Math.max(...activeDepths, 1000);
+  const maxD = Math.max(...obsDepths, 2000);
 
-  // 1. Build Stacked 3D Depth Planes in WebGL
-  const planeGeo = new THREE.PlaneGeometry(2.4, 2.4);
-  planeGeo.rotateX(-Math.PI / 2);
+  // Update Axis Ticks
+  const t0 = document.getElementById("wcTick0"); if(t0) t0.textContent = "0 m";
+  const t1 = document.getElementById("wcTick1"); if(t1) t1.textContent = `${(maxD * 0.25).toFixed(0)} m`;
+  const t2 = document.getElementById("wcTick2"); if(t2) t2.textContent = `${(maxD * 0.50).toFixed(0)} m`;
+  const t3 = document.getElementById("wcTick3"); if(t3) t3.textContent = `${(maxD * 0.75).toFixed(0)} m`;
+  const t4 = document.getElementById("wcTick4"); if(t4) t4.textContent = `${maxD.toFixed(0)} m`;
 
-  activeDepths.forEach(d => {
-    const y = - (d / maxD) * 3.2; // Depth increases DOWNWARD
-    const isSelected = Math.abs(d - targetDepth) < 25;
+  // Determine property samples & range
+  let samples = [];
+  let vmin = 2.0, vmax = 28.0, unit = "°C", legendMaxText = "Warm", legendMinText = "Cold";
 
-    const sample = profileList.find(p => Math.abs(p.depth - d) < 30);
+  if(wcSelectedVar === "salinity"){
+    samples = profileList.filter(p => p.variable === "salinity");
+    vmin = 32.5; vmax = 37.0; unit = "psu";
+    legendMaxText = "High"; legendMinText = "Low";
+  } else if(wcSelectedVar === "density"){
+    samples = profileList.filter(p => p.variable === "temperature").map(p => {
+      const salP = profileList.find(s => s.variable === "salinity" && Math.abs(s.depth - p.depth) < 10);
+      const sal = salP ? salP.value : 35.0;
+      const rho = calcSeawaterDensity(p.value, sal);
+      return { depth: p.depth, value: rho !== null ? rho : 27.0 };
+    });
+    vmin = 1022.0; vmax = 1028.0; unit = "kg/m³";
+    legendMaxText = "Dense"; legendMinText = "Light";
+  } else {
+    samples = profileList.filter(p => p.variable === "temperature" || p.variable === state.variable);
+    vmin = 2.0; vmax = 28.0; unit = "°C";
+    legendMaxText = "Warm"; legendMinText = "Cold";
+  }
 
-    // No synthetic temperature fabrication - if no real sample value exists, use neutral uncolored slate
-    let colorObj = new THREE.Color(0x2a3e4d);
-    if(sample && sample.value !== undefined && sample.value !== null){
-      const norm = Math.max(0, Math.min(1, (sample.value - 4.0) / 26.0));
-      const [r, g, b] = colormap(norm);
-      colorObj = new THREE.Color(r, g, b);
+  if(samples.length){
+    const vals = samples.map(s => s.value);
+    vmin = Math.min(...vals);
+    vmax = Math.max(...vals);
+    if(Math.abs(vmax - vmin) < 0.1) { vmax = vmin + 1.0; }
+  }
+
+  // Update Legend Labels & Bar
+  const legMax = document.getElementById("wcLegendMax");
+  const legMin = document.getElementById("wcLegendMin");
+  const legBar = document.getElementById("wcLegendBar");
+  if(legMax) legMax.textContent = `${legendMaxText} (${vmax.toFixed(0)}${unit})`;
+  if(legMin) legMin.textContent = `${legendMinText} (${vmin.toFixed(0)}${unit})`;
+
+  if(legBar){
+    if(wcSelectedVar === "salinity"){
+      legBar.style.background = "linear-gradient(to bottom, #a855f7, #6366f1, #3b82f6, #06b6d4, #10b981)";
+    } else if(wcSelectedVar === "density"){
+      legBar.style.background = "linear-gradient(to bottom, #3b82f6, #06b6d4, #10b981, #eab308, #ef4444)";
+    } else {
+      legBar.style.background = "linear-gradient(to bottom, #ef4444, #f97316, #eab308, #06b6d4, #1d4ed8)";
+    }
+  }
+
+  // Update Volumetric Cylinder Vertex Colors along depth (Height: 3.2)
+  const cylGeo = wcCylinderMesh.geometry;
+  const posAttr = cylGeo.attributes.position;
+  const colAttr = cylGeo.attributes.color;
+
+  for(let i = 0; i < posAttr.count; i++){
+    const y = posAttr.getY(i);
+    const t = Math.max(0, Math.min(1, -y / 3.2));
+    const vertDepth = t * maxD;
+
+    let val = vmin;
+    if(samples.length){
+      const sorted = samples.slice().sort((a,b) => a.depth - b.depth);
+      if(vertDepth <= sorted[0].depth) val = sorted[0].value;
+      else if(vertDepth >= sorted[sorted.length-1].depth) val = sorted[sorted.length-1].value;
+      else {
+        for(let k = 0; k < sorted.length - 1; k++){
+          if(vertDepth >= sorted[k].depth && vertDepth <= sorted[k+1].depth){
+            const ratio = (vertDepth - sorted[k].depth) / (sorted[k+1].depth - sorted[k].depth);
+            val = sorted[k].value + ratio * (sorted[k+1].value - sorted[k].value);
+            break;
+          }
+        }
+      }
+    } else {
+      val = vmax - t * (vmax - vmin);
     }
 
-    const mat = new THREE.MeshStandardMaterial({
-      color: colorObj,
-      transparent: true,
-      opacity: isSelected ? 0.88 : 0.40,
-      side: THREE.DoubleSide,
-      roughness: 0.4
-    });
+    const norm = Math.max(0, Math.min(1, (val - vmin) / Math.max(1e-6, (vmax - vmin))));
+    const [r, g, b] = colormap(norm);
+    colAttr.setXYZ(i, r, g, b);
+  }
+  colAttr.needsUpdate = true;
 
-    const mesh = new THREE.Mesh(planeGeo, mat);
-    mesh.position.set(0, y, 0);
-    wcLayersGroup.add(mesh);
-
-    if(isSelected){
-      const wireGeo = new THREE.WireframeGeometry(planeGeo);
-      const wireMat = new THREE.LineBasicMaterial({ color: 0x3fe0c5, linewidth: 2 });
-      const wire = new THREE.LineSegments(wireGeo, wireMat);
-      wire.position.set(0, y, 0);
-      wcLayersGroup.add(wire);
-    }
-  });
-
-  // 2. Build 3D Observation Trajectory Line & Points
-  const profileSamples = profileList.filter(p => p.variable === state.variable || p.variable === "temperature");
-  if(profileSamples.length){
-    const points = [];
-    const sphereGeo = new THREE.SphereGeometry(0.06, 12, 12);
-    const sphereMat = new THREE.MeshStandardMaterial({ color: 0xf2a65a, roughness: 0.2 });
-
-    profileSamples.forEach(p => {
-      const y = - (p.depth / maxD) * 3.2;
-      const pt = new THREE.Vector3(0, y, 0);
-      points.push(pt);
-
-      const node = new THREE.Mesh(sphereGeo, sphereMat);
-      node.position.copy(pt);
-      wcProfileGroup.add(node);
-    });
-
-    if(points.length >= 2){
-      const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-      const lineMat = new THREE.LineBasicMaterial({ color: 0xf2a65a, linewidth: 3 });
-      const line = new THREE.Line(lineGeo, lineMat);
-      wcProfileGroup.add(line);
-    }
-
-    // 3. Render 3D Selected Depth Cursor Node in WebGL
-    const targetY = - (targetDepth / maxD) * 3.2;
-    const cursorGeo = new THREE.SphereGeometry(0.12, 16, 16);
-    const cursorMat = new THREE.MeshStandardMaterial({
-      color: 0x3fe0c5, emissive: 0x1f6e63, roughness: 0.1
-    });
-    waterColumnCursorMesh = new THREE.Mesh(cursorGeo, cursorMat);
-    waterColumnCursorMesh.position.set(0, targetY, 0);
-    wcProfileGroup.add(waterColumnCursorMesh);
+  // Position 3D Yellow Instrument Payload along depth (Height: 3.2)
+  wcCurrentTargetDepth = targetDepth;
+  wcCurrentTargetY = - Math.min(1.0, targetDepth / maxD) * 3.2;
+  if(wcPayloadGroup){
+    wcPayloadGroup.position.set(0, wcCurrentTargetY, 0);
   }
 }
 
@@ -1441,14 +1902,13 @@ async function openProfile(platform_id){
   const lon = sample.longitude ?? data.lon;
 
   if(lat !== undefined && lat !== null && lon !== undefined && lon !== null){
-    // Fly camera to 3D oblique perspective focused on platform geographic location
-    viewer.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(lon, lat - 0.4, 140000),
-      orientation: {
-        heading: Cesium.Math.toRadians(0.0),
-        pitch: Cesium.Math.toRadians(-35.0),
-        roll: 0.0
-      },
+    // Offset target slightly to account for the 430px right profile panel so platform sits in center of visible viewport
+    const lonOffset = 0.24 / Math.max(0.3, Math.cos(Cesium.Math.toRadians(lat)));
+    const targetLon = lon + lonOffset;
+    const targetLat = lat;
+    const bs = new Cesium.BoundingSphere(Cesium.Cartesian3.fromDegrees(targetLon, targetLat, 0), 0);
+    viewer.camera.flyToBoundingSphere(bs, {
+      offset: new Cesium.HeadingPitchRange(0.0, Cesium.Math.toRadians(-45.0), 220000),
       duration: 1.5
     });
   }
@@ -1500,8 +1960,8 @@ document.getElementById("btnCompare").onclick = async () => {
     <div class="row"><span>Model Value</span><span class="mono">${c.model_value} ${c.unit}</span></div>
     <div class="row"><span>Difference (Δ)</span><span class="mono diff ${diffClass}">${c.difference>0?"+":""}${c.difference} ${c.unit}</span></div>
     <div class="row"><span>Matched Depth</span><span class="mono">${c.matched_depth} m</span></div>
-    <div class="row"><span>Observed Time</span><span class="mono">${(row.time||"").replace("T"," ").replace("Z","")}</span></div>
-    <div class="row"><span>Model Time</span><span class="mono">${(c.matched_time||"").replace("T"," ").replace("Z","")}</span></div>
+    <div class="row"><span>Observed Date</span><span class="mono">${formatDateOnly(row.time)}</span></div>
+    <div class="row"><span>Model Date</span><span class="mono">${formatDateOnly(c.matched_time)}</span></div>
     <div class="row"><span>Time Gap</span><span class="mono">${c.time_gap_hours} hrs</span></div>
     <div class="row"><span>Match Method</span><span class="mono">${c.match_method} (nearest neighbor)</span></div>`;
 };
@@ -1594,12 +2054,16 @@ document.getElementById("btnPublic").onclick = () => setMode("public");
 (async function boot(){
   try{
     await initCesiumGlobe();
-    await loadCatalog();
-    document.getElementById("loading").style.display = "none";
+    // Hide loading screen immediately once 3D Globe is initialized!
+    const loader = document.getElementById("loading");
+    if(loader) loader.style.display = "none";
+
+    // Load data catalog & ocean layers in background
+    loadCatalog().catch(err => console.warn("loadCatalog notice:", err));
   }catch(err){
-    console.error(err);
-    document.getElementById("loading").textContent =
-      "Could not initialize Cesium Globe or connect to OCEAN 3D backend. Ensure backend is running on port 8000.";
+    console.error("Boot error:", err);
+    const loader = document.getElementById("loading");
+    if(loader) loader.style.display = "none";
   }
 })();
 </script>
