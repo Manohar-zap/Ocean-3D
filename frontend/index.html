@@ -270,14 +270,13 @@
         <span id="slDisplayValue" class="mono" style="color:var(--accent); font-weight:700; font-size:11.5px;">100% (Normal)</span>
       </div>
       <div style="font-size:9.5px; color:var(--text-dim); margin:3px 0 6px 0; line-height:1.3;">
-        Drain water to 0% to reveal the 3D Potsdam Gravity Geoid ("Earth Without Water"); increase to simulate coastal flood rise.
+        Drag to 0% to drain all oceans and reveal the 3D Potsdam Gravity Geoid ("Earth Without Water").
       </div>
-      <input type="range" id="waterLevelSlider" min="0" max="200" step="1" value="100">
+      <input type="range" id="waterLevelSlider" min="0" max="100" step="1" value="100">
       
       <div style="display:flex; gap:4px; margin-top:6px;">
         <button class="action" id="btnDrainOcean" style="flex:1; padding:3px 4px; font-size:10px; background:rgba(239, 68, 68, 0.15); border-color:#ef4444; color:#ef4444; font-weight:600;">Drained (0%)</button>
         <button class="action" id="btnNormalOcean" style="flex:1; padding:3px 4px; font-size:10px;">Normal (100%)</button>
-        <button class="action" id="btnFloodOcean" style="flex:1; padding:3px 4px; font-size:10px; background:rgba(56, 189, 248, 0.15); border-color:#38bdf8; color:#38bdf8; font-weight:600;">+50m Flood</button>
       </div>
       <div style="display:flex; gap:4px; margin-top:4px;">
         <button class="action" id="btnSidebarDrainAnim" style="flex:1; padding:3px 4px; font-size:10px; background:rgba(63, 224, 197, 0.15); border-color:#3fe0c5; color:#3fe0c5; font-weight:600;">▶ Play Drain Anim</button>
@@ -911,8 +910,8 @@ function initThreeTerrainGlobe(){
     terrainScene.add(fillLight);
 
     // ─── 1. SOLID EARTH MESH (EARTH WITHOUT WATER / POTSDAM GEOID POTATO) ───
-    const segW = 160;
-    const segH = 80;
+    const segW = 192;
+    const segH = 96;
     const baseR = 10.0;
     const solidGeo = new THREE.SphereGeometry(baseR, segW, segH);
     const posAttr = solidGeo.attributes.position;
@@ -921,14 +920,239 @@ function initThreeTerrainGlobe(){
     terrainWaterBaseRadii = new Float32Array(count);
     terrainNormals = new Float32Array(count * 3);
 
+    // ─── PER-VERTEX COLOR ARRAYS ───────────────────────────────────────────────
+    const vertColors = new Float32Array(count * 3);
+
+    // ─── GEOLOGY HELPERS ──────────────────────────────────────────────────────
+    // Simple hash noise for terrain roughness (no external library needed)
+    function hashNoise(lat, lon, freq, seed){
+      const x = Math.sin(lat * freq * 0.174533 + seed * 1.3) * 43758.5453;
+      const y = Math.sin(lon * freq * 0.174533 + seed * 2.7) * 43758.5453;
+      return ((x - Math.floor(x)) + (y - Math.floor(y))) * 0.5 - 0.25;
+    }
+    function fractalNoise(lat, lon, octaves, seed){
+      let v = 0; let amp = 1.0; let freq = 1.0; let maxV = 0;
+      for(let o = 0; o < octaves; o++){
+        v += hashNoise(lat, lon, freq, seed + o * 17.4) * amp;
+        maxV += amp; amp *= 0.5; freq *= 2.1;
+      }
+      return v / maxV;
+    }
+
+    // Signed elevation above mean sea level in metres (positive = above, negative = below)
+    // Returns { elev_m, isLand }
+    function getTerrainElevation(lat, lon){
+      let isLand = false;
+      if(oceanMaskData){
+        const px = Math.max(0, Math.min(1023, Math.floor(((lon + 180.0) / 360.0) * 1024)));
+        const py = Math.max(0, Math.min(511,  Math.floor(((90.0 - lat) / 180.0) * 512)));
+        isLand = (oceanMaskData[(py * 1024 + px) * 4] < 128);
+      }
+
+      // Base noise for roughness on top of tectonic model
+      const roughness = fractalNoise(lat, lon, 5, 3.7) * (isLand ? 400 : 250);
+
+      if(isLand){
+        // ─── LAND ELEVATION MODEL ─────────────────────────────────
+        let elev = 250 + roughness;                // gentle rolling plains baseline
+
+        // Major mountain belts (Gaussian peaks)
+        const RANGES = [
+          // Himalayas / Tibet Plateau
+          { lat0: 30, lon0: 84,  dlat: 7,  dlon: 20, h: 5500 },
+          // Alps
+          { lat0: 46, lon0: 10,  dlat: 3,  dlon: 7,  h: 3200 },
+          // Andes
+          { lat0: -18, lon0: -68, dlat: 28, dlon: 6,  h: 4500 },
+          // Rockies
+          { lat0: 45, lon0: -114, dlat: 18, dlon: 6,  h: 3200 },
+          // East Africa Rift / Ethiopian Highlands
+          { lat0: 8,  lon0: 38,  dlat: 10, dlon: 5,  h: 3000 },
+          // Atlas Mountains
+          { lat0: 32, lon0: -3,  dlat: 4,  dlon: 8,  h: 2800 },
+          // Greenland Ice Sheet (high plateau)
+          { lat0: 72, lon0: -42, dlat: 8,  dlon: 20, h: 2000 },
+          // Antarctica (ice sheet plateau)
+          { lat0: -85, lon0: 0,  dlat: 5,  dlon: 180, h: 2400 },
+          // Scandinavia
+          { lat0: 62, lon0: 15,  dlat: 8,  dlon: 6,  h: 1800 },
+          // Appalachians
+          { lat0: 40, lon0: -79, dlat: 10, dlon: 3,  h: 1800 },
+          // Zagros / Iran Plateau
+          { lat0: 30, lon0: 53,  dlat: 6,  dlon: 10, h: 2600 },
+          // Sumatra / Java Volcanic Arc
+          { lat0: -2, lon0: 104, dlat: 3,  dlon: 12, h: 2400 },
+          // Japanese Alps
+          { lat0: 36, lon0: 137, dlat: 3,  dlon: 2,  h: 2800 },
+          // New Zealand Southern Alps
+          { lat0: -44, lon0: 170, dlat: 4, dlon: 3,  h: 2500 },
+        ];
+        for(const r of RANGES){
+          const dlat = lat - r.lat0;
+          let dlon = lon - r.lon0;
+          if(dlon > 180) dlon -= 360; if(dlon < -180) dlon += 360;
+          const d2 = (dlat/r.dlat)**2 + (dlon/r.dlon)**2;
+          elev += r.h * Math.exp(-d2 * 2.0);
+        }
+
+        // Polar ice bonus
+        const poleFactor = Math.max(0, (Math.abs(lat) - 65) / 25.0);
+        elev += poleFactor * 1200;
+
+        // Desert lowlands penalty (Sahara, Arabian Peninsula, Australian Outback)
+        const DESERTS = [
+          { lat0: 24, lon0: 22, dlat: 12, dlon: 25 },  // Sahara
+          { lat0: 23, lon0: 46, dlat:  8, dlon: 15 },  // Arabian
+          { lat0: -25, lon0: 134, dlat: 12, dlon: 18 },// Australian
+          { lat0: -24, lon0: 22, dlat:  8, dlon: 10 }, // Kalahari
+        ];
+        for(const d of DESERTS){
+          const dlat = lat - d.lat0;
+          let dlon = lon - d.lon0;
+          if(dlon > 180) dlon -= 360; if(dlon < -180) dlon += 360;
+          const d2 = (dlat/d.dlat)**2 + (dlon/d.dlon)**2;
+          elev -= 120 * Math.exp(-d2 * 2.0);
+        }
+
+        return { elev_m: Math.max(0, elev), isLand: true };
+
+      } else {
+        // ─── OCEAN ELEVATION / BATHYMETRY MODEL ──────────────────
+        // Plate-tectonic model: mid-ocean ridges start at ~-2500m, deepen to ~-6000m (abyssal plains)
+        // as age of oceanic crust increases away from the ridge axis
+
+        let depth = -3800;   // global mean ocean depth baseline
+
+        // Mid-Ocean Ridges (elevated ~+1500-3000m above abyssal plain)
+        const RIDGES = [
+          { lat0:  0, lon0: -30, dlat: 80, dlon: 12, h: 2500 }, // Mid-Atlantic Ridge
+          { lat0:  0, lon0: 88,  dlat: 40, dlon: 8,  h: 1800 }, // Ninety East Ridge
+          { lat0: -50, lon0: 70, dlat: 20, dlon: 8,  h: 2200 }, // Southwest Indian Ridge
+          { lat0:  0, lon0: -110, dlat:60, dlon:12,  h: 2200 }, // East Pacific Rise
+          { lat0:  0, lon0: 65,  dlat: 30, dlon: 10, h: 1600 }, // Central Indian Ridge
+          { lat0: -55, lon0:-30, dlat:20, dlon: 10,  h: 1800 }, // South Atlantic Ridge
+          { lat0: 65, lon0: -30, dlat: 10, dlon: 12, h: 1200 }, // Reykjanes Ridge
+        ];
+        for(const r of RIDGES){
+          const dlat = lat - r.lat0;
+          let dlon = lon - r.lon0;
+          if(dlon > 180) dlon -= 360; if(dlon < -180) dlon += 360;
+          const d2 = (dlat/r.dlat)**2 + (dlon/r.dlon)**2;
+          depth += r.h * Math.exp(-d2 * 3.5);
+        }
+
+        // Oceanic Trenches (deep depressions)
+        const TRENCHES = [
+          { lat0: 11.3,  lon0: 142.6, dlat: 3, dlon: 2.5, d: -4500 }, // Mariana
+          { lat0: -8.5,  lon0: 111,   dlat: 2, dlon: 3,   d: -3800 }, // Java/Sunda
+          { lat0: 51,    lon0: 157,   dlat: 4, dlon: 2,   d: -3500 }, // Kuril-Kamchatka
+          { lat0: -24,   lon0: -71,   dlat: 4, dlon: 1.5, d: -4200 }, // Atacama
+          { lat0:  9,    lon0: -76,   dlat: 4, dlon: 1.5, d: -3500 }, // Puerto Rico
+          { lat0: 14,    lon0: 124,   dlat: 4, dlon: 2,   d: -3200 }, // Philippine
+          { lat0: 34,    lon0: 141,   dlat: 3, dlon: 1.5, d: -3500 }, // Japan
+          { lat0: -56,   lon0: -70,   dlat: 2, dlon: 1.5, d: -3000 }, // South Sandwich
+          { lat0:  0,    lon0: -88,   dlat: 3, dlon: 1.5, d: -3200 }, // Middle America
+        ];
+        for(const t of TRENCHES){
+          const dlat = lat - t.lat0;
+          let dlon = lon - t.lon0;
+          if(dlon > 180) dlon -= 360; if(dlon < -180) dlon += 360;
+          const d2 = (dlat/t.dlat)**2 + (dlon/t.dlon)**2;
+          depth += t.d * Math.exp(-d2 * 5.0);
+        }
+
+        // Continental shelves (shallow, 0 to -200m near land)
+        depth += roughness * 0.4;
+        depth = Math.max(depth, -11000);  // clamp at deepest trench
+
+        return { elev_m: Math.min(-30, depth), isLand: false };
+      }
+    }
+
+    // ─── LAND BIOME VERTEX COLOR ───────────────────────────────────────────
+    function landColor(elev_m, lat){
+      const e = elev_m;
+      const absLat = Math.abs(lat);
+      const poleness = Math.max(0, (absLat - 68) / 22.0); // 0 at 68°, 1 at 90°
+
+      // Snow/ice on high peaks or polar regions
+      const snowLine = 4200 - (absLat - 30) * 30;  // lower snow line at higher latitudes
+      if(e > snowLine || poleness > 0.7){
+        const t = Math.min(1, poleness > 0.7 ? poleness : (e - snowLine) / 1500);
+        // White snow blending with rock
+        return [0.92 + t * 0.06, 0.93 + t * 0.05, 0.95 + t * 0.04];
+      }
+      // Rocky high mountain (grey-brown)
+      if(e > 3200){
+        const t = Math.min(1, (e - 3200) / 1000);
+        return [0.52 + t*0.12, 0.47 + t*0.08, 0.42 + t*0.06];
+      }
+      // Highlands / brown-olive
+      if(e > 1500){
+        const t = Math.min(1, (e - 1500) / 1700);
+        return [0.55 + t*0.10, 0.48 + t*0.02, 0.30 + t*0.05];
+      }
+      // Medium elevation green to brown-green
+      if(e > 400){
+        const t = Math.min(1, (e - 400) / 1100);
+        // Tropical vs temperate coloring
+        const isTropical = absLat < 25;
+        if(isTropical) return [0.28 - t*0.04, 0.55 - t*0.08, 0.22 - t*0.05];
+        return [0.38 - t*0.04, 0.52 - t*0.08, 0.28 - t*0.05];
+      }
+      // Lowland plains
+      const isTropical = absLat < 25;
+      const isSubtropical = absLat < 38;
+      // Desert/savanna tone for subtropical dry zones, green for wet tropics/temperate
+      const n = fractalNoise(lat, 0, 2, 7.3);
+      if(isTropical){
+        // Dense tropical green
+        return [0.19 + n*0.05, 0.52 + n*0.06, 0.15 + n*0.04];
+      }
+      if(isSubtropical){
+        // Savanna / semi-arid: gold-green
+        return [0.58 + n*0.06, 0.52 + n*0.05, 0.25 + n*0.04];
+      }
+      // Temperate: medium green
+      return [0.32 + n*0.05, 0.50 + n*0.06, 0.22 + n*0.04];
+    }
+
+    // ─── OCEAN DEPTH VERTEX COLOR (bathymetric scale matching alteredqualia reference) ───
+    // Uses a 7-stop colormap: trench (near-black navy) → abyssal (dark blue) →
+    //   deep sea (royal blue) → ridge (teal-blue) → shelf (light blue) → very shallow (cyan)
+    const BATHY_STOPS = [
+      { d: -11000, rgb: [0.01, 0.02, 0.12] }, // trench — near-black navy
+      { d: -6000,  rgb: [0.02, 0.05, 0.22] }, // ultra-deep abyssal
+      { d: -4000,  rgb: [0.04, 0.10, 0.36] }, // abyssal plain — deep navy-blue
+      { d: -2500,  rgb: [0.06, 0.18, 0.55] }, // deep ocean
+      { d: -1500,  rgb: [0.08, 0.28, 0.68] }, // mid-ocean ridge flank — rich blue
+      { d:  -500,  rgb: [0.10, 0.42, 0.76] }, // ridge summit / seamount
+      { d:  -200,  rgb: [0.14, 0.56, 0.80] }, // continental slope
+      { d:   -30,  rgb: [0.26, 0.72, 0.85] }, // continental shelf — light teal
+    ];
+    function bathyColor(depth_m){
+      const d = Math.max(-11000, Math.min(-30, depth_m));
+      if(d <= BATHY_STOPS[0].d) return [...BATHY_STOPS[0].rgb];
+      for(let i = 1; i < BATHY_STOPS.length; i++){
+        if(d <= BATHY_STOPS[i].d){
+          const a = BATHY_STOPS[i-1], b = BATHY_STOPS[i];
+          const f = (d - a.d) / (b.d - a.d);
+          return [a.rgb[0]+(b.rgb[0]-a.rgb[0])*f, a.rgb[1]+(b.rgb[1]-a.rgb[1])*f, a.rgb[2]+(b.rgb[2]-a.rgb[2])*f];
+        }
+      }
+      return [...BATHY_STOPS[BATHY_STOPS.length - 1].rgb];
+    }
+
+    // ─── PER-VERTEX DISPLACEMENT & COLOR ─────────────────────────────────────
+    const ELEV_SCALE = 1.0 / 10000.0;   // 10km → 1 unit in 3D space (baseR=10)
+    const HEIGHT_EXAGGERATION = 4.0;     // visual exaggeration so terrain is clearly visible
+
     for(let i = 0; i < count; i++){
       const x0 = posAttr.getX(i);
       const y0 = posAttr.getY(i);
       const z0 = posAttr.getZ(i);
       const len = Math.sqrt(x0*x0 + y0*y0 + z0*z0) || 1.0;
-      const nx = x0 / len;
-      const ny = y0 / len;
-      const nz = z0 / len;
+      const nx = x0 / len, ny = y0 / len, nz = z0 / len;
 
       terrainNormals[i*3]     = nx;
       terrainNormals[i*3 + 1] = ny;
@@ -937,56 +1161,57 @@ function initThreeTerrainGlobe(){
       const lat = Math.asin(Math.max(-1.0, Math.min(1.0, ny))) * (180.0 / Math.PI);
       const lon = Math.atan2(nx, nz) * (180.0 / Math.PI);
 
-      // Geoid Undulation: Indian Ocean Low (-105m, deep depression), North Atlantic High (+85m, red bulge)
+      // Geoid undulation (Potsdam potato shape)
       const gVal = calcGeoidUndulation(lat, lon);
-      const dGeoid = (gVal / 80.0) * 1.55;
+      const dGeoid = (gVal / 80.0) * 1.20;
 
-      // Water Level equilibrium follows the geoid
+      // Elevation from geology model
+      const { elev_m, isLand } = getTerrainElevation(lat, lon);
+
+      // Water level equilibrium surface = geoid surface
       terrainWaterBaseRadii[i] = baseR + dGeoid;
 
-      // Topography & Bathymetry Bedrock
-      let isLand = false;
-      if(oceanMaskData){
-        const px = Math.floor(((lon + 180.0) / 360.0) * 1024) % 1024;
-        const py = Math.floor(((90.0 - lat) / 180.0) * 512) % 512;
-        const pIdx = (py * 1024 + px) * 4;
-        isLand = (oceanMaskData[pIdx] < 128);
-      }
-
-      let dTopo = 0.0;
-      if(isLand){
-        dTopo = 0.28;
-        if(lat > 25 && lat < 38 && lon > 70 && lon < 100) dTopo += 0.45; // Himalayas
-        else if(lat > -45 && lat < 10 && lon > -78 && lon < -65) dTopo += 0.35; // Andes
-      } else {
-        let oceanDepth = 0.65;
-        // Mid-Ocean Ridges (higher than abyssal plain)
-        if(Math.abs(lon - (-30)) < 15 && lat > -50 && lat < 65) oceanDepth = 0.35; // Mid-Atlantic Ridge
-        if(Math.abs(lon - 88) < 8 && lat > -30 && lat < 10) oceanDepth = 0.40; // Ninety East Ridge
-        // Trenches
-        if(Math.abs(lat - 11) < 5 && Math.abs(lon - 142) < 5) oceanDepth = 1.05; // Mariana Trench
-        if(Math.abs(lat - (-9)) < 5 && Math.abs(lon - 110) < 10) oceanDepth = 0.95; // Sunda Trench
-        dTopo = -oceanDepth;
-      }
-
+      // Solid bedrock radius (with exaggerated topography on top of geoid)
+      const dTopo = elev_m * ELEV_SCALE * HEIGHT_EXAGGERATION;
       const rSolid = baseR + dGeoid + dTopo;
       posAttr.setXYZ(i, nx * rSolid, ny * rSolid, nz * rSolid);
+
+      // Per-vertex color
+      let [cr, cg, cb] = isLand ? landColor(elev_m, lat) : bathyColor(elev_m);
+
+      // Coastline darkening (transition pixels from the mask edge)
+      if(isLand && oceanMaskData){
+        const px = Math.max(0, Math.min(1023, Math.floor(((lon + 180.0) / 360.0) * 1024)));
+        const py = Math.max(0, Math.min(511,  Math.floor(((90.0 - lat) / 180.0) * 512)));
+        let neighborOcean = false;
+        for(const [dx, dy] of [[-1,0],[1,0],[0,-1],[0,1]]){
+          const nx2 = Math.max(0,Math.min(1023, px+dx)), ny2 = Math.max(0,Math.min(511, py+dy));
+          if(oceanMaskData[(ny2*1024+nx2)*4] >= 128){ neighborOcean = true; break; }
+        }
+        if(neighborOcean){ cr *= 0.55; cg *= 0.55; cb *= 0.55; } // dark shoreline strip
+      }
+
+      // Blend geoid color tint (subtle) over the terrain color
+      const gNorm = Math.max(0, Math.min(1, (gVal + 80) / 160.0));
+      const geoidTint = geoidColor(gVal);
+      const GEOID_BLEND = 0.12;   // 12% geoid tint overlay
+      cr = cr*(1-GEOID_BLEND) + geoidTint[0]*GEOID_BLEND;
+      cg = cg*(1-GEOID_BLEND) + geoidTint[1]*GEOID_BLEND;
+      cb = cb*(1-GEOID_BLEND) + geoidTint[2]*GEOID_BLEND;
+
+      vertColors[i*3]   = Math.max(0, Math.min(1, cr));
+      vertColors[i*3+1] = Math.max(0, Math.min(1, cg));
+      vertColors[i*3+2] = Math.max(0, Math.min(1, cb));
     }
+
     posAttr.needsUpdate = true;
+    solidGeo.setAttribute('color', new THREE.BufferAttribute(vertColors, 3));
     solidGeo.computeVertexNormals();
 
-    const gCanvas = getOrCreatePotsdamGeoidCanvas();
-    const geoidTex = new THREE.CanvasTexture(gCanvas);
-    geoidTex.wrapS = THREE.ClampToEdgeWrapping;
-    geoidTex.wrapT = THREE.ClampToEdgeWrapping;
-    if('SRGBColorSpace' in THREE) geoidTex.colorSpace = THREE.SRGBColorSpace;
-
     const solidMat = new THREE.MeshStandardMaterial({
-      map: geoidTex,
-      roughness: 0.58,
-      metalness: 0.06,
-      bumpMap: geoidTex,
-      bumpScale: 0.04
+      vertexColors: true,
+      roughness: 0.72,
+      metalness: 0.04,
     });
 
     solidEarthMesh = new THREE.Mesh(solidGeo, solidMat);
@@ -1113,6 +1338,9 @@ function initThreeTerrainGlobe(){
 function update3DWaterLevelTerrain(valPercent){
   if(!waterTerrainMesh) return;
 
+  // Hard cap: water cannot rise above 0m (sea level)
+  valPercent = Math.max(0, Math.min(100, valPercent));
+
   const pos = waterTerrainMesh.geometry.attributes.position;
   const count = pos.count;
 
@@ -1121,6 +1349,7 @@ function update3DWaterLevelTerrain(valPercent){
     waterTerrainMesh.visible = false;
   } else {
     waterTerrainMesh.visible = true;
+    // hOffset is always ≤ 0 (water sinks from geoid baseline, never rises above it)
     const hOffset = ((valPercent - 100) / 100.0) * 1.30;
     for(let i = 0; i < count; i++){
       const nx = terrainNormals[i*3];
@@ -1149,6 +1378,9 @@ function updateTerrainHudReadout(valPercent){
     slider.value = valPercent;
   }
 
+  // Depth interpretation: % maps 0% = deepest ocean drained, 100% = normal sea level
+  valPercent = Math.max(0, Math.min(100, valPercent));
+
   let meters = 0;
   let phaseName = "";
   let desc = "";
@@ -1156,43 +1388,45 @@ function updateTerrainHudReadout(valPercent){
 
   if(valPercent === 0){
     meters = -11000;
-    phaseName = "Fully Drained: Earth Without Water";
-    desc = "All ocean water is 100% drained. Showing the bare solid deformed Earth bedrock & Potsdam Gravity Geoid Potato.";
+    phaseName = "Fully Drained — Earth Without Water";
+    desc = "All ocean water drained. The bare 3D Potsdam Geoid bedrock is exposed: Mariana Trench (−11km), abyssal plains, mid-ocean ridges, and continental shelves are all visible.";
     exposedKm2 = 361900000;
   } else if(valPercent < 100){
     const frac = (100 - valPercent) / 100.0;
-    meters = -Math.round(frac * 5500);
+    // Realistic depth: 100%→0m, 80%→−1200m shelves, 60%→−2500m ridges, 30%→−5000m plains, 0%→−11000m full
+    meters = -Math.round(frac * frac * 11000);
     exposedKm2 = Math.round(frac * 361900000);
-    if(valPercent >= 75){
-      phaseName = "Continental Shelves Exposed";
-      desc = `Water level has receded to ${meters} m. Continental shelves (Sunda Shelf, Doggerland, Beringia) have emerged.`;
+    if(valPercent >= 85){
+      phaseName = "Coastal Shelves Emerging";
+      desc = `Sea at ${meters} m. Shallow continental shelves (<−200 m) begin to appear: Sunda Shelf, North Sea (Doggerland), Gulf of Carpentaria exposed.`;
+    } else if(valPercent >= 65){
+      phaseName = "Continental Slopes Dry";
+      desc = `Sea at ${meters} m. Major continental slopes are now exposed. The Mid-Atlantic Ridge summit and Iceland Plateau emerge above the receding water.`;
     } else if(valPercent >= 40){
       phaseName = "Mid-Ocean Ridges Exposed";
-      desc = `Water level has dropped to ${meters} m. The Mid-Atlantic Ridge and Central Indian Ridge form massive mountain ranges above water.`;
-    } else {
+      desc = `Sea at ${meters} m. The entire Mid-Atlantic Ridge, East Pacific Rise, and Central Indian Ridge tower above the remaining water as mountain ranges.`;
+    } else if(valPercent >= 15){
       phaseName = "Abyssal Plains Dry";
-      desc = `Water level has dropped to ${meters} m. Ocean basins are dry plains; only deep subduction trenches hold water.`;
+      desc = `Sea at ${meters} m. Ocean basins are dry plains. Only the deepest trenches — Mariana, Tonga, Java — still hold water at the bottom of kilometre-deep canyons.`;
+    } else {
+      phaseName = "Deep Trenches — Last Water";
+      desc = `Sea at ${meters} m. Only the ultra-deep subduction zones retain water. The Challenger Deep (~−11km) is the last point of the ocean.`;
     }
-  } else if(valPercent === 100){
+  } else {
     meters = 0;
     phaseName = "Normal Ocean Equilibrium";
-    desc = "Current global sea level (0 m). Solid continents stand above water, ocean basins filled.";
+    desc = "Current global mean sea level (0 m). Ocean basins are filled; continents emerge above water.";
     exposedKm2 = 0;
-  } else {
-    meters = Math.round(((valPercent - 100) / 100.0) * 100);
-    phaseName = "Marine Transgression / Coastal Flooding";
-    desc = `Sea level has risen to +${meters} m. Low-lying coastal lands and delta regions are submerged underwater.`;
-    exposedKm2 = -Math.round(((valPercent - 100) / 100.0) * 45000000);
   }
 
-  if(hudSeaLevel) hudSeaLevel.textContent = `Sea Level: ${meters > 0 ? "+" : ""}${meters} m (${valPercent}%)`;
+  if(hudSeaLevel) hudSeaLevel.textContent = `Sea Level: ${meters} m  |  ${valPercent}% filled`;
   if(calloutPhase) calloutPhase.textContent = `Phase: ${phaseName}`;
   if(calloutDesc) calloutDesc.textContent = desc;
-  if(calloutExposed) calloutExposed.textContent = `${(Math.abs(exposedKm2) / 1e6).toFixed(1)}M km² ${exposedKm2 >= 0 ? "exposed" : "flooded"}`;
+  if(calloutExposed) calloutExposed.textContent = `${(exposedKm2 / 1e6).toFixed(1)}M km² exposed`;
 
-  if(asideDisp) asideDisp.textContent = `${valPercent}% (${meters > 0 ? "+" : ""}${meters} m)`;
+  if(asideDisp) asideDisp.textContent = `${valPercent}% (${meters} m)`;
   if(asideState) asideState.textContent = phaseName;
-  if(asideImpact) asideImpact.textContent = `${(Math.abs(exposedKm2) / 1e6).toFixed(1)}M km² ${exposedKm2 >= 0 ? "exposed" : "flooded"}`;
+  if(asideImpact) asideImpact.textContent = `${(exposedKm2 / 1e6).toFixed(1)}M km² exposed`;
 }
 
 function toggleDrainAnimation(){
@@ -1228,6 +1462,8 @@ function toggleDrainAnimation(){
 }
 
 function updateWaterLevelSimulation(valPercent){
+  // Hard cap: 0% = fully drained, 100% = normal sea level. No flooding above sea level.
+  valPercent = Math.max(0, Math.min(100, valPercent));
   state.waterLevelPercent = valPercent;
   const slider = document.getElementById("waterLevelSlider");
   if(slider && parseInt(slider.value) !== valPercent){
@@ -3247,10 +3483,6 @@ document.getElementById("btnDrainOcean").onclick = () => {
 document.getElementById("btnNormalOcean").onclick = () => {
   switchMainView('terrain');
   updateWaterLevelSimulation(100);
-};
-document.getElementById("btnFloodOcean").onclick = () => {
-  switchMainView('terrain');
-  updateWaterLevelSimulation(150);
 };
 document.getElementById("depthSlider").oninput = async (e) => {
   state.depthIndex = parseInt(e.target.value);
