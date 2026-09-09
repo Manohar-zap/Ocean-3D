@@ -875,375 +875,371 @@ function onTerrainResize(){
   terrainRenderer.setSize(w, h);
 }
 
+// ---------------------------------------------------------------------------
+// 3D REAL EARTH GLOBE: NOAA ETOPO1 BATHYMETRY & SEA-LEVEL EVAPORATION
+// ---------------------------------------------------------------------------
+const GLOBE_BASE_R = 10.0;
+const MIN_ELEVATION = -11000.0;
+const MAX_ELEVATION = 9000.0;
+// Dramatic real 3D relief: Mariana Trench plunges -3.0 units, Abyssal plain drops -1.3 units,
+// Mid-Atlantic ridge rises +1.5 units from abyssal floor, Himalayas rise +2.5 units.
+const TERRAIN_SCALE = 0.000028;
+const WATER_EPSILON = 0.015;
+const ETOPO_WIDTH = 2048;
+const ETOPO_HEIGHT = 1024;
+const EARTH_TEXTURE_LOCAL = 'assets/earth-blue-marble.jpg';
+const EARTH_TEXTURE_REMOTE = 'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg';
+
+let etopoData = null;              // Float32Array of real NOAA ETOPO1 elevation in metres
+let etopoTexture = null;           // 16-bit packed DataTexture for GPU water shader
+let terrainMesh = null;            // Solid Earth mesh with real 3D CPU-displaced bathymetry/topography
+let waterMesh = null;              // Concentric dynamic water shell with GLSL shader
+let waterMaterial = null;
+let currentSeaLevelMeters = 0.0;
+
+function seaLevelToRadius(meters) {
+  return GLOBE_BASE_R * (1.0 + meters * TERRAIN_SCALE) + WATER_EPSILON;
+}
+
+// Bilinear sampling of real ETOPO1 elevation (in metres) across the 2048x1024 grid
+function sampleElevation(u, v) {
+  if (!etopoData) return 0;
+  const latDeg = (v - 0.5) * 180.0;
+  const w = ETOPO_WIDTH, h = ETOPO_HEIGHT;
+  const vv = Math.max(0, Math.min(1, v));
+
+  // Polar apex ring sampling to protect ice caps
+  if (Math.abs(latDeg) > 88.0) {
+    const latRow = (1 - vv) * (h - 1);
+    const row = Math.max(0, Math.min(h - 1, Math.round(latRow)));
+    let best = -Infinity;
+    for (let i = 0; i < 12; i++) {
+      const lonFrac = (((u + i / 12) % 1) + 1) % 1;
+      const col = Math.round(lonFrac * (w - 1));
+      best = Math.max(best, etopoData[row * w + col]);
+    }
+    return best;
+  }
+
+  const uu = (((u % 1) + 1) % 1);
+  const lonCol = uu * (w - 1);
+  const latRow = (1 - vv) * (h - 1);
+  const x0 = Math.floor(lonCol);
+  const x1 = (x0 + 1) % w;
+  const y0 = Math.floor(latRow);
+  const y1 = Math.min(h - 1, y0 + 1);
+  const fx = lonCol - x0;
+  const fy = latRow - y0;
+  const e00 = etopoData[y0 * w + x0];
+  const e10 = etopoData[y0 * w + x1];
+  const e01 = etopoData[y1 * w + x0];
+  const e11 = etopoData[y1 * w + x1];
+  const e0 = e00 + (e10 - e00) * fx;
+  const e1 = e01 + (e11 - e01) * fx;
+  return e0 + (e1 - e0) * fy;
+}
+
+// Packs real Float32 elevation into an RGBA DataTexture for GPU fragment shader
+function buildPackedHeightTexture(elevations, width, height) {
+  const data = new Uint8Array(width * height * 4);
+  const range = MAX_ELEVATION - MIN_ELEVATION;
+  for (let row = 0; row < height; row++) {
+    const srcRow = height - 1 - row;
+    const srcBase = srcRow * width;
+    const dstBase = row * width;
+    for (let col = 0; col < width; col++) {
+      const e = elevations[srcBase + col];
+      const clamped = Math.max(MIN_ELEVATION, Math.min(MAX_ELEVATION, e));
+      const code = Math.round(((clamped - MIN_ELEVATION) / range) * 65535);
+      const p = (dstBase + col) * 4;
+      data[p]     = (code >> 8) & 255;
+      data[p + 1] = code & 255;
+      data[p + 2] = 0;
+      data[p + 3] = 255;
+    }
+  }
+  const tex = new THREE.DataTexture(data, width, height, THREE.RGBAFormat);
+  tex.flipY = false;
+  tex.minFilter = THREE.NearestFilter;
+  tex.magFilter = THREE.NearestFilter;
+  tex.generateMipmaps = false;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function applyHeightmap(elevations) {
+  etopoData = elevations;
+  etopoTexture = buildPackedHeightTexture(elevations, ETOPO_WIDTH, ETOPO_HEIGHT);
+
+  if (waterMaterial) {
+    waterMaterial.uniforms.uHeight.value = etopoTexture;
+    waterMaterial.uniforms.uHeightReady.value = 1.0;
+  }
+
+  if (terrainMesh) {
+    // 3D displacement of every vertex by real NOAA ETOPO1 elevation
+    const pos = terrainMesh.geometry.attributes.position;
+    const uv  = terrainMesh.geometry.attributes.uv;
+    for (let i = 0; i < pos.count; i++) {
+      const u = uv.getX(i);
+      const v = uv.getY(i);
+      const e = sampleElevation(u, v);
+      const scale = 1.0 + e * TERRAIN_SCALE;
+      const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+      const len = Math.sqrt(x*x + y*y + z*z) || GLOBE_BASE_R;
+      pos.setXYZ(i, x * scale * GLOBE_BASE_R / len,
+                    y * scale * GLOBE_BASE_R / len,
+                    z * scale * GLOBE_BASE_R / len);
+    }
+    pos.needsUpdate = true;
+    terrainMesh.geometry.computeVertexNormals();
+    if (terrainMesh.geometry.attributes.normal) terrainMesh.geometry.attributes.normal.needsUpdate = true;
+  }
+
+  update3DWaterLevelTerrain(state.waterLevelPercent !== undefined ? state.waterLevelPercent : 100);
+}
+
+async function loadLocalHeightmap() {
+  const banner = document.getElementById("terrainErrorBanner");
+  if(banner) banner.textContent = "Loading real NOAA ETOPO1 bathymetry & elevation…";
+  try {
+    const resp = await fetch(apiUrl('/api/heightmap'));
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    const buf = await resp.arrayBuffer();
+    const elevations = new Float32Array(buf);
+    if(elevations.length !== ETOPO_WIDTH * ETOPO_HEIGHT){
+      console.warn("Unexpected ETOPO1 array length:", elevations.length);
+    }
+    applyHeightmap(elevations);
+    if(banner) banner.textContent = "";
+  } catch(err){
+    console.error("Local ETOPO1 heightmap load failed:", err);
+    if(banner) banner.textContent = "⚠ ETOPO1 backend offline — check port 8000";
+  }
+}
+
 function initThreeTerrainGlobe(){
   if(typeof THREE === 'undefined') return;
   const container = document.getElementById("terrainGlobeContainer");
   if(!container || terrainRenderer) return;
 
-  const width = container.clientWidth || 800;
+  const width  = container.clientWidth  || 800;
   const height = container.clientHeight || 600;
 
   try {
     terrainScene = new THREE.Scene();
+    terrainScene.background = new THREE.Color(0x020712);
+
+    // Deep cosmic starfield
+    const starGeo = new THREE.BufferGeometry();
+    const starVerts = [];
+    for(let i = 0; i < 3000; i++){
+      const r = 100 + Math.random() * 80;
+      const th = Math.random() * 2 * Math.PI;
+      const ph = Math.acos(2 * Math.random() - 1);
+      starVerts.push(r*Math.sin(ph)*Math.cos(th), r*Math.cos(ph), r*Math.sin(ph)*Math.sin(th));
+    }
+    starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVerts, 3));
+    terrainScene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xdbeafe, size: 0.18, transparent: true, opacity: 0.75 })));
+
     terrainGroup = new THREE.Group();
     terrainScene.add(terrainGroup);
 
-    terrainCamera = new THREE.PerspectiveCamera(40, width / height, 0.1, 250);
+    terrainCamera = new THREE.PerspectiveCamera(40, width / height, 0.1, 500);
     updateTerrainCamera();
 
-    terrainRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    terrainRenderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     terrainRenderer.setSize(width, height);
     terrainRenderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+    if('outputColorSpace' in terrainRenderer) terrainRenderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(terrainRenderer.domElement);
 
-    // Ambient light
-    terrainScene.add(new THREE.AmbientLight(0xffffff, 1.4));
-
-    // Sun Key Light
-    const sunLight = new THREE.DirectionalLight(0xfff8ee, 2.4);
-    sunLight.position.set(24, 28, 22);
+    // Realistic directional solar lighting
+    terrainScene.add(new THREE.AmbientLight(0xffffff, 1.25));
+    const sunLight = new THREE.DirectionalLight(0xfff8ee, 2.2);
+    sunLight.position.set(24, 16, 20);
     terrainScene.add(sunLight);
-
-    // Rim/Fill Light
-    const fillLight = new THREE.DirectionalLight(0x4095c6, 0.9);
-    fillLight.position.set(-20, -12, -22);
+    const fillLight = new THREE.DirectionalLight(0x8fb7ff, 0.55);
+    fillLight.position.set(-20, -10, -16);
     terrainScene.add(fillLight);
 
-    // ─── 1. SOLID EARTH MESH (EARTH WITHOUT WATER / POTSDAM GEOID POTATO) ───
-    const segW = 192;
-    const segH = 96;
-    const baseR = 10.0;
-    const solidGeo = new THREE.SphereGeometry(baseR, segW, segH);
-    const posAttr = solidGeo.attributes.position;
-    const count = posAttr.count;
+    // ── 1. SOLID EARTH TERRAIN MESH ──────────────────────────────────────────
+    // 320x160 sphere geometry gives crisp physical relief of ridges, trenches, mountain belts
+    const earthGeo = new THREE.SphereGeometry(GLOBE_BASE_R, 320, 160);
+    const earthTexture = new THREE.Texture();
+    if('colorSpace' in earthTexture) earthTexture.colorSpace = THREE.SRGBColorSpace;
 
-    terrainWaterBaseRadii = new Float32Array(count);
-    terrainNormals = new Float32Array(count * 3);
-
-    // ─── PER-VERTEX COLOR ARRAYS ───────────────────────────────────────────────
-    const vertColors = new Float32Array(count * 3);
-
-    // ─── GEOLOGY HELPERS ──────────────────────────────────────────────────────
-    // Simple hash noise for terrain roughness (no external library needed)
-    function hashNoise(lat, lon, freq, seed){
-      const x = Math.sin(lat * freq * 0.174533 + seed * 1.3) * 43758.5453;
-      const y = Math.sin(lon * freq * 0.174533 + seed * 2.7) * 43758.5453;
-      return ((x - Math.floor(x)) + (y - Math.floor(y))) * 0.5 - 0.25;
-    }
-    function fractalNoise(lat, lon, octaves, seed){
-      let v = 0; let amp = 1.0; let freq = 1.0; let maxV = 0;
-      for(let o = 0; o < octaves; o++){
-        v += hashNoise(lat, lon, freq, seed + o * 17.4) * amp;
-        maxV += amp; amp *= 0.5; freq *= 2.1;
-      }
-      return v / maxV;
-    }
-
-    // Signed elevation above mean sea level in metres (positive = above, negative = below)
-    // Returns { elev_m, isLand }
-    function getTerrainElevation(lat, lon){
-      let isLand = false;
-      if(oceanMaskData){
-        const px = Math.max(0, Math.min(1023, Math.floor(((lon + 180.0) / 360.0) * 1024)));
-        const py = Math.max(0, Math.min(511,  Math.floor(((90.0 - lat) / 180.0) * 512)));
-        isLand = (oceanMaskData[(py * 1024 + px) * 4] < 128);
-      }
-
-      // Base noise for roughness on top of tectonic model
-      const roughness = fractalNoise(lat, lon, 5, 3.7) * (isLand ? 400 : 250);
-
-      if(isLand){
-        // ─── LAND ELEVATION MODEL ─────────────────────────────────
-        let elev = 250 + roughness;                // gentle rolling plains baseline
-
-        // Major mountain belts (Gaussian peaks)
-        const RANGES = [
-          // Himalayas / Tibet Plateau
-          { lat0: 30, lon0: 84,  dlat: 7,  dlon: 20, h: 5500 },
-          // Alps
-          { lat0: 46, lon0: 10,  dlat: 3,  dlon: 7,  h: 3200 },
-          // Andes
-          { lat0: -18, lon0: -68, dlat: 28, dlon: 6,  h: 4500 },
-          // Rockies
-          { lat0: 45, lon0: -114, dlat: 18, dlon: 6,  h: 3200 },
-          // East Africa Rift / Ethiopian Highlands
-          { lat0: 8,  lon0: 38,  dlat: 10, dlon: 5,  h: 3000 },
-          // Atlas Mountains
-          { lat0: 32, lon0: -3,  dlat: 4,  dlon: 8,  h: 2800 },
-          // Greenland Ice Sheet (high plateau)
-          { lat0: 72, lon0: -42, dlat: 8,  dlon: 20, h: 2000 },
-          // Antarctica (ice sheet plateau)
-          { lat0: -85, lon0: 0,  dlat: 5,  dlon: 180, h: 2400 },
-          // Scandinavia
-          { lat0: 62, lon0: 15,  dlat: 8,  dlon: 6,  h: 1800 },
-          // Appalachians
-          { lat0: 40, lon0: -79, dlat: 10, dlon: 3,  h: 1800 },
-          // Zagros / Iran Plateau
-          { lat0: 30, lon0: 53,  dlat: 6,  dlon: 10, h: 2600 },
-          // Sumatra / Java Volcanic Arc
-          { lat0: -2, lon0: 104, dlat: 3,  dlon: 12, h: 2400 },
-          // Japanese Alps
-          { lat0: 36, lon0: 137, dlat: 3,  dlon: 2,  h: 2800 },
-          // New Zealand Southern Alps
-          { lat0: -44, lon0: 170, dlat: 4, dlon: 3,  h: 2500 },
-        ];
-        for(const r of RANGES){
-          const dlat = lat - r.lat0;
-          let dlon = lon - r.lon0;
-          if(dlon > 180) dlon -= 360; if(dlon < -180) dlon += 360;
-          const d2 = (dlat/r.dlat)**2 + (dlon/r.dlon)**2;
-          elev += r.h * Math.exp(-d2 * 2.0);
-        }
-
-        // Polar ice bonus
-        const poleFactor = Math.max(0, (Math.abs(lat) - 65) / 25.0);
-        elev += poleFactor * 1200;
-
-        // Desert lowlands penalty (Sahara, Arabian Peninsula, Australian Outback)
-        const DESERTS = [
-          { lat0: 24, lon0: 22, dlat: 12, dlon: 25 },  // Sahara
-          { lat0: 23, lon0: 46, dlat:  8, dlon: 15 },  // Arabian
-          { lat0: -25, lon0: 134, dlat: 12, dlon: 18 },// Australian
-          { lat0: -24, lon0: 22, dlat:  8, dlon: 10 }, // Kalahari
-        ];
-        for(const d of DESERTS){
-          const dlat = lat - d.lat0;
-          let dlon = lon - d.lon0;
-          if(dlon > 180) dlon -= 360; if(dlon < -180) dlon += 360;
-          const d2 = (dlat/d.dlat)**2 + (dlon/d.dlon)**2;
-          elev -= 120 * Math.exp(-d2 * 2.0);
-        }
-
-        return { elev_m: Math.max(0, elev), isLand: true };
-
-      } else {
-        // ─── OCEAN ELEVATION / BATHYMETRY MODEL ──────────────────
-        // Plate-tectonic model: mid-ocean ridges start at ~-2500m, deepen to ~-6000m (abyssal plains)
-        // as age of oceanic crust increases away from the ridge axis
-
-        let depth = -3800;   // global mean ocean depth baseline
-
-        // Mid-Ocean Ridges (elevated ~+1500-3000m above abyssal plain)
-        const RIDGES = [
-          { lat0:  0, lon0: -30, dlat: 80, dlon: 12, h: 2500 }, // Mid-Atlantic Ridge
-          { lat0:  0, lon0: 88,  dlat: 40, dlon: 8,  h: 1800 }, // Ninety East Ridge
-          { lat0: -50, lon0: 70, dlat: 20, dlon: 8,  h: 2200 }, // Southwest Indian Ridge
-          { lat0:  0, lon0: -110, dlat:60, dlon:12,  h: 2200 }, // East Pacific Rise
-          { lat0:  0, lon0: 65,  dlat: 30, dlon: 10, h: 1600 }, // Central Indian Ridge
-          { lat0: -55, lon0:-30, dlat:20, dlon: 10,  h: 1800 }, // South Atlantic Ridge
-          { lat0: 65, lon0: -30, dlat: 10, dlon: 12, h: 1200 }, // Reykjanes Ridge
-        ];
-        for(const r of RIDGES){
-          const dlat = lat - r.lat0;
-          let dlon = lon - r.lon0;
-          if(dlon > 180) dlon -= 360; if(dlon < -180) dlon += 360;
-          const d2 = (dlat/r.dlat)**2 + (dlon/r.dlon)**2;
-          depth += r.h * Math.exp(-d2 * 3.5);
-        }
-
-        // Oceanic Trenches (deep depressions)
-        const TRENCHES = [
-          { lat0: 11.3,  lon0: 142.6, dlat: 3, dlon: 2.5, d: -4500 }, // Mariana
-          { lat0: -8.5,  lon0: 111,   dlat: 2, dlon: 3,   d: -3800 }, // Java/Sunda
-          { lat0: 51,    lon0: 157,   dlat: 4, dlon: 2,   d: -3500 }, // Kuril-Kamchatka
-          { lat0: -24,   lon0: -71,   dlat: 4, dlon: 1.5, d: -4200 }, // Atacama
-          { lat0:  9,    lon0: -76,   dlat: 4, dlon: 1.5, d: -3500 }, // Puerto Rico
-          { lat0: 14,    lon0: 124,   dlat: 4, dlon: 2,   d: -3200 }, // Philippine
-          { lat0: 34,    lon0: 141,   dlat: 3, dlon: 1.5, d: -3500 }, // Japan
-          { lat0: -56,   lon0: -70,   dlat: 2, dlon: 1.5, d: -3000 }, // South Sandwich
-          { lat0:  0,    lon0: -88,   dlat: 3, dlon: 1.5, d: -3200 }, // Middle America
-        ];
-        for(const t of TRENCHES){
-          const dlat = lat - t.lat0;
-          let dlon = lon - t.lon0;
-          if(dlon > 180) dlon -= 360; if(dlon < -180) dlon += 360;
-          const d2 = (dlat/t.dlat)**2 + (dlon/t.dlon)**2;
-          depth += t.d * Math.exp(-d2 * 5.0);
-        }
-
-        // Continental shelves (shallow, 0 to -200m near land)
-        depth += roughness * 0.4;
-        depth = Math.max(depth, -11000);  // clamp at deepest trench
-
-        return { elev_m: Math.min(-30, depth), isLand: false };
-      }
-    }
-
-    // ─── LAND BIOME VERTEX COLOR ───────────────────────────────────────────
-    function landColor(elev_m, lat){
-      const e = elev_m;
-      const absLat = Math.abs(lat);
-      const poleness = Math.max(0, (absLat - 68) / 22.0); // 0 at 68°, 1 at 90°
-
-      // Snow/ice on high peaks or polar regions
-      const snowLine = 4200 - (absLat - 30) * 30;  // lower snow line at higher latitudes
-      if(e > snowLine || poleness > 0.7){
-        const t = Math.min(1, poleness > 0.7 ? poleness : (e - snowLine) / 1500);
-        // White snow blending with rock
-        return [0.92 + t * 0.06, 0.93 + t * 0.05, 0.95 + t * 0.04];
-      }
-      // Rocky high mountain (grey-brown)
-      if(e > 3200){
-        const t = Math.min(1, (e - 3200) / 1000);
-        return [0.52 + t*0.12, 0.47 + t*0.08, 0.42 + t*0.06];
-      }
-      // Highlands / brown-olive
-      if(e > 1500){
-        const t = Math.min(1, (e - 1500) / 1700);
-        return [0.55 + t*0.10, 0.48 + t*0.02, 0.30 + t*0.05];
-      }
-      // Medium elevation green to brown-green
-      if(e > 400){
-        const t = Math.min(1, (e - 400) / 1100);
-        // Tropical vs temperate coloring
-        const isTropical = absLat < 25;
-        if(isTropical) return [0.28 - t*0.04, 0.55 - t*0.08, 0.22 - t*0.05];
-        return [0.38 - t*0.04, 0.52 - t*0.08, 0.28 - t*0.05];
-      }
-      // Lowland plains
-      const isTropical = absLat < 25;
-      const isSubtropical = absLat < 38;
-      // Desert/savanna tone for subtropical dry zones, green for wet tropics/temperate
-      const n = fractalNoise(lat, 0, 2, 7.3);
-      if(isTropical){
-        // Dense tropical green
-        return [0.19 + n*0.05, 0.52 + n*0.06, 0.15 + n*0.04];
-      }
-      if(isSubtropical){
-        // Savanna / semi-arid: gold-green
-        return [0.58 + n*0.06, 0.52 + n*0.05, 0.25 + n*0.04];
-      }
-      // Temperate: medium green
-      return [0.32 + n*0.05, 0.50 + n*0.06, 0.22 + n*0.04];
-    }
-
-    // ─── OCEAN DEPTH VERTEX COLOR (bathymetric scale matching alteredqualia reference) ───
-    // Uses a 7-stop colormap: trench (near-black navy) → abyssal (dark blue) →
-    //   deep sea (royal blue) → ridge (teal-blue) → shelf (light blue) → very shallow (cyan)
-    const BATHY_STOPS = [
-      { d: -11000, rgb: [0.01, 0.02, 0.12] }, // trench — near-black navy
-      { d: -6000,  rgb: [0.02, 0.05, 0.22] }, // ultra-deep abyssal
-      { d: -4000,  rgb: [0.04, 0.10, 0.36] }, // abyssal plain — deep navy-blue
-      { d: -2500,  rgb: [0.06, 0.18, 0.55] }, // deep ocean
-      { d: -1500,  rgb: [0.08, 0.28, 0.68] }, // mid-ocean ridge flank — rich blue
-      { d:  -500,  rgb: [0.10, 0.42, 0.76] }, // ridge summit / seamount
-      { d:  -200,  rgb: [0.14, 0.56, 0.80] }, // continental slope
-      { d:   -30,  rgb: [0.26, 0.72, 0.85] }, // continental shelf — light teal
-    ];
-    function bathyColor(depth_m){
-      const d = Math.max(-11000, Math.min(-30, depth_m));
-      if(d <= BATHY_STOPS[0].d) return [...BATHY_STOPS[0].rgb];
-      for(let i = 1; i < BATHY_STOPS.length; i++){
-        if(d <= BATHY_STOPS[i].d){
-          const a = BATHY_STOPS[i-1], b = BATHY_STOPS[i];
-          const f = (d - a.d) / (b.d - a.d);
-          return [a.rgb[0]+(b.rgb[0]-a.rgb[0])*f, a.rgb[1]+(b.rgb[1]-a.rgb[1])*f, a.rgb[2]+(b.rgb[2]-a.rgb[2])*f];
-        }
-      }
-      return [...BATHY_STOPS[BATHY_STOPS.length - 1].rgb];
-    }
-
-    // ─── PER-VERTEX DISPLACEMENT & COLOR ─────────────────────────────────────
-    const ELEV_SCALE = 1.0 / 10000.0;   // 10km → 1 unit in 3D space (baseR=10)
-    const HEIGHT_EXAGGERATION = 4.0;     // visual exaggeration so terrain is clearly visible
-
-    for(let i = 0; i < count; i++){
-      const x0 = posAttr.getX(i);
-      const y0 = posAttr.getY(i);
-      const z0 = posAttr.getZ(i);
-      const len = Math.sqrt(x0*x0 + y0*y0 + z0*z0) || 1.0;
-      const nx = x0 / len, ny = y0 / len, nz = z0 / len;
-
-      terrainNormals[i*3]     = nx;
-      terrainNormals[i*3 + 1] = ny;
-      terrainNormals[i*3 + 2] = nz;
-
-      const lat = Math.asin(Math.max(-1.0, Math.min(1.0, ny))) * (180.0 / Math.PI);
-      const lon = Math.atan2(nx, nz) * (180.0 / Math.PI);
-
-      // Geoid undulation (Potsdam potato shape)
-      const gVal = calcGeoidUndulation(lat, lon);
-      const dGeoid = (gVal / 80.0) * 1.20;
-
-      // Elevation from geology model
-      const { elev_m, isLand } = getTerrainElevation(lat, lon);
-
-      // Water level equilibrium surface = geoid surface
-      terrainWaterBaseRadii[i] = baseR + dGeoid;
-
-      // Solid bedrock radius (with exaggerated topography on top of geoid)
-      const dTopo = elev_m * ELEV_SCALE * HEIGHT_EXAGGERATION;
-      const rSolid = baseR + dGeoid + dTopo;
-      posAttr.setXYZ(i, nx * rSolid, ny * rSolid, nz * rSolid);
-
-      // Per-vertex color
-      let [cr, cg, cb] = isLand ? landColor(elev_m, lat) : bathyColor(elev_m);
-
-      // Coastline darkening (transition pixels from the mask edge)
-      if(isLand && oceanMaskData){
-        const px = Math.max(0, Math.min(1023, Math.floor(((lon + 180.0) / 360.0) * 1024)));
-        const py = Math.max(0, Math.min(511,  Math.floor(((90.0 - lat) / 180.0) * 512)));
-        let neighborOcean = false;
-        for(const [dx, dy] of [[-1,0],[1,0],[0,-1],[0,1]]){
-          const nx2 = Math.max(0,Math.min(1023, px+dx)), ny2 = Math.max(0,Math.min(511, py+dy));
-          if(oceanMaskData[(ny2*1024+nx2)*4] >= 128){ neighborOcean = true; break; }
-        }
-        if(neighborOcean){ cr *= 0.55; cg *= 0.55; cb *= 0.55; } // dark shoreline strip
-      }
-
-      // Blend geoid color tint (subtle) over the terrain color
-      const gNorm = Math.max(0, Math.min(1, (gVal + 80) / 160.0));
-      const geoidTint = geoidColor(gVal);
-      const GEOID_BLEND = 0.12;   // 12% geoid tint overlay
-      cr = cr*(1-GEOID_BLEND) + geoidTint[0]*GEOID_BLEND;
-      cg = cg*(1-GEOID_BLEND) + geoidTint[1]*GEOID_BLEND;
-      cb = cb*(1-GEOID_BLEND) + geoidTint[2]*GEOID_BLEND;
-
-      vertColors[i*3]   = Math.max(0, Math.min(1, cr));
-      vertColors[i*3+1] = Math.max(0, Math.min(1, cg));
-      vertColors[i*3+2] = Math.max(0, Math.min(1, cb));
-    }
-
-    posAttr.needsUpdate = true;
-    solidGeo.setAttribute('color', new THREE.BufferAttribute(vertColors, 3));
-    solidGeo.computeVertexNormals();
-
-    const solidMat = new THREE.MeshStandardMaterial({
-      vertexColors: true,
-      roughness: 0.72,
-      metalness: 0.04,
+    const terrainMat = new THREE.MeshStandardMaterial({
+      color: 0x8ba690,
+      map: earthTexture,
+      roughness: 0.75,
+      metalness: 0.04
     });
 
-    solidEarthMesh = new THREE.Mesh(solidGeo, solidMat);
-    terrainGroup.add(solidEarthMesh);
+    terrainMesh = new THREE.Mesh(earthGeo, terrainMat);
+    terrainGroup.add(terrainMesh);
+    solidEarthMesh = terrainMesh; // alias for compatibility
 
-    // ─── 2. 3D DYNAMIC WATER LEVEL TERRAIN SHELL ───
-    const waterGeo = new THREE.SphereGeometry(baseR, segW, segH);
-    const waterPosAttr = waterGeo.attributes.position;
-    for(let i = 0; i < count; i++){
-      const nx = terrainNormals[i*3];
-      const ny = terrainNormals[i*3 + 1];
-      const nz = terrainNormals[i*3 + 2];
-      const rw = terrainWaterBaseRadii[i];
-      waterPosAttr.setXYZ(i, nx * rw, ny * rw, nz * rw);
-    }
-    waterPosAttr.needsUpdate = true;
-    waterGeo.computeVertexNormals();
+    // Load high-resolution NASA Blue Marble texture (local asset first, CDN fallback)
+    const texLoader = new THREE.TextureLoader();
+    texLoader.load(EARTH_TEXTURE_LOCAL, (tex) => {
+      tex.anisotropy = Math.min(8, terrainRenderer.capabilities.getMaxAnisotropy());
+      tex.minFilter = THREE.LinearMipmapLinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      if('colorSpace' in tex) tex.colorSpace = THREE.SRGBColorSpace;
+      terrainMat.color.setHex(0xffffff);
+      terrainMat.map = tex;
+      terrainMat.needsUpdate = true;
+    }, undefined, () => {
+      // Fallback to remote CDN if local asset is missing
+      texLoader.load(EARTH_TEXTURE_REMOTE, (tex) => {
+        if('colorSpace' in tex) tex.colorSpace = THREE.SRGBColorSpace;
+        terrainMat.color.setHex(0xffffff);
+        terrainMat.map = tex;
+        terrainMat.needsUpdate = true;
+      });
+    });
 
-    const waterMat = new THREE.MeshStandardMaterial({
-      color: 0x0072b2,
-      roughness: 0.12,
-      metalness: 0.25,
+    // ── 2. DYNAMIC 3D WATER SHELL (CUSTOM GLSL SHADER) ──────────────────────
+    // Sits at sea-level radius. Per-pixel checks ETOPO elevation and discards
+    // water where terrain is above sea level. Dropping sea level sinks the shell
+    // into the ocean basins, exposing the true 3D depth of the ocean floor.
+    const waterGeo = new THREE.SphereGeometry(GLOBE_BASE_R, 320, 160);
+    waterMaterial = new THREE.ShaderMaterial({
       transparent: true,
-      opacity: 0.86,
-      depthWrite: true,
-      depthTest: true
+      depthWrite: false,
+      side: THREE.FrontSide,
+      uniforms: {
+        uHeight:      { value: null },
+        uSeaLevel:    { value: 0.0 },
+        uHeightReady: { value: 0.0 },
+        uHeightSize:  { value: new THREE.Vector2(ETOPO_WIDTH, ETOPO_HEIGHT) }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vWorldPos;
+        void main(){
+          vUv = uv;
+          vNormal = normalize(normalMatrix * normal);
+          vec4 world = modelMatrix * vec4(position, 1.0);
+          vWorldPos = world.xyz;
+          gl_Position = projectionMatrix * viewMatrix * world;
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D uHeight;
+        uniform float uSeaLevel;
+        uniform float uHeightReady;
+        uniform vec2 uHeightSize;
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vWorldPos;
+
+        float decodeElevationTexel(vec2 uv){
+          vec4 c = texture2D(uHeight, uv);
+          float hi = floor(c.r * 255.0 + 0.5);
+          float lo = floor(c.g * 255.0 + 0.5);
+          float code = hi * 256.0 + lo;
+          return -11000.0 + (code / 65535.0) * 20000.0;
+        }
+
+        float sampleElevationSmooth(vec2 uv){
+          vec2 texel = uv * uHeightSize - 0.5;
+          vec2 f = fract(texel);
+          vec2 base = floor(texel);
+
+          float latDeg = (uv.y - 0.5) * 180.0;
+          if (abs(latDeg) > 88.0) {
+            float best = -11000.0;
+            for (int i = 0; i < 12; i++) {
+              float lonShift = float(i) / 12.0;
+              vec2 sampleUv = vec2(fract(uv.x + lonShift), uv.y);
+              best = max(best, decodeElevationTexel(sampleUv));
+            }
+            return best;
+          }
+
+          vec2 uv00 = (base + vec2(0.5, 0.5)) / uHeightSize;
+          vec2 uv10 = (base + vec2(1.5, 0.5)) / uHeightSize;
+          vec2 uv01 = (base + vec2(0.5, 1.5)) / uHeightSize;
+          vec2 uv11 = (base + vec2(1.5, 1.5)) / uHeightSize;
+
+          uv00.x = fract(uv00.x); uv10.x = fract(uv10.x);
+          uv01.x = fract(uv01.x); uv11.x = fract(uv11.x);
+          uv00.y = clamp(uv00.y, 0.0, 1.0); uv10.y = clamp(uv10.y, 0.0, 1.0);
+          uv01.y = clamp(uv01.y, 0.0, 1.0); uv11.y = clamp(uv11.y, 0.0, 1.0);
+
+          float e00 = decodeElevationTexel(uv00);
+          float e10 = decodeElevationTexel(uv10);
+          float e01 = decodeElevationTexel(uv01);
+          float e11 = decodeElevationTexel(uv11);
+
+          float e0 = mix(e00, e10, f.x);
+          float e1 = mix(e01, e11, f.x);
+          return mix(e0, e1, f.y);
+        }
+
+        // Shared scientific thermal/ocean color gradient
+        vec3 thermalColor(float t){
+          vec3 c0 = vec3(0.06, 0.16, 0.42); // -1.8C deep navy
+          vec3 c1 = vec3(0.12, 0.42, 0.82); //  4.0C oceanic blue
+          vec3 c2 = vec3(0.15, 0.72, 0.78); // 12.0C teal/cyan
+          vec3 c3 = vec3(0.96, 0.58, 0.22); // 20.0C warm gold/orange
+          vec3 c4 = vec3(0.94, 0.24, 0.32); // 30.0C tropical coral
+
+          if (t <= -1.8) return c0;
+          if (t <= 4.0)  return mix(c0, c1, (t + 1.8) / 5.8);
+          if (t <= 12.0) return mix(c1, c2, (t - 4.0) / 8.0);
+          if (t <= 20.0) return mix(c2, c3, (t - 12.0) / 8.0);
+          if (t <= 30.0) return mix(c3, c4, (t - 20.0) / 10.0);
+          return c4;
+        }
+
+        float latitudeTemperature(float latDeg){
+          const float T_EQUATOR = 30.0;
+          const float T_POLE = -1.8;
+          float n = clamp(abs(latDeg), 0.0, 90.0) / 90.0;
+          return T_POLE + (T_EQUATOR - T_POLE) * cos(n * 1.5707963267948966);
+        }
+
+        void main(){
+          float waterMask = 1.0;
+          float elevation = 0.0;
+          if (uHeightReady > 0.5) {
+            elevation = sampleElevationSmooth(vUv);
+            float landMask = step(0.0001, elevation);
+            float oceanMask = 1.0 - landMask;
+            // Anti-aliased coastline transition
+            float edgeHalfWidth = 8.0;
+            float coastalMask = 1.0 - smoothstep(uSeaLevel - edgeHalfWidth, uSeaLevel + edgeHalfWidth, elevation);
+            waterMask = oceanMask * coastalMask;
+            if (waterMask <= 0.003) discard;
+          }
+
+          float lat = (vUv.y - 0.5) * 180.0;
+          float depth = max(0.0, uSeaLevel - elevation);
+          float temp = latitudeTemperature(lat) - 3.0 * clamp(depth / 6000.0, 0.0, 1.0);
+          vec3 col = thermalColor(temp);
+
+          vec3 viewDir = normalize(cameraPosition - vWorldPos);
+          float fresnel = pow(1.0 - max(dot(normalize(vNormal), viewDir), 0.0), 3.0);
+          col *= (0.84 + fresnel * 0.30);
+
+          gl_FragColor = vec4(col, (0.65 + fresnel * 0.25) * waterMask);
+        }
+      `
     });
 
-    waterTerrainMesh = new THREE.Mesh(waterGeo, waterMat);
-    terrainGroup.add(waterTerrainMesh);
+    waterMesh = new THREE.Mesh(waterGeo, waterMaterial);
+    waterMesh.renderOrder = 1;
+    terrainMesh.renderOrder = 0;
+    terrainGroup.add(waterMesh);
+    waterTerrainMesh = waterMesh; // alias for compatibility
 
-    // ─── 3. INTERACTIVE MOUSE & TOUCH ORBIT CONTROLS ───
+    // ── 3. INTERACTIVE ORBIT CONTROLS & RAYCASTING ────────────────────────────
     container.addEventListener('mousedown', (e) => {
       if(e.button !== 0) return;
       terrainIsDragging = true;
@@ -1262,10 +1258,7 @@ function initThreeTerrainGlobe(){
 
     let touchStartX = 0, touchStartY = 0;
     container.addEventListener('touchstart', (e) => {
-      if(e.touches.length === 1){
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
-      }
+      if(e.touches.length === 1){ touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; }
     }, { passive: true });
     container.addEventListener('touchmove', (e) => {
       if(e.touches.length === 1 && terrainCamera){
@@ -1274,55 +1267,74 @@ function initThreeTerrainGlobe(){
         terrainSpherical.theta -= dx * 0.008;
         terrainSpherical.phi = Math.max(0.08, Math.min(Math.PI - 0.08, terrainSpherical.phi - dy * 0.008));
         updateTerrainCamera();
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
+        touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY;
       }
     }, { passive: true });
-
     container.addEventListener('wheel', (e) => {
       e.preventDefault();
       if(!terrainCamera) return;
-      terrainSpherical.radius = Math.max(14.0, Math.min(65.0, terrainSpherical.radius + e.deltaY * 0.025));
+      terrainSpherical.radius = Math.max(13.0, Math.min(70.0, terrainSpherical.radius + e.deltaY * 0.025));
       updateTerrainCamera();
     }, { passive: false });
-
     window.addEventListener('resize', onTerrainResize);
 
-    // ─── 4. BUTTON EVENT LISTENERS ───
+    // Raycast on hover to show exact ETOPO1 depth in the callout box
+    const raycaster = new THREE.Raycaster();
+    const mouseVec = new THREE.Vector2();
+    container.addEventListener('pointermove', (e) => {
+      if(!terrainCamera || !terrainMesh || !etopoData) return;
+      const rect = container.getBoundingClientRect();
+      mouseVec.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouseVec.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouseVec, terrainCamera);
+      const hits = raycaster.intersectObject(terrainMesh, false);
+      if(hits && hits.length > 0){
+        const hit = hits[0];
+        const u = hit.uv ? hit.uv.x : 0.5;
+        const v = hit.uv ? hit.uv.y : 0.5;
+        const elev = Math.round(sampleElevation(u, v));
+        const lat = (v - 0.5) * 180.0;
+        const lon = ((u * 360 + 180) % 360) - 180;
+        const calloutDesc = document.getElementById("terrainCalloutDesc");
+        const isSubmerged = elev <= currentSeaLevelMeters;
+        const depthM = Math.max(0, Math.round(currentSeaLevelMeters - elev));
+        if(calloutDesc){
+          const latStr = `${Math.abs(lat).toFixed(1)}°${lat >= 0 ? 'N' : 'S'}`;
+          const lonStr = `${Math.abs(lon).toFixed(1)}°${lon >= 0 ? 'E' : 'W'}`;
+          calloutDesc.innerHTML = `<span style="color:#3fe0c5; font-weight:600;">Point Inspector:</span> ${latStr}, ${lonStr} | ` +
+            (isSubmerged
+              ? `<span style="color:#38bdf8;">Water Depth: <strong>-${depthM.toLocaleString()} m</strong> (Bedrock: ${elev.toLocaleString()} m)</span>`
+              : `<span style="color:#4ade80;">Exposed: <strong>+${elev.toLocaleString()} m elevation</strong></span>`);
+        }
+      }
+    }, { passive: true });
+
+    // ── 4. CAMERA VIEW PRESET BUTTONS ─────────────────────────────────────────
     const btnIOGL = document.getElementById("btnCamIOGL");
     if(btnIOGL) btnIOGL.onclick = () => setTerrainCameraView(4.5, 78.0);
-
     const btnNA = document.getElementById("btnCamNA");
     if(btnNA) btnNA.onclick = () => setTerrainCameraView(55.0, -25.0);
-
     const btnMAR = document.getElementById("btnCamMAR");
     if(btnMAR) btnMAR.onclick = () => setTerrainCameraView(25.0, -40.0);
-
     const btnOverview = document.getElementById("btnCamOverview");
     if(btnOverview) btnOverview.onclick = () => setTerrainCameraView(20.0, 50.0);
-
     const btnAuto = document.getElementById("btnTerrainAutoRotate");
     if(btnAuto) btnAuto.onclick = () => {
       terrainAutoRotate = !terrainAutoRotate;
       btnAuto.style.borderColor = terrainAutoRotate ? "#3fe0c5" : "var(--line)";
       btnAuto.style.color = terrainAutoRotate ? "#3fe0c5" : "var(--text)";
     };
-
     const btnAnim = document.getElementById("btnTerrainAnim");
     if(btnAnim) btnAnim.onclick = toggleDrainAnimation;
-
     const btnSideAnim = document.getElementById("btnSidebarDrainAnim");
     if(btnSideAnim) btnSideAnim.onclick = toggleDrainAnimation;
-
     const btnSideSwitch = document.getElementById("btnSidebarSwitchTerrain");
     if(btnSideSwitch) btnSideSwitch.onclick = () => switchMainView('terrain');
 
-    // ─── 5. ANIMATION LOOP ───
+    // ── 5. ANIMATION LOOP ────────────────────────────────────────────────────
     function animateTerrainGlobe(){
       requestAnimationFrame(animateTerrainGlobe);
-      if(terrainAutoRotate && terrainGroup){
-        terrainGroup.rotation.y += 0.003;
-      }
+      if(terrainAutoRotate && terrainGroup) terrainGroup.rotation.y += 0.0025;
       if(terrainScene && terrainCamera && terrainRenderer && state.mainView === 'terrain'){
         terrainRenderer.render(terrainScene, terrainCamera);
       }
@@ -1330,36 +1342,39 @@ function initThreeTerrainGlobe(){
     animateTerrainGlobe();
 
     threeTerrainGlobeInitialized = true;
-  } catch(err) {
+
+    // Load real NOAA ETOPO1 elevation from local backend
+    loadLocalHeightmap();
+
+  } catch(err){
     console.error("Three.js Terrain Globe initialization error:", err);
   }
 }
 
 function update3DWaterLevelTerrain(valPercent){
-  if(!waterTerrainMesh) return;
-
-  // Hard cap: water cannot rise above 0m (sea level)
+  // Hard cap: water cannot rise above sea level (0 m / 100%)
   valPercent = Math.max(0, Math.min(100, valPercent));
 
-  const pos = waterTerrainMesh.geometry.attributes.position;
-  const count = pos.count;
+  // Linear progression: 100% = 0 m (normal ocean), 0% = -11000 m (deepest ocean trench dry)
+  const frac = (100 - valPercent) / 100.0;
+  const meters = -frac * 11000.0;
+  currentSeaLevelMeters = meters;
 
-  if(valPercent <= 0){
-    // 0% -> Complete Drainage: No water at all! Reveals bare solid Earth without water
-    waterTerrainMesh.visible = false;
-  } else {
-    waterTerrainMesh.visible = true;
-    // hOffset is always ≤ 0 (water sinks from geoid baseline, never rises above it)
-    const hOffset = ((valPercent - 100) / 100.0) * 1.30;
-    for(let i = 0; i < count; i++){
-      const nx = terrainNormals[i*3];
-      const ny = terrainNormals[i*3 + 1];
-      const nz = terrainNormals[i*3 + 2];
-      const r = terrainWaterBaseRadii[i] + hOffset;
-      pos.setXYZ(i, nx * r, ny * r, nz * r);
+  // 1. Update GLSL shader uSeaLevel uniform (instant fragment discard of water above sea level)
+  if(waterMaterial && waterMaterial.uniforms.uSeaLevel){
+    waterMaterial.uniforms.uSeaLevel.value = meters;
+  }
+
+  // 2. Physical water sphere descends into the ocean basins
+  if(waterMesh){
+    if(valPercent <= 0){
+      // 0%: Full drainage! No water on Earth, bare deep ocean basins revealed
+      waterMesh.visible = false;
+    } else {
+      waterMesh.visible = true;
+      const targetRadius = seaLevelToRadius(meters);
+      waterMesh.scale.setScalar(targetRadius / GLOBE_BASE_R);
     }
-    pos.needsUpdate = true;
-    waterTerrainMesh.geometry.computeVertexNormals();
   }
 
   updateTerrainHudReadout(valPercent);
