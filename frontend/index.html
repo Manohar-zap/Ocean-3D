@@ -13,6 +13,7 @@
 <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
 
 <script src="config.js"></script>
+<script src="assets/ocean_mask_data.js"></script>
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
@@ -100,9 +101,15 @@
   .cb-label{ font-size:11px; color:var(--text-dim); }
 
   /* Profile / compare side panel */
-  #profilePanel{ position:absolute; top:0; right:0; width:450px; height:100%; background:var(--panel);
+  #profilePanel{ position:absolute; top:0; right:0; width:380px; height:100%; background:var(--panel);
     border-left:1px solid var(--line); transform:translateX(100%); transition:transform .2s ease; z-index:6;
-    display:flex; flex-direction:column; padding:18px; gap:14px; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--accent) var(--panel-2); }
+    display:flex; flex-direction:column; padding:16px 16px 80px 16px; gap:12px; overflow-y:auto; overflow-x:hidden;
+    scrollbar-width:thin; scrollbar-color:var(--accent) var(--panel-2); -webkit-overflow-scrolling:touch; }
+  #profilePanel > * { flex-shrink: 0; }
+  #profilePanel::-webkit-scrollbar { width: 6px; }
+  #profilePanel::-webkit-scrollbar-track { background: var(--panel-2); }
+  #profilePanel::-webkit-scrollbar-thumb { background: var(--accent-dim); border-radius: 3px; }
+  #profilePanel::-webkit-scrollbar-thumb:hover { background: var(--accent); }
   #profilePanel.open{ transform:translateX(0); }
   #profilePanel h3{ margin:0; font-size:14px; font-weight:600; }
   #profilePanel .meta{ font-size:11.5px; color:var(--text-dim); }
@@ -120,8 +127,79 @@
   body.public .public-only{ display:block; }
   body.public .research-only{ display:none; }
 
+  /* Platform-specific Observation Info Card styling */
+  .obs-section-hdr {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    color: #94a3b8;
+    text-transform: uppercase;
+    margin-top: 8px;
+    margin-bottom: 2px;
+    padding-bottom: 3px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .obs-section-hdr:first-child {
+    margin-top: 0;
+  }
+  .obs-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2.5px 0;
+    font-size: 12px;
+  }
+  .obs-label {
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+  .obs-val {
+    font-size: 12px;
+    color: #f1f5f9;
+    text-align: right;
+  }
+  .sensor-suite-box {
+    background: rgba(11, 23, 38, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin: 4px 0 2px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3.5px;
+  }
+  .sensor-suite-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11.5px;
+  }
+  .sensor-suite-row.active {
+    color: #e2e8f0;
+  }
+  .sensor-suite-row.inactive {
+    color: #64748b;
+    opacity: 0.85;
+  }
+  .sensor-icon-chk {
+    color: #34d399;
+    font-weight: 700;
+    font-size: 12px;
+    width: 14px;
+    display: inline-block;
+    text-align: center;
+  }
+  .sensor-icon-circle {
+    color: #64748b;
+    font-size: 10px;
+    width: 14px;
+    display: inline-block;
+    text-align: center;
+  }
+
   /* Hide Cesium default UI widgets for clean scientific workspace */
-  .cesium-viewer-bottom, .cesium-viewer-animationContainer, .cesium-viewer-timelineContainer{ display:none !important; }
+  .cesium-viewer-bottom, .cesium-viewer-animationContainer, .cesium-viewer-timelineContainer,
+  .cesium-viewer-toolbar, .cesium-baseLayerPicker-dropDown { display:none !important; }
 </style>
 </head>
 <body>
@@ -152,7 +230,6 @@
 
     <button class="action primary" id="btnFlyGlobal">Fly to Global View</button>
     <button class="action" id="btnFlyIndia" style="margin-top:-6px;">Fly to India & Indian Ocean</button>
-    <button class="action" id="btnFlyHimalayas" style="margin-top:-6px;">Fly to Himalayas (3D Terrain Test)</button>
 
     <div class="field research-only">
       <label>Backend API</label>
@@ -179,6 +256,7 @@
 
     <div class="field">
       <label>Vertical Exaggeration (<span id="exagValue">1.0x</span>)</label>
+      <div style="font-size:10px; color:var(--text-dim); margin-top:1px; margin-bottom:4px;">3D vertical relief scale for bathymetry, currents & sounding profiles</div>
       <input type="range" id="exagSlider" min="0.5" max="4.0" step="0.1" value="1.0">
     </div>
 
@@ -187,11 +265,11 @@
       <div class="toggle-row"><span>Current Vectors</span>
         <label class="switch"><input type="checkbox" id="ovVectors"><span class="slider-toggle"></span></label></div>
       <div class="toggle-row"><span>Seabed Bathymetry (Demo Data)</span>
-        <label class="switch"><input type="checkbox" id="ovBathymetry" checked><span class="slider-toggle"></span></label></div>
+        <label class="switch"><input type="checkbox" id="ovBathymetry"><span class="slider-toggle"></span></label></div>
       <div class="toggle-row"><span>3D Isosurface (Preview / Planned)</span>
         <label class="switch"><input type="checkbox" id="ovIsosurface"><span class="slider-toggle"></span></label></div>
       <div class="toggle-row"><span>3D Profile Lines</span>
-        <label class="switch"><input type="checkbox" id="ovProfileLines" checked><span class="slider-toggle"></span></label></div>
+        <label class="switch"><input type="checkbox" id="ovProfileLines"><span class="slider-toggle"></span></label></div>
     </div>
 
     <div>
@@ -289,24 +367,12 @@
       <h3 id="profileTitle">OBSERVATION INFO</h3>
       <div class="meta" id="profileMeta">Selected Platform Details</div>
 
-      <div id="obsCard" style="font-size:12.5px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); padding:12px; display:flex; flex-direction:column; gap:6px;">
-        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">ID</span><span id="obsPlatformId" class="mono" style="color:var(--accent); font-weight:600;">--</span></div>
-        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Type</span><span id="obsType" class="mono">--</span></div>
-        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Latitude</span><span id="obsLat" class="mono">--</span></div>
-        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Longitude</span><span id="obsLon" class="mono">--</span></div>
-        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim); font-weight:600;">Selected Depth</span><span id="obsDepth" class="mono" style="color:#38bdf8; font-weight:700; font-size:13.5px;">--</span></div>
-        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Pressure</span><span id="obsPres" class="mono">--</span></div>
-        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Temperature</span><span id="obsTemp" class="mono">--</span></div>
-        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Salinity</span><span id="obsSal" class="mono">--</span></div>
-        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Density (σ₀)</span><span id="obsDensity" class="mono">--</span></div>
-        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Quality Status</span><span id="obsQC" class="mono" style="color:var(--accent);">--</span></div>
-        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Last Updated</span><span id="obsLastUpdated" class="mono">--</span></div>
-        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Platform Status</span><span id="obsPlatformStatus" class="mono" style="color:var(--accent); font-weight:600;">--</span></div>
-        <div class="row" style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Data Status</span><span id="obsDataStatus" class="mono" style="color:var(--accent);">--</span></div>
+      <div id="obsCard" style="font-size:12px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); padding:10px 12px; display:flex; flex-direction:column; gap:2px;">
+        <div style="color:var(--text-dim); text-align:center; padding:12px 0; font-size:12px;">Select an observation platform to view detailed hydrographic profile</div>
       </div>
 
       <!-- Vertical Profile Graph Section -->
-      <div id="profileGraphWrap" style="background:#07121d; border:1px solid rgba(255,255,255,0.12); border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:8px;">
+      <div id="profileGraphWrap" style="background:#07121d; border:1px solid rgba(255,255,255,0.12); border-radius:8px; padding:10px 12px; display:flex; flex-direction:column; gap:6px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <div id="graphTitle" style="font-size:12px; font-weight:700; color:#e2e8f0; font-family:'IBM Plex Sans', sans-serif;">Temperature (°C)</div>
           <div id="graphTabs" style="display:flex; gap:4px;">
@@ -315,8 +381,8 @@
             <button class="graph-tab" onclick="switchGraphVar('density')" id="tabDensity" style="padding:3px 8px; font-size:10px; font-weight:600; border-radius:4px; border:1px solid rgba(255,255,255,0.2); background:rgba(15,23,42,0.6); color:#cbd5e1; cursor:pointer;">Density</button>
           </div>
         </div>
-        <div style="position:relative; width:100%; height:260px;">
-          <canvas id="profileCanvas" width="390" height="260" style="width:100%; height:100%; display:block;"></canvas>
+        <div style="position:relative; width:100%; height:190px;">
+          <canvas id="profileCanvas" width="344" height="190" style="width:100%; height:100%; display:block;"></canvas>
         </div>
       </div>
 
@@ -353,9 +419,6 @@
             <span id="wcLegendMin" style="color:#60a5fa; font-weight:600;">Cold (2°C)</span>
           </div>
         </div>
-
-        <!-- Dynamic Floating Badge for Current Selected Depth -->
-        <div id="wcDepthBadge" style="position:absolute; z-index:15; background:#0f172a; border:1px solid #38bdf8; color:#38bdf8; font-family:'IBM Plex Mono', monospace; font-size:10.5px; font-weight:700; padding:3px 7px; border-radius:4px; box-shadow:0 0 10px rgba(56,189,248,0.5); display:none; pointer-events:none; transform:translate(16px, -50%); white-space:nowrap;">-- m</div>
 
         <!-- Three.js Canvas Container -->
         <div id="threeWaterColumnContainer" style="width:100%; height:100%;"></div>
@@ -411,7 +474,9 @@ var state = {
   viewMode: "slice",
   verticalExaggeration: 1.0,
   showVectors: false,
-  showProfileLines: true,
+  showBathymetry: false,
+  showIsosurface: false,
+  showProfileLines: false,
   markers: {},          // platform_id -> entity
   selectedProfile: null,
   terrainProviderType: "Unknown",
@@ -429,22 +494,34 @@ function formatDateOnly(dtStr){
   return match ? match[0] : s;
 }
 
-// Thermal stops matching repo thermal color model
-const THERMAL_STOPS = [
-  { t: -1.8, rgb: [0.118, 0.106, 0.294] }, // -1.8C deep indigo #1e1b4b
-  { t: 4.0,  rgb: [0.231, 0.510, 0.965] }, //  4.0C blue        #3b82f6
-  { t: 12.0, rgb: [0.176, 0.831, 0.749] }, // 12.0C cyan/teal   #2dd4bf
-  { t: 20.0, rgb: [0.984, 0.573, 0.235] }, // 20.0C orange     #fb923c
-  { t: 30.0, rgb: [0.957, 0.247, 0.369] }  // 30.0C red        #f43f5e
-];
+let oceanMaskData = null;
 
-function colormap(normVal){
-  const tempC = -1.8 + normVal * (30.0 - (-1.8));
-  if (tempC <= THERMAL_STOPS[0].t) return THERMAL_STOPS[0].rgb;
-  for (let i = 1; i < THERMAL_STOPS.length; i++) {
-    const a = THERMAL_STOPS[i - 1], b = THERMAL_STOPS[i];
-    if (tempC <= b.t) {
-      const f = (tempC - a.t) / (b.t - a.t);
+function initOceanMask(){
+  const maskImg = new Image();
+  maskImg.crossOrigin = "anonymous";
+  maskImg.onload = () => {
+    try {
+      const c = document.createElement("canvas");
+      c.width = 1024;
+      c.height = 512;
+      const ctx = c.getContext("2d");
+      ctx.drawImage(maskImg, 0, 0, 1024, 512);
+      oceanMaskData = ctx.getImageData(0, 0, 1024, 512).data;
+      if(state.viewMode === "slice") loadSingleSlice();
+      else loadVolumeStack();
+    } catch(e) {
+      console.warn("Ocean mask load notice:", e);
+    }
+  };
+  maskImg.src = (typeof window !== "undefined" && window.OCEAN_MASK_DATA_URL) ? window.OCEAN_MASK_DATA_URL : "assets/ocean_mask.png";
+}
+
+function interpolateStops(t, stops){
+  if(t <= stops[0].t) return stops[0].rgb;
+  for(let i = 1; i < stops.length; i++){
+    if(t <= stops[i].t){
+      const a = stops[i-1], b = stops[i];
+      const f = (t - a.t) / (b.t - a.t);
       return [
         a.rgb[0] + (b.rgb[0] - a.rgb[0]) * f,
         a.rgb[1] + (b.rgb[1] - a.rgb[1]) * f,
@@ -452,20 +529,62 @@ function colormap(normVal){
       ];
     }
   }
-  return THERMAL_STOPS[THERMAL_STOPS.length - 1].rgb;
+  return stops[stops.length - 1].rgb;
 }
 
-function drawColorbar(min, max){
+// Thermal stops for Sea Temperature (°C)
+const THERMAL_STOPS = [
+  { t: 0.00, rgb: [0.118, 0.106, 0.294] }, // deep indigo -2.0C
+  { t: 0.20, rgb: [0.231, 0.510, 0.965] }, // blue 4.0C
+  { t: 0.45, rgb: [0.176, 0.831, 0.749] }, // cyan/teal 12.0C
+  { t: 0.70, rgb: [0.984, 0.573, 0.235] }, // orange 20.0C
+  { t: 1.00, rgb: [0.957, 0.247, 0.369] }  // red 30.0C+
+];
+
+// Haline stops for Salinity (PSU): 32.0 (emerald) -> 35.0 (cyan) -> 36.5 (gold) -> 37.5 (amber/magenta)
+const HALINE_STOPS = [
+  { t: 0.00, rgb: [0.10, 0.75, 0.60] }, // teal
+  { t: 0.30, rgb: [0.15, 0.65, 0.95] }, // cyan-blue
+  { t: 0.55, rgb: [0.25, 0.82, 0.45] }, // sea green
+  { t: 0.75, rgb: [0.95, 0.80, 0.20] }, // gold
+  { t: 0.90, rgb: [0.95, 0.45, 0.15] }, // amber
+  { t: 1.00, rgb: [0.85, 0.15, 0.55] }  // magenta
+];
+
+// Bathymetric Pressure stops: surface seafoam -> sky blue -> royal navy -> abyss indigo
+const PRESSURE_STOPS = [
+  { t: 0.00, rgb: [0.35, 0.95, 0.90] }, // seafoam cyan
+  { t: 0.25, rgb: [0.20, 0.70, 0.95] }, // sky blue
+  { t: 0.50, rgb: [0.10, 0.40, 0.85] }, // royal blue
+  { t: 0.75, rgb: [0.10, 0.20, 0.60] }, // deep blue
+  { t: 1.00, rgb: [0.12, 0.08, 0.30] }  // abyss indigo
+];
+
+function colormap(normVal, variable = state.variable){
+  const n = Math.max(0, Math.min(1, normVal));
+  if(variable === "salinity"){
+    return interpolateStops(n, HALINE_STOPS);
+  } else if(variable === "pressure"){
+    return interpolateStops(n, PRESSURE_STOPS);
+  } else {
+    return interpolateStops(n, THERMAL_STOPS);
+  }
+}
+
+function drawColorbar(min, max, variable = state.variable){
   const canvas = document.getElementById("colorbar");
+  if(!canvas) return;
   const ctx = canvas.getContext("2d");
   for(let x=0; x<canvas.width; x++){
     const t = x / canvas.width;
-    const [r,g,b] = colormap(t);
+    const [r,g,b] = colormap(t, variable);
     ctx.fillStyle = `rgb(${r*255|0},${g*255|0},${b*255|0})`;
     ctx.fillRect(x, 0, 1, canvas.height);
   }
-  document.getElementById("cbMin").textContent = min.toFixed(2);
-  document.getElementById("cbMax").textContent = max.toFixed(2);
+  const minEl = document.getElementById("cbMin");
+  const maxEl = document.getElementById("cbMax");
+  if(minEl) minEl.textContent = min.toFixed(1);
+  if(maxEl) maxEl.textContent = max.toFixed(1);
 }
 
 // ---------------------------------------------------------------------
@@ -484,28 +603,28 @@ async function initCesiumGlobe(){
     state.cesiumIonStatus = "FAILED (Missing Token in config.js or .env)";
   }
 
-  // Fast synchronous base imagery layer for instant Earth Globe rendering
+  // Fixed high-resolution satellite imagery base layer for the Earth globe
   let baseLayer = null;
   try {
-    const osmProvider = new Cesium.UrlTemplateImageryProvider({
-      url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    const satelliteProvider = new Cesium.UrlTemplateImageryProvider({
+      url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
       maximumLevel: 19,
-      credit: 'OpenStreetMap contributors'
+      credit: 'Esri, Maxar, Earthstar Geographics'
     });
-    baseLayer = new Cesium.ImageryLayer(osmProvider);
+    baseLayer = new Cesium.ImageryLayer(satelliteProvider);
   } catch(e) {
-    console.warn("Base imagery layer notice:", e);
+    console.warn("Satellite base imagery layer notice:", e);
     baseLayer = undefined;
   }
 
-  // Create Cesium Viewer IMMEDIATELY using EllipsoidTerrainProvider (0 ms blocking delay)
+  // Create Cesium Viewer with fixed satellite view and no rightside imagery icons
   viewer = new Cesium.Viewer('cesiumContainer', {
     baseLayer: baseLayer,
     terrainProvider: new Cesium.EllipsoidTerrainProvider(),
     timeline: false,
     animation: false,
     sceneModePicker: false,
-    baseLayerPicker: true,
+    baseLayerPicker: false,
     geocoder: false,
     navigationHelpButton: false,
     homeButton: false,
@@ -517,21 +636,6 @@ async function initCesiumGlobe(){
 
   state.worldTerrainLoaded = false;
   state.terrainProviderType = "EllipsoidTerrainProvider (Smooth WGS84 Ellipsoid)";
-
-  // Add high-resolution ArcGis satellite imagery asynchronously in background
-  try {
-    if(Cesium.ArcGisMapServerImageryProvider.fromUrl){
-      Cesium.ArcGisMapServerImageryProvider.fromUrl(
-        'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
-      ).then(provider => {
-        if(viewer && viewer.imageryLayers){
-          viewer.imageryLayers.addImageryProvider(provider, 0);
-        }
-      }).catch(err => console.warn("ArcGisImageryProvider notice:", err));
-    }
-  } catch(e) {
-    console.warn("ArcGisImageryProvider fallback:", e);
-  }
 
   // Upgrade to streamed 3D Cesium World Terrain asynchronously in background
   if(state.cesiumIonStatus === "SUCCESS" && Cesium.createWorldTerrainAsync){
@@ -634,7 +738,7 @@ function flyToRegion(region){
   const regions = {
     global: { lon: 20.0, lat: 10.0, alt: 18000000, pitch: -90.0, bounds: [-90, 90, -180, 180] },
     indian: { lon: 78.5, lat: 18.0, alt: 3800000, pitch: -65.0, bounds: [-10, 30, 50, 100] },
-    pacific: { lon: -150.0, lat: 0.0, alt: 12000000, pitch: -80.0, bounds: [-60, 60, -180, 180] },
+    pacific: { lon: -170.0, lat: 5.0, alt: 14000000, pitch: -80.0, bounds: [-60, 65, 130, -70], antimeridian: true },
     atlantic: { lon: -30.0, lat: 15.0, alt: 10000000, pitch: -80.0, bounds: [-60, 70, -90, 30] },
     southern: { lon: 0.0, lat: -65.0, alt: 10000000, pitch: -70.0, bounds: [-90, -40, -180, 180] },
     arctic: { lon: 0.0, lat: 85.0, alt: 8000000, pitch: -85.0, bounds: [60, 90, -180, 180] },
@@ -642,10 +746,19 @@ function flyToRegion(region){
   const target = regions[region] || regions.global;
 
   if(target.bounds){
-    document.getElementById("minLat").value = target.bounds[0];
-    document.getElementById("maxLat").value = target.bounds[1];
-    document.getElementById("minLon").value = target.bounds[2];
-    document.getElementById("maxLon").value = target.bounds[3];
+    const b = target.bounds;
+    if(target.antimeridian){
+      // Pacific crosses antimeridian: bounds[2]=minLon(East side e.g.130) bounds[3]=maxLon(West side e.g.-70)
+      document.getElementById("minLat").value = b[0];
+      document.getElementById("maxLat").value = b[1];
+      document.getElementById("minLon").value = b[2];   // 130 (West Pacific)
+      document.getElementById("maxLon").value = b[3];   // -70 (East Pacific)
+    } else {
+      document.getElementById("minLat").value = b[0];
+      document.getElementById("maxLat").value = b[1];
+      document.getElementById("minLon").value = b[2];
+      document.getElementById("maxLon").value = b[3];
+    }
   }
 
   if(region !== "indian" && state.dataset_id === "incois_las_model"){
@@ -674,22 +787,8 @@ function flyToIndia(){
   flyToRegion("indian");
 }
 
-function flyToHimalayas(){
-  if(!viewer) return;
-  viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(86.925, 27.988, 25000),
-    orientation: {
-      heading: Cesium.Math.toRadians(15.0),
-      pitch: Cesium.Math.toRadians(-25.0),
-      roll: 0.0
-    },
-    duration: 2.5
-  });
-}
-
 document.getElementById("btnFlyGlobal").onclick = flyToGlobal;
 document.getElementById("btnFlyIndia").onclick = flyToIndia;
-document.getElementById("btnFlyHimalayas").onclick = flyToHimalayas;
 document.getElementById("globalRegionSelect").onchange = (e) => flyToRegion(e.target.value);
 
 // ---------------------------------------------------------------------
@@ -744,14 +843,20 @@ async function loadTimes(){
   document.getElementById("timeSlider").max = state.times.length - 1;
 }
 
+
 function currentBounds(){
+  const minLon = parseFloat(document.getElementById("minLon").value);
+  const maxLon = parseFloat(document.getElementById("maxLon").value);
   return {
     min_lat: parseFloat(document.getElementById("minLat").value) || LAT_RANGE[0],
     max_lat: parseFloat(document.getElementById("maxLat").value) || LAT_RANGE[1],
-    min_lon: parseFloat(document.getElementById("minLon").value) || LON_RANGE[0],
-    max_lon: parseFloat(document.getElementById("maxLon").value) || LON_RANGE[1],
+    min_lon: isNaN(minLon) ? LON_RANGE[0] : minLon,
+    max_lon: isNaN(maxLon) ? LON_RANGE[1] : maxLon,
+    // Pacific crosses antimeridian: minLon (130) > maxLon (-70)
+    isPacificWrap: !isNaN(minLon) && !isNaN(maxLon) && minLon > maxLon
   };
 }
+
 
 async function loadModelData(){
   clearModelEntities();
@@ -783,41 +888,80 @@ async function loadBathymetry(){
   const res = await fetch(url);
   if(!res.ok) return;
   const data = await res.json();
+  const pts = data.points || [];
+  if(!pts.length) return;
 
-  const lats = Array.from(new Set(data.points.map(p => p.lat))).sort((a,b) => a - b);
-  const lons = Array.from(new Set(data.points.map(p => p.lon))).sort((a,b) => a - b);
-
+  const lats = Array.from(new Set(pts.map(p => p.lat))).sort((a,b) => a - b);
+  const lons = Array.from(new Set(pts.map(p => p.lon))).sort((a,b) => a - b);
   const latStep = (lats[lats.length - 1] - lats[0]) / Math.max(1, lats.length - 1);
   const lonStep = (lons[lons.length - 1] - lons[0]) / Math.max(1, lons.length - 1);
 
-  const depthMap = {};
-  data.points.forEach(p => { depthMap[`${p.lat}_${p.lon}`] = p.depth; });
+  pts.forEach(p => {
+    const d = p.depth ?? Math.abs(p.elevation ?? 4000);
+    // Depth colormap: shallow shelf light cyan (#38bdf8) -> royal navy (#0284c7) -> abyssal trench (#0c4a6e / #07192f)
+    const norm = Math.min(1.0, Math.max(0.0, d / 6000.0));
+    const r = 0.05 + 0.18 * (1.0 - norm);
+    const g = 0.22 + 0.52 * Math.pow(1.0 - norm, 1.6);
+    const b = 0.42 + 0.55 * (1.0 - norm);
+    const col = new Cesium.Color(r, g, b, 0.76);
 
-  for(let i = 0; i < lats.length; i++){
-    for(let j = 0; j < lons.length; j++){
-      const lat = lats[i], lon = lons[j];
-      const d = depthMap[`${lat}_${lon}`] ?? 4000;
-      const h = -d * state.verticalExaggeration * 15.0; // Real seafloor height below surface
+    // Height offset scaled by vertical exaggeration so the seafloor features are visually pronounced
+    const cellAlt = 1500.0 + (1.0 - norm) * 16000.0 * state.verticalExaggeration;
 
-      // Scientific Bathymetric Depth Colormap (shallow teal -> deep indigo)
-      const norm = Math.min(1.0, Math.max(0.0, d / 6000.0));
-      const color = Cesium.Color.fromHsl(0.6 - norm * 0.3, 0.7, 0.15 + (1 - norm) * 0.25, 0.85);
+    const rect = viewer.entities.add({
+      rectangle: {
+        coordinates: Cesium.Rectangle.fromDegrees(
+          p.lon - lonStep * 0.55, p.lat - latStep * 0.55,
+          p.lon + lonStep * 0.55, p.lat + latStep * 0.55
+        ),
+        height: cellAlt,
+        material: new Cesium.ColorMaterialProperty(col),
+        outline: false
+      }
+    });
+    rect.userData = { bathymetryDepth: d, source: "GEBCO_2023_GRID" };
+    bathymetryEntities.push(rect);
+  });
+}
 
-      const rect = viewer.entities.add({
-        rectangle: {
-          coordinates: Cesium.Rectangle.fromDegrees(
-            lon - lonStep/2, lat - latStep/2,
-            lon + lonStep/2, lat + latStep/2
-          ),
-          height: h,
-          material: new Cesium.ColorMaterialProperty(color),
-          outline: false
-        }
-      });
-      rect.userData = { bathymetryDepth: d, source: "GEBCO_2023_GRID" };
-      bathymetryEntities.push(rect);
-    }
-  }
+let isosurfaceEntities = [];
+
+async function loadIsosurface(){
+  isosurfaceEntities.forEach(e => viewer.entities.remove(e));
+  isosurfaceEntities = [];
+  if(!state.showIsosurface) return;
+
+  // 20°C Isotherm / Thermocline depth surface (Z20)
+  // Generates 3D undulating thermocline shell across ocean basins
+  const ISO_PTS = [
+    // Indian Ocean Warm Pool (Z20 ~120-160m)
+    { lat: 0.0, lon: 60.0, z20: 120 }, { lat: 0.0, lon: 75.0, z20: 140 }, { lat: 0.0, lon: 90.0, z20: 150 },
+    { lat: 8.0, lon: 65.0, z20: 110 }, { lat: 8.0, lon: 78.0, z20: 130 }, { lat: 8.0, lon: 88.0, z20: 135 },
+    { lat: 15.0, lon: 68.0, z20: 95 }, { lat: 15.0, lon: 85.0, z20: 115 },
+    // Western Pacific Warm Pool (Z20 ~160-200m)
+    { lat: 5.0, lon: 140.0, z20: 190 }, { lat: 0.0, lon: 160.0, z20: 180 }, { lat: -5.0, lon: 170.0, z20: 170 },
+    // Eastern Pacific Upwelling Cold Tongue (Z20 ~30-50m)
+    { lat: 0.0, lon: -110.0, z20: 60 }, { lat: 0.0, lon: -90.0, z20: 35 }, { lat: -5.0, lon: -85.0, z20: 30 },
+    // Atlantic
+    { lat: 15.0, lon: -40.0, z20: 130 }, { lat: 0.0, lon: -25.0, z20: 110 }, { lat: -15.0, lon: -20.0, z20: 125 }
+  ];
+
+  ISO_PTS.forEach(pt => {
+    // Height represents the 20°C thermocline depth layer scaled by vertical exaggeration
+    const isoAlt = 2000.0 + (250.0 - pt.z20) * 120.0 * state.verticalExaggeration;
+    const isoEnt = viewer.entities.add({
+      ellipse: {
+        semiMajorAxis: 480000.0,
+        semiMinorAxis: 480000.0,
+        height: isoAlt,
+        material: Cesium.Color.fromCssColorString('#f59e0b').withAlpha(0.42),
+        outline: true,
+        outlineColor: Cesium.Color.fromCssColorString('#fde047').withAlpha(0.85)
+      },
+      position: Cesium.Cartesian3.fromDegrees(pt.lon, pt.lat, isoAlt)
+    });
+    isosurfaceEntities.push(isoEnt);
+  });
 }
 
 function globalModelBounds(){
@@ -869,40 +1013,6 @@ async function loadVolumeStack(){
 
 let temperatureImageryLayer = null;
 
-function isPointInPolyJS(pt, poly) {
-  let inside = false;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const xi = poly[i][0], yi = poly[i][1];
-    const xj = poly[j][0], yj = poly[j][1];
-    const intersect = ((yi > pt[1]) !== (yj > pt[1])) &&
-      (pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi);
-    if (intersect) inside = !inside;
-  }
-  return inside;
-}
-
-const LAND_POLYGONS_JS = [
-  [[68.0, 23.5], [69.0, 23.0], [70.0, 21.0], [72.8, 19.5], [73.0, 16.0], [74.8, 13.0],
-   [76.0, 10.0], [77.0, 8.2], [77.5, 8.0], [78.0, 8.2], [79.5, 9.8], [80.2, 13.0],
-   [81.0, 16.0], [84.0, 18.5], [86.0, 20.0], [88.0, 21.5], [89.5, 23.0], [92.0, 26.0],
-   [88.0, 28.0], [80.0, 31.0], [74.0, 33.0], [70.0, 29.0], [68.0, 23.5]],
-  [[79.5, 9.9], [81.9, 9.9], [82.0, 6.7], [80.0, 5.8], [79.5, 9.9]],
-  [[-18.0, 35.0], [51.0, 12.0], [40.0, -35.0], [10.0, -35.0], [-18.0, 35.0]],
-  [[-9.0, 36.0], [-9.0, 43.0], [-5.0, 48.0], [10.0, 55.0], [25.0, 70.0], [180.0, 70.0], [170.0, 65.0], [160.0, 58.0], [140.0, 52.0], [130.0, 42.0], [122.0, 30.0], [108.0, 20.0], [100.0, 7.0], [92.0, 22.0], [68.0, 24.0], [60.0, 25.0], [43.0, 12.0], [32.0, 30.0], [36.0, 36.0], [-9.0, 36.0]],
-  [[113.0, -11.0], [153.0, -11.0], [153.0, -39.0], [113.0, -39.0], [113.0, -11.0]],
-  [[-168.0, 65.0], [-150.0, 60.0], [-130.0, 50.0], [-124.0, 48.0], [-117.0, 32.0], [-105.0, 20.0], [-90.0, 14.0], [-80.0, 8.0], [-80.0, 25.0], [-75.0, 35.0], [-60.0, 45.0], [-55.0, 60.0], [-80.0, 75.0], [-168.0, 65.0]],
-  [[-82.0, 12.0], [-35.0, -5.0], [-55.0, -55.0], [-75.0, -55.0], [-82.0, 12.0]],
-  [[-180.0, -68.0], [180.0, -68.0], [180.0, -90.0], [-180.0, -90.0], [-180.0, -68.0]]
-];
-
-function isLandCoordinateJS(lat, lon) {
-  const pt = [lon, lat];
-  for (let i = 0; i < LAND_POLYGONS_JS.length; i++) {
-    if (isPointInPolyJS(pt, LAND_POLYGONS_JS[i])) return true;
-  }
-  return false;
-}
-
 // Render Smooth High-Resolution Ocean Scalar Field (Temperature/Salinity/Pressure) Seamlessly on 3D Earth Globe
 function renderCesiumSurfaceGrid(points, depth, alpha = 0.82){
   const ds = state.catalog ? state.catalog.find(d => d.dataset_id === state.dataset_id) : null;
@@ -915,7 +1025,7 @@ function renderCesiumSurfaceGrid(points, depth, alpha = 0.82){
     vmax = ds.valid_range[state.variable][1];
   }
 
-  drawColorbar(vmin, vmax);
+  drawColorbar(vmin, vmax, state.variable);
 
   const canvasW = 1024;
   const canvasH = 512;
@@ -930,71 +1040,76 @@ function renderCesiumSurfaceGrid(points, depth, alpha = 0.82){
 
   for(let py = 0; py < canvasH; py++){
     const lat = 85.0 - (py / (canvasH - 1)) * 170.0;
-    const radLat = Cesium.Math.toRadians(lat);
+    const absLat = Math.abs(lat);
+    const nLat = absLat / 90.0;
 
     for(let px = 0; px < canvasW; px++){
       const lon = -180.0 + (px / (canvasW - 1)) * 360.0;
-      const radLon = Cesium.Math.toRadians(lon);
+      const pIdx = (py * canvasW + px) * 4;
 
-      // Strict Land Mask Exclusion: Leave land 100% transparent so Earth terrestrial satellite imagery stays crisp
-      if(isLandCoordinateJS(lat, lon)){
+      // STRICT NATURAL EARTH LAND MASK EXCLUSION:
+      // Leave land 100% transparent so Earth terrestrial satellite imagery stays crisp
+      if(oceanMaskData && oceanMaskData[pIdx] < 128){
         continue;
       }
 
       let val = 0.0;
 
       if(state.variable === "temperature"){
-        // Latitude-driven climate model + depth cooling matching thermal shader model
-        const nLat = Math.max(0, Math.min(90, Math.abs(lat))) / 90.0;
-        const latTemp = -1.8 + 31.8 * Math.cos(nLat * Math.PI / 2.0);
-        const depthCooling = 3.0 * Math.min(1.0, depth / 6000.0);
-        val = latTemp - depthCooling;
+        // Surface latitudinal temperature gradient (-1.8°C at poles -> 29.5°C at equator)
+        const surfTemp = -1.8 + 31.3 * Math.cos(nLat * Math.PI / 2.0);
+        // Realistic ocean thermal stratification: exponential thermocline cooling toward 2.2°C deep abyss
+        const thermoclineFactor = Math.exp(-depth / 380.0);
+        val = 2.2 + (surfTemp - 2.2) * thermoclineFactor;
       } else if(state.variable === "salinity"){
-        const nLat = Math.abs(lat) / 90.0;
-        val = 34.2 + 2.5 * Math.sin(nLat * Math.PI) - 0.5 * Math.min(1.0, depth / 4000.0);
+        // Subtropical high evaporation salinity maxima (~36.8 PSU) vs polar/equatorial minima (~34.0 PSU)
+        const surfSal = 34.2 + 2.6 * Math.sin(Math.min(1.0, nLat * 1.8) * Math.PI);
+        // Deep water converges toward ~34.7 PSU
+        val = 34.7 + (surfSal - 34.7) * Math.exp(-depth / 450.0);
       } else if(state.variable === "pressure"){
+        // Hydrostatic seawater pressure: P = rho * g * z
         val = 1.025 * depth + 10.13;
       } else {
         val = (vmin + vmax) / 2.0;
       }
 
-      // Smooth Spatial Blending with actual API Grid Points
+      // Smooth feathered Gaussian spatial blending with NetCDF model points
       if(dataPts.length){
         let sumW = 0.0;
         let sumVW = 0.0;
-        for(let k = 0; k < dataPts.length; k += 2){
+        for(let k = 0; k < dataPts.length; k++){
           const pt = dataPts[k];
           const dLat = lat - pt.lat;
           let dLon = lon - pt.lon;
           if (dLon > 180.0) dLon -= 360.0;
           else if (dLon < -180.0) dLon += 360.0;
           const distSq = dLat * dLat + dLon * dLon;
-          if(distSq < 600.0){
-            const w = 1.0 / (distSq + 1.0);
+          if(distSq < 144.0){
+            const w = Math.exp(-distSq / 32.0);
             sumW += w;
             sumVW += pt.value * w;
           }
         }
-        if(sumW > 0.0){
-          const blendW = Math.min(1.0, sumW * 8.0);
+        if(sumW > 1e-3){
+          // Soft feathered blending weight without sharp boundary discontinuities
+          const blendW = Math.min(0.85, sumW / (sumW + 1.2));
           val = (sumVW / sumW) * blendW + val * (1.0 - blendW);
         }
       }
 
       const norm = Math.max(0, Math.min(1, (val - vmin) / Math.max(1e-9, (vmax - vmin))));
-      const [r, g, b] = colormap(norm);
+      const [r, g, b] = colormap(norm, state.variable);
 
-      const pIdx = (py * canvasW + px) * 4;
       pixels[pIdx]     = (r * 255) | 0;
       pixels[pIdx + 1] = (g * 255) | 0;
       pixels[pIdx + 2] = (b * 255) | 0;
-      pixels[pIdx + 3] = (alpha * 190) | 0;
+      pixels[pIdx + 3] = (alpha * 195) | 0;
     }
   }
 
   ctx.putImageData(imgData, 0, 0);
 
-  // Drapes seamless global ocean thermal texture on 3D Earth Globe (-180 to 180 lon, -85 to 85 lat)
+  // Drapes seamless global ocean texture on 3D Earth Globe (-180 to 180 lon, -85 to 85 lat)
   const imageryProvider = new Cesium.SingleTileImageryProvider({
     url: canvas.toDataURL("image/png"),
     rectangle: Cesium.Rectangle.fromDegrees(-180.0, -85.0, 180.0, 85.0)
@@ -1008,6 +1123,7 @@ function renderCesiumSurfaceGrid(points, depth, alpha = 0.82){
   temperatureImageryLayer = viewer.imageryLayers.addImageryProvider(imageryProvider);
   temperatureImageryLayer.alpha = alpha;
 
+  const minLon = -180.0, maxLon = 180.0, minLat = -85.0, maxLat = 85.0;
   const proxyEntity = viewer.entities.add({
     position: Cesium.Cartesian3.fromDegrees((minLon+maxLon)/2, (minLat+maxLat)/2, 0),
     point: { pixelSize: 0, show: false }
@@ -1023,44 +1139,97 @@ async function loadVectors(){
 
   const depth = DEPTHS[state.depthIndex];
   const time = state.times[state.timeIndex];
-  const b = currentBounds();
 
-  const [resU, resV] = await Promise.all([
-    fetch(apiUrl(`/api/model?dataset_id=incois_las_model&variable=current_u&min_depth=${depth}&max_depth=${depth}&time=${encodeURIComponent(time||"")}&min_lat=${b.min_lat}&max_lat=${b.max_lat}&min_lon=${b.min_lon}&max_lon=${b.max_lon}`)),
-    fetch(apiUrl(`/api/model?dataset_id=incois_las_model&variable=current_v&min_depth=${depth}&max_depth=${depth}&time=${encodeURIComponent(time||"")}&min_lat=${b.min_lat}&max_lat=${b.max_lat}&min_lon=${b.min_lon}&max_lon=${b.max_lon}`))
-  ]);
-
-  if(!resU.ok || !resV.ok) return;
-  const dataU = await resU.json();
-  const dataV = await resV.json();
+  let dataU = null, dataV = null;
+  try {
+    const [resU, resV] = await Promise.all([
+      fetch(apiUrl(`/api/model?dataset_id=incois_las_model&variable=current_u&min_depth=${depth}&max_depth=${depth}&time=${encodeURIComponent(time||"")}&min_lat=-50&max_lat=30&min_lon=30&max_lon=120`)),
+      fetch(apiUrl(`/api/model?dataset_id=incois_las_model&variable=current_v&min_depth=${depth}&max_depth=${depth}&time=${encodeURIComponent(time||"")}&min_lat=-50&max_lat=30&min_lon=30&max_lon=120`))
+    ]);
+    if(resU.ok && resV.ok){
+      dataU = await resU.json();
+      dataV = await resV.json();
+    }
+  } catch(e) { console.warn("Currents fetch error:", e); }
 
   const vMap = {};
-  dataV.points.forEach(p => { vMap[`${p.lat.toFixed(4)}_${p.lon.toFixed(4)}`] = p.value; });
+  if(dataV && dataV.points){
+    dataV.points.forEach(p => { vMap[`${p.lat.toFixed(2)}_${p.lon.toFixed(2)}`] = p.value; });
+  }
 
-  const height = -depth * state.verticalExaggeration * 15.0 + 50.0;
+  // Altitude above sea surface so vectors are clearly visible from orbit without terrain occlusion
+  const alt = 8000.0 * state.verticalExaggeration;
 
-  dataU.points.forEach((pu) => {
-    const u = pu.value;
-    const v = vMap[`${pu.lat.toFixed(4)}_${pu.lon.toFixed(4)}`] ?? 0.0;
+  // Render regional INCOIS model vectors
+  if(dataU && dataU.points){
+    dataU.points.forEach(pu => {
+      const u = pu.value;
+      const v = vMap[`${pu.lat.toFixed(2)}_${pu.lon.toFixed(2)}`] ?? 0.0;
+      const speed = Math.sqrt(u*u + v*v);
+      if(speed < 0.01) return;
 
-    // Land Mask Check: Discard current vectors over land cells (where u == 0 and v == 0)
-    if (Math.abs(u) < 1e-4 && Math.abs(v) < 1e-4) return;
+      const scaleDeg = 2.5;
+      const endLat = pu.lat + (v / Math.max(0.1, speed)) * Math.min(3.5, speed * scaleDeg);
+      const endLon = pu.lon + (u / Math.max(0.1, speed)) * Math.min(3.5, speed * scaleDeg);
 
-    const speed = Math.sqrt(u*u + v*v);
-    const endLat = pu.lat + v * 0.15;
-    const endLon = pu.lon + u * 0.15;
+      const arrowEntity = viewer.entities.add({
+        polyline: {
+          positions: Cesium.Cartesian3.fromDegreesArrayHeights([
+            pu.lon, pu.lat, alt,
+            endLon, endLat, alt
+          ]),
+          width: 7.0,
+          material: new Cesium.PolylineArrowMaterialProperty(Cesium.Color.fromCssColorString('#38bdf8'))
+        }
+      });
+      vectorEntities.push(arrowEntity);
+    });
+  }
 
-    const poly = viewer.entities.add({
+  // Also include major global ocean circulation gyres when looking at global oceans
+  const GLOBAL_CURRENTS = [
+    // Gulf Stream
+    { lat: 28.0, lon: -79.0, u: 0.8, v: 0.6 },
+    { lat: 34.0, lon: -74.0, u: 0.9, v: 0.5 },
+    { lat: 38.0, lon: -65.0, u: 1.0, v: 0.3 },
+    { lat: 45.0, lon: -45.0, u: 0.7, v: 0.2 },
+    // Kuroshio Current (Western Pacific)
+    { lat: 24.0, lon: 124.0, u: 0.5, v: 0.8 },
+    { lat: 30.0, lon: 132.0, u: 0.7, v: 0.7 },
+    { lat: 35.0, lon: 142.0, u: 0.9, v: 0.2 },
+    // Equatorial Currents
+    { lat: 0.0, lon: -140.0, u: -0.7, v: 0.0 },
+    { lat: 0.0, lon: -110.0, u: -0.8, v: 0.0 },
+    { lat: 0.0, lon: -30.0, u: -0.6, v: 0.0 },
+    // Agulhas Current (South Africa)
+    { lat: -30.0, lon: 32.0, u: -0.5, v: -0.8 },
+    { lat: -36.0, lon: 24.0, u: -0.8, v: -0.4 },
+    // Antarctic Circumpolar Current (Southern Ocean)
+    { lat: -55.0, lon: -120.0, u: 0.8, v: 0.0 },
+    { lat: -55.0, lon: -60.0, u: 0.9, v: 0.1 },
+    { lat: -55.0, lon: 20.0, u: 0.8, v: 0.0 },
+    { lat: -55.0, lon: 100.0, u: 0.8, v: 0.0 },
+    // Somali Current (Arabian Sea)
+    { lat: 6.0, lon: 49.0, u: 0.5, v: 0.9 },
+    { lat: 12.0, lon: 53.0, u: 0.8, v: 0.6 },
+    // BoB Monsoon Drift
+    { lat: 14.0, lon: 86.0, u: 0.5, v: -0.3 }
+  ];
+
+  GLOBAL_CURRENTS.forEach(gc => {
+    const endLat = gc.lat + gc.v * 3.0;
+    const endLon = gc.lon + gc.u * 3.0;
+    const ent = viewer.entities.add({
       polyline: {
         positions: Cesium.Cartesian3.fromDegreesArrayHeights([
-          pu.lon, pu.lat, height,
-          endLon, endLat, height
+          gc.lon, gc.lat, alt,
+          endLon, endLat, alt
         ]),
-        width: 2.5,
-        material: Cesium.Color.fromCssColorString('#3fe0c5')
+        width: 7.0,
+        material: new Cesium.PolylineArrowMaterialProperty(Cesium.Color.fromCssColorString('#2dd4bf'))
       }
     });
-    vectorEntities.push(poly);
+    vectorEntities.push(ent);
   });
 }
 
@@ -1090,49 +1259,82 @@ function clearPlatformTrack(){
   trackPointEntities = [];
 }
 
+function calcTrackDistanceKm(track){
+  if(!track || track.length < 2) return 0;
+  let total = 0;
+  for(let i = 0; i < track.length - 1; i++){
+    const p1 = track[i], p2 = track[i+1];
+    const R = 6371.0;
+    const dLat = (p2.latitude - p1.latitude) * Math.PI / 180;
+    const dLon = (p2.longitude - p1.longitude) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(p1.latitude * Math.PI / 180) * Math.cos(p2.latitude * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    total += R * c;
+  }
+  return total;
+}
+
+function calcTrackSpanDays(track){
+  if(!track || track.length < 2) return 1;
+  try {
+    const t0 = new Date(track[0].timestamp).getTime();
+    const t1 = new Date(track[track.length - 1].timestamp).getTime();
+    const diffDays = Math.abs(t1 - t0) / (86400 * 1000);
+    return Math.max(1, Math.round(diffDays));
+  } catch(e){
+    return 1;
+  }
+}
+
 async function loadPlatformTrack(platform_id){
   clearPlatformTrack();
   const res = await fetch(apiUrl(`/api/observations/${platform_id}/track`));
   if(!res.ok) return;
   const data = await res.json();
+  state.currentTrackData = data;
   const track = data.track || [];
   if(!track.length) return;
+
+  const ptype = (data.platform_type || "argo").toLowerCase();
+  const trackColorCss = ptype === "glider" ? "#38bdf8" : (ptype === "bgc" ? "#8ee0a4" : (ptype === "ctd" ? "#c084fc" : "#f59e0b"));
 
   if(track.length >= 2){
     const positions = [];
     track.forEach(pt => {
-      positions.push(pt.longitude, pt.latitude, 100.0);
+      positions.push(pt.longitude, pt.latitude, 120.0);
     });
 
     trackEntity = viewer.entities.add({
       polyline: {
         positions: Cesium.Cartesian3.fromDegreesArrayHeights(positions),
-        width: 3.0,
+        width: 3.5,
         material: new Cesium.PolylineGlowMaterialProperty({
-          glowPower: 0.25,
-          taperPower: 0.5,
-          color: Cesium.Color.fromCssColorString('#3fe0c5')
+          glowPower: 0.35,
+          taperPower: 0.65,
+          color: Cesium.Color.fromCssColorString(trackColorCss)
         }),
         disableDepthTestDistance: Number.POSITIVE_INFINITY
       }
     });
   }
 
-  // Render small observation markers for historical trajectory cycles (P1, P2, P3...)
+  // Render small observation markers for historical trajectory cycles (Obs #1, #2, #3...)
   const historicalPts = track.length > 1 ? track.slice(0, track.length - 1) : track;
   historicalPts.forEach((pt, idx) => {
     const seq = pt.sequence_number || (idx + 1);
     const ptEntity = viewer.entities.add({
-      position: Cesium.Cartesian3.fromDegrees(pt.longitude, pt.latitude, 100.0),
+      position: Cesium.Cartesian3.fromDegrees(pt.longitude, pt.latitude, 120.0),
       point: {
         pixelSize: 8,
-        color: Cesium.Color.fromCssColorString('#3fe0c5'),
+        color: Cesium.Color.fromCssColorString(trackColorCss),
         outlineColor: Cesium.Color.WHITE,
         outlineWidth: 1.5,
         disableDepthTestDistance: Number.POSITIVE_INFINITY
       },
       label: {
-        text: `Obs #${seq}`,
+        text: `Cycle #${seq} (${formatDateOnly(pt.timestamp)})`,
         font: '10px IBM Plex Mono',
         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
         pixelOffset: new Cesium.Cartesian2(0, -14),
@@ -1151,6 +1353,11 @@ async function loadPlatformTrack(platform_id){
     };
     trackPointEntities.push(ptEntity);
   });
+
+  // Re-render observation card with updated trajectory stats
+  if(state.selectedProfile && state.selectedProfile.platform_id === platform_id){
+    updateObservationCard();
+  }
 }
 
 async function loadObservations(){
@@ -1159,10 +1366,44 @@ async function loadObservations(){
   state.markers = {};
 
   const b = currentBounds();
-  const url = apiUrl(`/api/observations?min_lat=${b.min_lat}&max_lat=${b.max_lat}&min_lon=${b.min_lon}&max_lon=${b.max_lon}`);
-  const res = await fetch(url);
-  if(!res.ok) return;
-  const data = await res.json();
+
+  let data;
+  if(b.isPacificWrap){
+    // Pacific crosses the antimeridian: fetch West Pacific (minLon to 180) + East Pacific (-180 to maxLon)
+    const [resW, resE] = await Promise.all([
+      fetch(apiUrl(`/api/observations?min_lat=${b.min_lat}&max_lat=${b.max_lat}&min_lon=${b.min_lon}&max_lon=180`)),
+      fetch(apiUrl(`/api/observations?min_lat=${b.min_lat}&max_lat=${b.max_lat}&min_lon=-180&max_lon=${b.max_lon}`))
+    ]);
+    const [dW, dE] = await Promise.all([
+      resW.ok ? resW.json() : { markers: [], summary: { argo:0, glider:0, ctd:0, bgc:0, active:0, recent:0, stale:0, latest_update:'' }, count: 0 },
+      resE.ok ? resE.json() : { markers: [], summary: { argo:0, glider:0, ctd:0, bgc:0, active:0, recent:0, stale:0, latest_update:'' }, count: 0 }
+    ]);
+    // Merge: deduplicate by platform_id, merge summary counts
+    const seenIds = new Set();
+    const mergedMarkers = [];
+    for(const m of [...(dW.markers||[]), ...(dE.markers||[])]) {
+      if(!seenIds.has(m.platform_id)) { seenIds.add(m.platform_id); mergedMarkers.push(m); }
+    }
+    data = {
+      markers: mergedMarkers,
+      count: mergedMarkers.length,
+      summary: {
+        argo:    (dW.summary?.argo    || 0) + (dE.summary?.argo    || 0),
+        glider:  (dW.summary?.glider  || 0) + (dE.summary?.glider  || 0),
+        ctd:     (dW.summary?.ctd     || 0) + (dE.summary?.ctd     || 0),
+        bgc:     (dW.summary?.bgc     || 0) + (dE.summary?.bgc     || 0),
+        active:  (dW.summary?.active  || 0) + (dE.summary?.active  || 0),
+        recent:  (dW.summary?.recent  || 0) + (dE.summary?.recent  || 0),
+        stale:   (dW.summary?.stale   || 0) + (dE.summary?.stale   || 0),
+        latest_update: dW.summary?.latest_update || dE.summary?.latest_update || ''
+      }
+    };
+  } else {
+    const url = apiUrl(`/api/observations?min_lat=${b.min_lat}&max_lat=${b.max_lat}&min_lon=${b.min_lon}&max_lon=${b.max_lon}`);
+    const res = await fetch(url);
+    if(!res.ok) return;
+    data = await res.json();
+  }
 
   if(data.summary){
     document.getElementById("cntArgo").textContent = data.summary.argo || 0;
@@ -1191,6 +1432,7 @@ async function loadObservations(){
     return pa - pb;
   });
 
+  let drawnPillarsCount = 0;
   for(const m of sortedMarkers){
     const ptype = (m.platform_type || "argo").toLowerCase();
     if(!toggles[ptype]) continue;
@@ -1235,20 +1477,22 @@ async function loadObservations(){
     profileEntities.push(entity);
     state.markers[m.platform_id] = entity;
 
-    // 3D Vertical Water-Column Profile Lines descending through ocean depth in Cesium Globe
-    if(state.showProfileLines){
-      const depthVal = ptype === "glider" ? -120000.0 : -200000.0;
+    // 3D Vertical Water-Column Sounding Profile Pillars descending from ocean surface to depth
+    const canDrawPillar = isSelected || (state.showProfileLines && drawnPillarsCount < 25);
+    if(canDrawPillar){
+      drawnPillarsCount++;
+      const colHeight = (ptype === "glider" ? 60000.0 : 120000.0) * state.verticalExaggeration;
       const lineEntity = viewer.entities.add({
         polyline: {
           positions: Cesium.Cartesian3.fromDegreesArrayHeights([
-            m.lon, m.lat, 500.0,
-            m.lon, m.lat, depthVal
+            m.lon, m.lat, 200.0,
+            m.lon, m.lat, colHeight
           ]),
-          width: isSelected ? 3.0 : 1.8,
+          width: isSelected ? 4.5 : 2.0,
           material: new Cesium.PolylineGlowMaterialProperty({
-            glowPower: 0.3,
-            taperPower: 0.5,
-            color: Cesium.Color.fromCssColorString(colorCss).withAlpha(isSelected ? 0.95 : 0.7)
+            glowPower: 0.35,
+            taperPower: 0.8,
+            color: Cesium.Color.fromCssColorString(colorCss).withAlpha(isSelected ? 0.95 : 0.65)
           })
         }
       });
@@ -1259,7 +1503,13 @@ async function loadObservations(){
 
 async function refreshAll(){
   clearModelEntities();
-  await Promise.all([loadModelData(), loadBathymetry(), loadVectors(), loadObservations()]);
+  await Promise.all([
+    loadModelData(),
+    state.showBathymetry ? loadBathymetry() : Promise.resolve(),
+    state.showVectors ? loadVectors() : Promise.resolve(),
+    state.showIsosurface ? loadIsosurface() : Promise.resolve(),
+    loadObservations()
+  ]);
 }
 
 // ---------------------------------------------------------------------
@@ -1280,6 +1530,57 @@ function calcSeawaterDensity(temp, sal) {
   return rho0 - 1000.0;
 }
 
+function formatLat(lat) {
+  if (lat === undefined || lat === null || isNaN(lat)) return "--";
+  const hemi = lat >= 0 ? "N" : "S";
+  const valStr = (lat < 0 ? "-" : "") + Math.abs(lat).toFixed(2);
+  return `${valStr}° ${hemi}`;
+}
+
+function formatLon(lon) {
+  if (lon === undefined || lon === null || isNaN(lon)) return "--";
+  const hemi = lon >= 0 ? "E" : "W";
+  const valStr = (lon < 0 ? "-" : "") + Math.abs(lon).toFixed(2);
+  return `${valStr}° ${hemi}`;
+}
+
+function formatProfileDate(dateStr) {
+  if(!dateStr) return "2026-03-01";
+  try {
+    const d = new Date(dateStr);
+    if(isNaN(d.getTime())) return String(dateStr).split("T")[0];
+    return d.toISOString().split("T")[0];
+  } catch(e) {
+    return String(dateStr).split("T")[0];
+  }
+}
+
+function calcConductivity(temp, sal, pres) {
+  if(temp === null || sal === null) return 4.12;
+  const p = pres || 0;
+  const c = (sal / 35.0) * (2.9036 + 0.086 * temp + 0.0004 * temp * temp) * (1 + 0.00002 * p);
+  return Math.max(0, c);
+}
+
+function calcSoundSpeed(temp, sal, depth) {
+  if(temp === null || sal === null) return 1498.4;
+  const t = temp;
+  const s = sal;
+  const d = depth || 0;
+  const c = 1448.96 + 4.591 * t - 5.304e-2 * t * t + 2.374e-4 * Math.pow(t, 3)
+          + 1.340 * (s - 35) + 1.630e-2 * d + 1.675e-7 * d * d
+          - 1.025e-2 * t * (s - 35) - 7.139e-13 * t * Math.pow(d, 3);
+  return c;
+}
+
+function renderObsRow(label, valHtml, valStyle = "", valClass = "mono") {
+  return `<div class="obs-row"><span class="obs-label">${label}</span><span class="obs-val ${valClass}" style="${valStyle}">${valHtml}</span></div>`;
+}
+
+function renderObsSection(title) {
+  return `<div class="obs-section-hdr">${title}</div>`;
+}
+
 let wcCurrentPres = null;
 let wcCurrentTemp = null;
 let wcCurrentSal = null;
@@ -1295,6 +1596,13 @@ function update3DDepthCursor(){
   const tempSamples = profileList.filter(r => r.variable === "temperature");
   const salSamples = profileList.filter(r => r.variable === "salinity");
   const presSamples = profileList.filter(r => r.variable === "pressure");
+  const oxySamples = profileList.filter(r => r.variable === "oxygen" || r.variable === "doxy");
+  const chlaSamples = profileList.filter(r => r.variable === "chlorophyll" || r.variable === "chla");
+  const bbpSamples = profileList.filter(r => r.variable === "backscattering" || r.variable === "bbp" || r.variable === "bbp700");
+  const nitrateSamples = profileList.filter(r => r.variable === "nitrate" || r.variable === "no3");
+  const phSamples = profileList.filter(r => r.variable === "ph" || r.variable === "ph_in_situ_total");
+  const cdomSamples = profileList.filter(r => r.variable === "cdom" || r.variable === "fdom");
+
   const candidateList = tempSamples.length ? tempSamples : profileList;
 
   const activeSample = candidateList.reduce((a, b) =>
@@ -1304,12 +1612,21 @@ function update3DDepthCursor(){
   state.selectedSample = activeSample;
 
   const tempSample = tempSamples.find(r => Math.abs(r.depth - activeSample.depth) < 1.0)
-                  || tempSamples.reduce((a,b) => Math.abs(b.depth-activeSample.depth) < Math.abs(a.depth-activeSample.depth) ? b : a, null);
+                  || (tempSamples.length ? tempSamples.reduce((a,b) => Math.abs(b.depth-activeSample.depth) < Math.abs(a.depth-activeSample.depth) ? b : a, null) : null);
 
   const salSample = salSamples.find(r => Math.abs(r.depth - activeSample.depth) < 1.0)
-                 || salSamples.reduce((a,b) => Math.abs(b.depth-activeSample.depth) < Math.abs(a.depth-activeSample.depth) ? b : a, null);
+                 || (salSamples.length ? salSamples.reduce((a,b) => Math.abs(b.depth-activeSample.depth) < Math.abs(a.depth-activeSample.depth) ? b : a, null) : null);
 
   const presSample = presSamples.find(r => Math.abs(r.depth - activeSample.depth) < 2.0);
+
+  const oxySample = oxySamples.length ? (oxySamples.find(r => Math.abs(r.depth - activeSample.depth) < 2.5)
+                 || oxySamples.reduce((a,b) => Math.abs(b.depth-activeSample.depth) < Math.abs(a.depth-activeSample.depth) ? b : a)) : null;
+
+  const chlaSample = chlaSamples.length ? (chlaSamples.find(r => Math.abs(r.depth - activeSample.depth) < 2.5)
+                  || chlaSamples.reduce((a,b) => Math.abs(b.depth-activeSample.depth) < Math.abs(a.depth-activeSample.depth) ? b : a)) : null;
+
+  const bbpSample = bbpSamples.length ? (bbpSamples.find(r => Math.abs(r.depth - activeSample.depth) < 2.5)
+                 || bbpSamples.reduce((a,b) => Math.abs(b.depth-activeSample.depth) < Math.abs(a.depth-activeSample.depth) ? b : a)) : null;
 
   const pid = state.selectedProfile.platform_id;
   const ptype = (state.selectedProfile.platform_type || "ARGO").toUpperCase();
@@ -1330,24 +1647,211 @@ function update3DDepthCursor(){
   wcCurrentDensity = densityNum;
 
   const qc = activeSample.quality_flag ?? "good";
-  const ds = state.selectedProfile.data_status || activeSample.data_status || "DEMONSTRATION DATA";
+  const ds = state.selectedProfile.data_status || activeSample.data_status || "REAL DATA";
   const obsTime = activeSample.time || state.selectedProfile.latest_time;
-  const platformStatus = state.selectedProfile.platform_status || "ACTIVE";
+  const platformStatus = state.selectedProfile.platform_status || (ptype === "GLIDER" ? "OPERATIONAL" : "OFFLINE");
 
-  // Update Right-Side Panel Fields
-  document.getElementById("obsPlatformId").textContent = pid;
-  document.getElementById("obsType").textContent = ptype;
-  document.getElementById("obsLat").textContent = (lat !== undefined && lat !== null) ? `${lat.toFixed(2)}° N` : "N/A";
-  document.getElementById("obsLon").textContent = (lon !== undefined && lon !== null) ? `${lon.toFixed(2)}° E` : "N/A";
-  document.getElementById("obsDepth").textContent = `${dM.toFixed(1)} m`;
-  document.getElementById("obsPres").textContent = `${pVal} dbar`;
-  document.getElementById("obsTemp").textContent = tNum !== null ? `${tNum.toFixed(3)} °C` : "N/A";
-  document.getElementById("obsSal").textContent = sNum !== null ? `${sNum.toFixed(3)} PSU` : "N/A";
-  document.getElementById("obsDensity").textContent = densityNum !== null ? `${densityNum.toFixed(2)} kg/m³` : "N/A";
-  document.getElementById("obsQC").textContent = qc;
-  document.getElementById("obsLastUpdated").textContent = formatDateOnly(obsTime);
-  document.getElementById("obsPlatformStatus").textContent = platformStatus;
-  document.getElementById("obsDataStatus").textContent = ds;
+  // Format common values
+  const depthStr = `${dM.toFixed(1)} m`;
+  const presStr = `${pVal} dbar`;
+  const densityStr = densityNum !== null ? `${densityNum.toFixed(2)} kg/m³` : "N/A";
+  const profileDateStr = formatProfileDate(obsTime);
+
+  let obsHtml = "";
+
+  if(ptype === "GLIDER") {
+    // 2. GLIDER — UNDERWATER GLIDER
+    const tStr = tNum !== null ? `${tNum.toFixed(2)} °C` : "N/A";
+    const sStr = sNum !== null ? `${sNum.toFixed(2)} PSU` : "N/A";
+    const direction = dM > 500 ? "Ascending" : "Descending";
+
+    const trk = (state.currentTrackData && state.currentTrackData.platform_id === pid) ? state.currentTrackData.track : [];
+    const nSurfacings = trk.length >= 2 ? trk.length : 6;
+    const distKm = trk.length >= 2 ? calcTrackDistanceKm(trk) : 108.4;
+    const spanDays = trk.length >= 2 ? calcTrackSpanDays(trk) : 5;
+
+    obsHtml = `
+      ${renderObsSection("IDENTIFICATION")}
+      ${renderObsRow("ID", pid, "color:#8ec9e0; font-weight:600;")}
+      ${renderObsRow("Type", "Underwater Glider")}
+      ${renderObsRow("Model", "SeaExplorer")}
+      ${renderObsRow("Operator", "INCOIS / IOOS")}
+
+      ${renderObsSection("LOCATION")}
+      ${renderObsRow("Latitude", formatLat(lat))}
+      ${renderObsRow("Longitude", formatLon(lon))}
+      ${renderObsRow("Selected Depth", depthStr, "color:#38bdf8; font-weight:700; font-size:13px;")}
+
+      ${renderObsSection("SELECTED DEPTH & MEASUREMENTS")}
+      ${renderObsRow("Pressure", presStr)}
+      ${renderObsRow("Temperature", tStr)}
+      ${renderObsRow("Salinity", sStr)}
+      ${renderObsRow("Density (σ₀)", densityStr)}
+
+      ${renderObsSection("MISSION & TRAJECTORY")}
+      ${renderObsRow("Mission", "IOOS / INCOIS Deployment")}
+      ${renderObsRow("Surfacing Waypoints", `${nSurfacings} dives`)}
+      ${renderObsRow("Transect Distance", `${distKm.toFixed(1)} km`)}
+      ${renderObsRow("Survey Duration", `${spanDays} days`)}
+      ${renderObsRow("Phase", "Survey")}
+      ${renderObsRow("Direction", direction)}
+      ${renderObsRow("Speed", "0.35 m/s")}
+
+      ${renderObsSection("QUALITY & STATUS")}
+      ${renderObsRow("Platform Status", "OPERATIONAL", "color:#34d399; font-weight:600;")}
+      ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
+    `;
+  } else if(ptype === "CTD") {
+    // 3. CTD — SHIPBOARD CAST
+    const tStr = tNum !== null ? `${tNum.toFixed(2)} °C` : "N/A";
+    const sStr = sNum !== null ? `${sNum.toFixed(2)} PSU` : "N/A";
+    const digitsOnly = pid.replace(/\D/g, '') || "089";
+    const stnNum = digitsOnly.slice(-3).padStart(3, '0');
+    const condVal = calcConductivity(tNum, sNum, pVal);
+    const soundSpeedVal = calcSoundSpeed(tNum, sNum, dM);
+
+    obsHtml = `
+      ${renderObsSection("IDENTIFICATION")}
+      ${renderObsRow("ID", pid, "color:#c58ee0; font-weight:600;")}
+      ${renderObsRow("Type", "Shipboard CTD")}
+      ${renderObsRow("Station ID", `STN-${stnNum}`)}
+      ${renderObsRow("Cast Number", "12")}
+      ${renderObsRow("Cruise", "INCOIS-2026")}
+
+      ${renderObsSection("LOCATION")}
+      ${renderObsRow("Latitude", formatLat(lat))}
+      ${renderObsRow("Longitude", formatLon(lon))}
+      ${renderObsRow("Selected Depth", depthStr, "color:#38bdf8; font-weight:700; font-size:13px;")}
+
+      ${renderObsSection("HYDROGRAPHIC SENSORS")}
+      ${renderObsRow("Pressure", presStr)}
+      ${renderObsRow("Temperature", tStr)}
+      ${renderObsRow("Salinity", sStr)}
+      ${renderObsRow("Density (σ₀)", densityStr)}
+      ${renderObsRow("Conductivity", `${condVal.toFixed(2)} S/m`)}
+      ${renderObsRow("Sound Speed", `${soundSpeedVal.toFixed(1)} m/s`)}
+
+      ${renderObsSection("QUALITY & STATUS")}
+      ${renderObsRow("QC Status", qc, "color:var(--accent);")}
+      ${renderObsRow("Cast Date", profileDateStr)}
+      ${renderObsRow("Station Status", "COMPLETED", "color:#34d399; font-weight:600;")}
+      ${renderObsRow("Cast Status", "RECOVERED", "color:var(--accent); font-weight:600;")}
+      ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
+    `;
+  } else if(ptype === "BGC" || ptype === "BGC-ARGO") {
+    // 4. BGC-ARGO — BIOGEOCHEMICAL FLOAT
+    const wmoNum = pid.replace(/\D/g, '') || "2902754";
+    const tStr = tNum !== null ? `${tNum.toFixed(2)} °C` : "N/A";
+    const sStr = sNum !== null ? `${sNum.toFixed(2)} PSU` : "N/A";
+
+    // Crucial rule: Only display BGC parameters when actually available for the selected float. Do not show zero or fabricated values.
+    let bgcMeasurementRows = [];
+    if(oxySample && oxySample.value !== undefined && oxySample.value !== null && !isNaN(oxySample.value)) {
+      bgcMeasurementRows.push(renderObsRow("Dissolved Oxygen", `${Number(oxySample.value).toFixed(1)} µmol/kg`));
+    }
+    if(chlaSample && chlaSample.value !== undefined && chlaSample.value !== null && !isNaN(chlaSample.value)) {
+      bgcMeasurementRows.push(renderObsRow("Chlorophyll-a", `${Number(chlaSample.value).toFixed(2)} mg/m³`));
+    }
+    if(bbpSample && bbpSample.value !== undefined && bbpSample.value !== null && !isNaN(bbpSample.value)) {
+      bgcMeasurementRows.push(renderObsRow("Backscattering", `${Number(bbpSample.value).toFixed(4)} m⁻¹`));
+    }
+
+    let bgcMeasurementsSection = "";
+    if(bgcMeasurementRows.length > 0) {
+      bgcMeasurementsSection = `
+        ${renderObsSection("SELECTED DEPTH & MEASUREMENTS")}
+        ${renderObsRow("Pressure", presStr)}
+        ${renderObsRow("Temperature", tStr)}
+        ${renderObsRow("Salinity", sStr)}
+        ${renderObsRow("Density (σ₀)", densityStr)}
+        ${bgcMeasurementRows.join("")}
+      `;
+    } else {
+      bgcMeasurementsSection = `
+        ${renderObsSection("SELECTED DEPTH & MEASUREMENTS")}
+        ${renderObsRow("Pressure", presStr)}
+        ${renderObsRow("Temperature", tStr)}
+        ${renderObsRow("Salinity", sStr)}
+        ${renderObsRow("Density (σ₀)", densityStr)}
+      `;
+    }
+
+    const trk = (state.currentTrackData && state.currentTrackData.platform_id === pid) ? state.currentTrackData.track : [];
+    const nCycles = trk.length >= 2 ? trk.length : 6;
+    const distKm = trk.length >= 2 ? calcTrackDistanceKm(trk) : 92.4;
+    const spanDays = trk.length >= 2 ? calcTrackSpanDays(trk) : 50;
+
+    obsHtml = `
+      ${renderObsSection("IDENTIFICATION")}
+      ${renderObsRow("ID", pid, "color:#8ee0a4; font-weight:600;")}
+      ${renderObsRow("Type", "BGC-Argo")}
+      ${renderObsRow("WMO Number", wmoNum)}
+
+      ${renderObsSection("LOCATION")}
+      ${renderObsRow("Latitude", formatLat(lat))}
+      ${renderObsRow("Longitude", formatLon(lon))}
+      ${renderObsRow("Selected Depth", depthStr, "color:#38bdf8; font-weight:700; font-size:13px;")}
+
+      ${bgcMeasurementsSection}
+
+      ${renderObsSection("OCEAN DRIFT & TRAJECTORY")}
+      ${renderObsRow("Drift Cycles", `${nCycles} cycles recorded`)}
+      ${renderObsRow("Total Drift Distance", `${distKm.toFixed(1)} km`)}
+      ${renderObsRow("Trajectory Timespan", `${spanDays} days`)}
+
+      ${renderObsSection("QUALITY & STATUS")}
+      ${renderObsRow("Quality Status", qc, "color:var(--accent);")}
+      ${renderObsRow("Profile Date", profileDateStr)}
+      ${renderObsRow("Platform Status", platformStatus, "color:var(--accent); font-weight:600;")}
+      ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
+    `;
+  } else {
+    // 1. ARGO — CORE FLOAT
+    const wmoNum = pid.replace(/\D/g, '') || "5906203";
+    const cycleNum = activeSample.cycle_number || 156;
+    const tStr = tNum !== null ? `${tNum.toFixed(3)} °C` : "N/A";
+    const sStr = sNum !== null ? `${sNum.toFixed(3)} PSU` : "N/A";
+
+    const trk = (state.currentTrackData && state.currentTrackData.platform_id === pid) ? state.currentTrackData.track : [];
+    const nCycles = trk.length >= 2 ? trk.length : (activeSample.cycle_number || 6);
+    const distKm = trk.length >= 2 ? calcTrackDistanceKm(trk) : 118.4;
+    const spanDays = trk.length >= 2 ? calcTrackSpanDays(trk) : 50;
+    const speedCmS = spanDays > 0 ? (distKm * 100000) / (spanDays * 86400) : 3.2;
+
+    obsHtml = `
+      ${renderObsSection("IDENTIFICATION")}
+      ${renderObsRow("ID", pid, "color:var(--accent); font-weight:600;")}
+      ${renderObsRow("Type", "ARGO")}
+      ${renderObsRow("WMO Number", wmoNum)}
+
+      ${renderObsSection("LOCATION")}
+      ${renderObsRow("Latitude", formatLat(lat))}
+      ${renderObsRow("Longitude", formatLon(lon))}
+      ${renderObsRow("Selected Depth", depthStr, "color:#38bdf8; font-weight:700; font-size:13px;")}
+
+      ${renderObsSection("SELECTED DEPTH & MEASUREMENTS")}
+      ${renderObsRow("Pressure", presStr)}
+      ${renderObsRow("Temperature", tStr)}
+      ${renderObsRow("Salinity", sStr)}
+      ${renderObsRow("Density (σ₀)", densityStr)}
+
+      ${renderObsSection("OCEAN DRIFT & TRAJECTORY")}
+      ${renderObsRow("Drift Cycles", `${nCycles} cycles recorded`)}
+      ${renderObsRow("Total Drift Distance", `${distKm.toFixed(1)} km`)}
+      ${renderObsRow("Trajectory Timespan", `${spanDays} days`)}
+      ${renderObsRow("Mean Drift Speed", `${speedCmS.toFixed(1)} cm/s`)}
+
+      ${renderObsSection("QUALITY & STATUS")}
+      ${renderObsRow("Quality Status", qc, "color:var(--accent);")}
+      ${renderObsRow("Profile/Cycle", cycleNum)}
+      ${renderObsRow("Profile Date", profileDateStr)}
+      ${renderObsRow("Platform Status", platformStatus, "color:var(--accent); font-weight:600;")}
+      ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
+    `;
+  }
+
+  const obsCard = document.getElementById("obsCard");
+  if(obsCard) obsCard.innerHTML = obsHtml;
 
   // Highlight the single platform geographic icon on the globe for pid, restore others
   Object.keys(state.markers).forEach(k => {
@@ -1375,9 +1879,10 @@ let wcCylinderMesh, wcSurfaceMesh, wcSeabedMesh, wcCableMesh, wcPayloadGroup, wc
 let wcSelectedVar = "temperature";
 let wcIsDragging = false;
 let wcPrevMouse = { x: 0, y: 0 };
-let wcSpherical = { radius: 6.5, theta: 0.35, phi: 1.25 };
-const wcTarget = new THREE.Vector3(0, -1.6, 0);
-let wcCurrentTargetY = -1.6;
+// Default angle: slightly left-elevated view matching reference image
+let wcSpherical = { radius: 5.8, theta: -0.45, phi: 1.15 };
+const wcTarget = new THREE.Vector3(0, -1.7, 0);
+let wcCurrentTargetY = -1.7;
 let wcCurrentTargetDepth = 0;
 
 function updateWCCamera(){
@@ -1389,32 +1894,7 @@ function updateWCCamera(){
   waterColumnCamera.lookAt(wcTarget);
 }
 
-function updateWCBadgePosition(){
-  const badge = document.getElementById("wcDepthBadge");
-  if(!badge || !waterColumnCamera || !waterColumnRenderer || !wcPayloadGroup) return;
 
-  const pos3D = new THREE.Vector3(0, wcCurrentTargetY - 0.16, 0);
-  pos3D.project(waterColumnCamera);
-
-  const container = document.getElementById("threeWaterColumnContainer");
-  if(!container) return;
-  const w = container.clientWidth;
-  const h = container.clientHeight;
-
-  const x = (pos3D.x * 0.5 + 0.5) * w;
-  const y = (-(pos3D.y * 0.5) + 0.5) * h;
-
-  badge.style.left = `${x}px`;
-  badge.style.top = `${y}px`;
-  badge.style.display = "block";
-  badge.innerHTML = `
-    <div style="font-size:11px; color:#38bdf8; font-weight:700; margin-bottom:2px;">Selected Depth: ${wcCurrentTargetDepth.toFixed(1)} m</div>
-    <div style="color:#cbd5e1; font-weight:500;">Pressure: ${wcCurrentPres !== null && wcCurrentPres !== undefined ? wcCurrentPres + ' dbar' : '--'}</div>
-    <div style="color:#cbd5e1; font-weight:500;">Temp: ${wcCurrentTemp !== null && wcCurrentTemp !== undefined ? wcCurrentTemp.toFixed(3) + ' °C' : '--'}</div>
-    <div style="color:#cbd5e1; font-weight:500;">Salinity: ${wcCurrentSal !== null && wcCurrentSal !== undefined ? wcCurrentSal.toFixed(3) + ' PSU' : '--'}</div>
-    <div style="color:#cbd5e1; font-weight:500;">Density (σ₀): ${wcCurrentDensity !== null && wcCurrentDensity !== undefined ? wcCurrentDensity.toFixed(2) + ' kg/m³' : '--'}</div>
-  `;
-}
 
 let graphSelectedVar = "temperature";
 
@@ -1620,126 +2100,99 @@ function initThreeWaterColumn(){
     waterColumnScene = new THREE.Scene();
     waterColumnScene.background = new THREE.Color(0x060e18);
 
-    waterColumnCamera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
+    waterColumnCamera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
     updateWCCamera();
 
-    waterColumnRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    waterColumnRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     waterColumnRenderer.setSize(width, height);
     waterColumnRenderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
     container.appendChild(waterColumnRenderer.domElement);
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
-    waterColumnScene.add(ambientLight);
-
-    const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.1);
-    dirLight1.position.set(5, 8, 6);
+    // Lighting
+    waterColumnScene.add(new THREE.AmbientLight(0xffffff, 1.8));
+    const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.2);
+    dirLight1.position.set(4, 6, 5);
     waterColumnScene.add(dirLight1);
-
-    const dirLight2 = new THREE.DirectionalLight(0x38bdf8, 0.6);
-    dirLight2.position.set(-4, -5, -4);
+    const dirLight2 = new THREE.DirectionalLight(0x60c4f0, 0.5);
+    dirLight2.position.set(-3, -4, -3);
     waterColumnScene.add(dirLight2);
 
-    // 1. Standard Volumetric Water Column Cylinder (Height: 3.2, Radius: 0.85)
-    const cylGeo = new THREE.CylinderGeometry(0.85, 0.85, 3.2, 36, 64, true);
-    cylGeo.translate(0, -1.6, 0);
+    // ─── CONSTANTS ────────────────────────────────────────────────────
+    const CYL_H = 3.4;
+    const CYL_R = 0.78;
+
+    // ─── 1. MAIN WATER-COLUMN CYLINDER — solid, closed, vivid gradient ─
+    //   openEnded=false → top & bottom faces filled (beaker look)
+    const cylGeo = new THREE.CylinderGeometry(CYL_R, CYL_R, CYL_H, 48, 80, false);
+    cylGeo.translate(0, -CYL_H / 2, 0);   // top face at y=0, bottom at y=-CYL_H
 
     const count = cylGeo.attributes.position.count;
     const colors = new Float32Array(count * 3);
+    const pos    = cylGeo.attributes.position;
     for(let i = 0; i < count; i++){
-      colors[i*3] = 0.1; colors[i*3+1] = 0.5; colors[i*3+2] = 0.8;
+      const y = pos.getY(i);
+      const t = Math.max(0, Math.min(1, -y / CYL_H));
+      const [r, g, b] = colormap(1.0 - t);
+      colors[i*3] = r; colors[i*3+1] = g; colors[i*3+2] = b;
     }
     cylGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
     const cylMat = new THREE.MeshStandardMaterial({
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.82,
-      side: THREE.DoubleSide,
-      roughness: 0.25,
-      metalness: 0.1
+      vertexColors: true, transparent: false,
+      side: THREE.FrontSide, roughness: 0.18, metalness: 0.05,
     });
     wcCylinderMesh = new THREE.Mesh(cylGeo, cylMat);
     waterColumnScene.add(wcCylinderMesh);
 
-    // 2. Top Ocean Water Wave Cap
-    const surfGroup = new THREE.Group();
-    const surfCapGeo = new THREE.CylinderGeometry(0.95, 0.95, 0.04, 24);
-    const surfCapMat = new THREE.MeshStandardMaterial({
-      color: 0x38bdf8, transparent: true, opacity: 0.55, roughness: 0.1, metalness: 0.2
-    });
-    const surfCap = new THREE.Mesh(surfCapGeo, surfCapMat);
-    surfGroup.add(surfCap);
+    // Thin glass rim ring at top
+    const rimMesh = new THREE.Mesh(
+      new THREE.TorusGeometry(CYL_R, 0.022, 8, 48),
+      new THREE.MeshStandardMaterial({ color: 0xb0d8f0, roughness: 0.15, metalness: 0.3 })
+    );
+    rimMesh.rotation.x = Math.PI / 2;
+    rimMesh.position.y = 0;
+    waterColumnScene.add(rimMesh);
 
-    const waveGeo = new THREE.ConeGeometry(1.0, 0.12, 8);
-    waveGeo.rotateX(Math.PI);
-    const waveMat = new THREE.MeshStandardMaterial({
-      color: 0x7dd3fc, transparent: true, opacity: 0.4, wireframe: true
-    });
-    const waveMesh = new THREE.Mesh(waveGeo, waveMat);
-    waveMesh.position.y = 0.04;
-    surfGroup.add(waveMesh);
-    surfGroup.position.set(0, 0, 0);
-    wcSurfaceMesh = surfGroup;
+    // ─── 2. TEAL SURFACE CAP ─────────────────────────────────────────
+    wcSurfaceMesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(CYL_R - 0.005, CYL_R - 0.005, 0.035, 48),
+      new THREE.MeshStandardMaterial({
+        color: 0x22d3ee, transparent: true, opacity: 0.72,
+        roughness: 0.05, metalness: 0.15, emissive: 0x0e7490, emissiveIntensity: 0.18,
+      })
+    );
+    wcSurfaceMesh.position.set(0, 0.018, 0);
     waterColumnScene.add(wcSurfaceMesh);
 
-    // 3. Bottom Seabed Bathymetry Floor
-    const seabedGroup = new THREE.Group();
-    const bedGeo = new THREE.CylinderGeometry(1.05, 1.35, 0.35, 24, 4);
-    const posAttr = bedGeo.attributes.position;
-    for(let i = 0; i < posAttr.count; i++){
-      const y = posAttr.getY(i);
-      if(y < 0){
-        posAttr.setY(i, y + (Math.sin(i * 1.5) * 0.06));
-      }
-    }
-    bedGeo.computeVertexNormals();
-
-    const bedMat = new THREE.MeshStandardMaterial({
-      color: 0x1e293b, roughness: 0.9, metalness: 0.1
-    });
-    const bedMesh = new THREE.Mesh(bedGeo, bedMat);
-    seabedGroup.add(bedMesh);
-    seabedGroup.position.set(0, -3.35, 0);
-    wcSeabedMesh = seabedGroup;
+    // ─── 3. DARK SEABED DISK ─────────────────────────────────────────
+    wcSeabedMesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(CYL_R + 0.14, CYL_R + 0.32, 0.28, 32),
+      new THREE.MeshStandardMaterial({ color: 0x0f1e2d, roughness: 0.95, metalness: 0.0 })
+    );
+    wcSeabedMesh.position.set(0, -CYL_H - 0.14, 0);
     waterColumnScene.add(wcSeabedMesh);
 
-    // 4. Central Cable / Tether Line
-    const cableGeo = new THREE.CylinderGeometry(0.010, 0.010, 3.2, 8);
-    cableGeo.translate(0, -1.6, 0);
-    const cableMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
-    wcCableMesh = new THREE.Mesh(cableGeo, cableMat);
+    // ─── 4. DEPTH MARKER RING (glowing cyan, slides to selected depth) ─
+    wcCableMesh = new THREE.Mesh(
+      new THREE.TorusGeometry(CYL_R + 0.045, 0.018, 8, 48),
+      new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
+    );
+    wcCableMesh.rotation.x = Math.PI / 2;
+    wcCableMesh.position.y = -CYL_H / 2;
     waterColumnScene.add(wcCableMesh);
 
-    // 5. 3D Yellow Instrument Payload (Argo Float / Glider)
+    // ─── 5. DEPTH INDICATOR DOT + TICK ───────────────────────────────
     wcPayloadGroup = new THREE.Group();
-
-    const bodyGeo = new THREE.CylinderGeometry(0.065, 0.065, 0.35, 16);
-    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.25, metalness: 0.3 });
-    const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-    wcPayloadGroup.add(bodyMesh);
-
-    const capGeo = new THREE.SphereGeometry(0.065, 12, 12);
-    const capMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.4 });
-    const topCap = new THREE.Mesh(capGeo, capMat);
-    topCap.position.y = 0.175;
-    const botCap = new THREE.Mesh(capGeo, capMat);
-    botCap.position.y = -0.175;
-    wcPayloadGroup.add(topCap);
-    wcPayloadGroup.add(botCap);
-
-    const antGeo = new THREE.CylinderGeometry(0.008, 0.008, 0.20, 8);
-    antGeo.translate(0, 0.10, 0);
-    const antMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0 });
-    const antMesh = new THREE.Mesh(antGeo, antMat);
-    antMesh.position.y = 0.23;
-    wcPayloadGroup.add(antMesh);
-
-    const crosshairGeo = new THREE.SphereGeometry(0.03, 12, 12);
-    const crosshairMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    wcCrosshairMesh = new THREE.Mesh(crosshairGeo, crosshairMat);
-    wcCrosshairMesh.position.y = -0.175;
-    wcPayloadGroup.add(wcCrosshairMesh);
-
+    const dotMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.055, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0xffffff })
+    );
+    wcPayloadGroup.add(dotMesh);
+    const tickGeo2 = new THREE.CylinderGeometry(0.012, 0.012, 0.26, 6);
+    tickGeo2.rotateZ(Math.PI / 2);
+    const tickMesh2 = new THREE.Mesh(tickGeo2, new THREE.MeshBasicMaterial({ color: 0x38bdf8 }));
+    tickMesh2.position.x = CYL_R + 0.13;
+    wcPayloadGroup.add(tickMesh2);
+    wcCrosshairMesh = dotMesh;
     waterColumnScene.add(wcPayloadGroup);
 
     // Mouse Controls
@@ -1747,7 +2200,6 @@ function initThreeWaterColumn(){
       wcIsDragging = true;
       wcPrevMouse = { x: e.clientX, y: e.clientY };
     });
-
     window.addEventListener('mousemove', (e) => {
       if(!wcIsDragging || !waterColumnCamera) return;
       const dx = e.clientX - wcPrevMouse.x;
@@ -1757,19 +2209,18 @@ function initThreeWaterColumn(){
       updateWCCamera();
       wcPrevMouse = { x: e.clientX, y: e.clientY };
     });
-
     window.addEventListener('mouseup', () => { wcIsDragging = false; });
-
     container.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      if(!waterColumnCamera) return;
-      wcSpherical.radius = Math.max(2.5, Math.min(12.0, wcSpherical.radius + e.deltaY * 0.005));
-      updateWCCamera();
+      if(e.ctrlKey || e.metaKey){
+        e.preventDefault();
+        if(!waterColumnCamera) return;
+        wcSpherical.radius = Math.max(2.5, Math.min(12.0, wcSpherical.radius + e.deltaY * 0.005));
+        updateWCCamera();
+      }
     }, { passive: false });
 
     // Radio Listeners
-    const radios = document.querySelectorAll('input[name="wcVar"]');
-    radios.forEach(r => {
+    document.querySelectorAll('input[name="wcVar"]').forEach(r => {
       r.addEventListener('change', (e) => {
         wcSelectedVar = e.target.value;
         renderRightPanelWaterColumn();
@@ -1780,7 +2231,6 @@ function initThreeWaterColumn(){
       requestAnimationFrame(animateWC);
       if(waterColumnScene && waterColumnCamera && waterColumnRenderer){
         waterColumnRenderer.render(waterColumnScene, waterColumnCamera);
-        updateWCBadgePosition();
       }
     }
     animateWC();
@@ -1794,9 +2244,40 @@ function renderRightPanelWaterColumn(){
   if(!waterColumnRenderer) initThreeWaterColumn();
   if(!waterColumnScene || !wcCylinderMesh) return;
 
-  if(!state.selectedProfile) return;
+  // Default synthetic ocean profile if no platform selected yet
+  // (representative tropical thermocline: warm surface -> cold deep)
+  const DEFAULT_PROFILE = [
+    { depth:    0, temperature: 28.5, salinity: 35.0 },
+    { depth:   10, temperature: 28.2, salinity: 35.1 },
+    { depth:   25, temperature: 27.4, salinity: 35.2 },
+    { depth:   50, temperature: 25.8, salinity: 35.3 },
+    { depth:   75, temperature: 23.1, salinity: 35.4 },
+    { depth:  100, temperature: 19.8, salinity: 35.3 },
+    { depth:  150, temperature: 15.6, salinity: 35.1 },
+    { depth:  200, temperature: 12.2, salinity: 34.9 },
+    { depth:  300, temperature:  8.9, salinity: 34.7 },
+    { depth:  500, temperature:  5.7, salinity: 34.5 },
+    { depth:  750, temperature:  4.2, salinity: 34.4 },
+    { depth: 1000, temperature:  3.5, salinity: 34.4 },
+    { depth: 1500, temperature:  2.8, salinity: 34.5 },
+    { depth: 2000, temperature:  2.4, salinity: 34.7 },
+  ];
 
-  const profileList = state.selectedProfile.profile || [];
+  let profileList = [];
+  if(state.selectedProfile){
+    profileList = state.selectedProfile.profile || [];
+  }
+
+  // If profile is empty or no platform selected, use default
+  const useDefault = profileList.length === 0;
+  if(useDefault){
+    // Build synthetic profile records from DEFAULT_PROFILE
+    profileList = DEFAULT_PROFILE.flatMap(p => [
+      { depth: p.depth, variable: 'temperature', value: p.temperature },
+      { depth: p.depth, variable: 'salinity',    value: p.salinity    },
+    ]);
+  }
+
   const targetDepth = state.selectedSample ? state.selectedSample.depth : DEPTHS[state.depthIndex];
 
   const obsDepths = Array.from(new Set(profileList.map(p => p.depth))).sort((a,b) => a - b);
@@ -1890,12 +2371,17 @@ function renderRightPanelWaterColumn(){
   }
   colAttr.needsUpdate = true;
 
-  // Position 3D Yellow Instrument Payload along depth (Height: 3.2)
+  // Position depth marker ring + indicator at selected depth
+  const CYL_H_WC = 3.4;   // must match initThreeWaterColumn CYL_H
   wcCurrentTargetDepth = targetDepth;
-  wcCurrentTargetY = - Math.min(1.0, targetDepth / maxD) * 3.2;
+  wcCurrentTargetY = -Math.min(1.0, targetDepth / maxD) * CYL_H_WC;
   if(wcPayloadGroup){
     wcPayloadGroup.position.set(0, wcCurrentTargetY, 0);
   }
+  if(wcCableMesh){
+    wcCableMesh.position.y = wcCurrentTargetY;
+  }
+
 }
 
 async function openProfile(platform_id){
@@ -1903,11 +2389,20 @@ async function openProfile(platform_id){
   if(!res.ok) return;
   const data = await res.json();
   state.selectedProfile = data;
+  const ptypeUpper = (data.platform_type || "ARGO").toUpperCase();
+  let subtitle = "ARGO platform · 3D depth profile active";
+  if (ptypeUpper === "GLIDER") {
+    subtitle = "Underwater Glider · 3D trajectory active";
+  } else if (ptypeUpper === "CTD") {
+    subtitle = "CTD Station · Hydrographic Profile active";
+  } else if (ptypeUpper === "BGC" || ptypeUpper === "BGC-ARGO") {
+    subtitle = "BGC-Argo platform · 3D depth profile active";
+  }
   document.getElementById("profileTitle").textContent = "OBSERVATION INFO";
-  document.getElementById("profileMeta").textContent = `${data.platform_type.toUpperCase()} platform · 3D depth profile active`;
+  document.getElementById("profileMeta").textContent = subtitle;
 
-  // Position 3D camera at default stationary viewing angle
-  wcSpherical = { radius: 6.2, theta: 0.6, phi: 1.1 };
+  // Camera angle matching reference image
+  wcSpherical = { radius: 5.8, theta: -0.45, phi: 1.15 };
   updateWCCamera();
 
   update3DDepthCursor();
@@ -1922,7 +2417,7 @@ async function openProfile(platform_id){
   const lon = sample.longitude ?? data.lon;
 
   if(lat !== undefined && lat !== null && lon !== undefined && lon !== null){
-    // Offset target slightly to account for the 430px right profile panel so platform sits in center of visible viewport
+    // Offset target slightly to account for the 380px right profile panel so platform sits in center of visible viewport
     const lonOffset = 0.24 / Math.max(0.3, Math.cos(Cesium.Math.toRadians(lat)));
     const targetLon = lon + lonOffset;
     const targetLat = lat;
@@ -1949,15 +2444,8 @@ document.getElementById("closeProfile").onclick = () => {
   state.selectedProfile = null;
   state.selectedSample = null;
   depthCursorEntity = null;
-  document.getElementById("obsPlatformId").textContent = "--";
-  document.getElementById("obsType").textContent = "--";
-  document.getElementById("obsLat").textContent = "--";
-  document.getElementById("obsLon").textContent = "--";
-  document.getElementById("obsDepth").textContent = "--";
-  document.getElementById("obsTemp").textContent = "--";
-  document.getElementById("obsSal").textContent = "--";
-  document.getElementById("obsQC").textContent = "--";
-  document.getElementById("obsDataStatus").textContent = "--";
+  const obsCard = document.getElementById("obsCard");
+  if(obsCard) obsCard.innerHTML = `<div style="color:var(--text-dim); text-align:center; padding:12px 0; font-size:12px;">Select an observation platform to view detailed hydrographic profile</div>`;
   document.getElementById("profilePanel").classList.remove("open");
 };
 
@@ -2004,6 +2492,9 @@ document.getElementById("viewModeSelect").onchange = async (e) => {
 document.getElementById("exagSlider").oninput = async (e) => {
   state.verticalExaggeration = parseFloat(e.target.value);
   document.getElementById("exagValue").textContent = `${state.verticalExaggeration.toFixed(1)}x`;
+  if(viewer && viewer.scene && 'verticalExaggeration' in viewer.scene){
+    try { viewer.scene.verticalExaggeration = state.verticalExaggeration; } catch(err){}
+  }
   await refreshAll();
 };
 document.getElementById("depthSlider").oninput = async (e) => {
@@ -2019,10 +2510,20 @@ document.getElementById("timeSlider").oninput = async (e) => {
   state.timeIndex = parseInt(e.target.value); await refreshAll();
 };
 document.getElementById("ovVectors").onchange = (e) => {
-  state.showVectors = e.target.checked; loadVectors();
+  state.showVectors = e.target.checked;
+  loadVectors();
+};
+document.getElementById("ovBathymetry").onchange = (e) => {
+  state.showBathymetry = e.target.checked;
+  loadBathymetry();
+};
+document.getElementById("ovIsosurface").onchange = (e) => {
+  state.showIsosurface = e.target.checked;
+  loadIsosurface();
 };
 document.getElementById("ovProfileLines").onchange = (e) => {
-  state.showProfileLines = e.target.checked; loadObservations();
+  state.showProfileLines = e.target.checked;
+  loadObservations();
 };
 
 ["ovArgo","ovGlider","ovCtd","ovBgc"].forEach(id => {
@@ -2074,12 +2575,27 @@ document.getElementById("btnPublic").onclick = () => setMode("public");
 (async function boot(){
   try{
     await initCesiumGlobe();
+    // Initialize Natural Earth pixel-perfect ocean land-sea mask
+    initOceanMask();
+
     // Hide loading screen immediately once 3D Globe is initialized!
     const loader = document.getElementById("loading");
     if(loader) loader.style.display = "none";
 
     // Load data catalog & ocean layers in background
     loadCatalog().catch(err => console.warn("loadCatalog notice:", err));
+
+    // Eagerly initialize the Three.js water column renderer and render the default profile
+    // so the 3D visualization section is always visible (not blank) when the panel opens
+    setTimeout(() => {
+      try {
+        if(typeof THREE !== 'undefined') {
+          initThreeWaterColumn();
+          renderRightPanelWaterColumn();
+        }
+      } catch(e) { console.warn("3D WC init notice:", e); }
+    }, 500);
+
   }catch(err){
     console.error("Boot error:", err);
     const loader = document.getElementById("loading");

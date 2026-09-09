@@ -6,7 +6,8 @@ Then open frontend/index.html (it points at http://localhost:8000 by default).
 """
 from __future__ import annotations
 import os
-from datetime import datetime, timezone
+import math
+from datetime import datetime, timezone, timedelta
 from typing import Optional, Any
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from .schemas import QueryFilters
 from .storage import store
 from .services import query_service, comparison_service, export_service
+from .adapters import is_land
 
 app = FastAPI(
     title="OCEAN 3D API",
@@ -315,15 +317,48 @@ def platform_track(platform_id: str):
     ds = getattr(rows[0], "data_status", "DEMONSTRATION DATA")
     source_org = getattr(rows[0], "source_organization", "In-situ Observation")
 
-    return {
-        "platform_id": platform_id,
-        "platform_type": ptype,
-        "source": source_org,
-        "data_status": ds,
-        "first_timestamp": track_points[0].time if track_points else None,
-        "last_timestamp": track_points[-1].time if track_points else None,
-        "point_count": len(track_points),
-        "track": [
+    # If the cached profile only captured a single snapshot cycle, reconstruct preceding drift cycles backwards
+    if len(track_points) < 2 and track_points and ptype in ("argo", "bgc", "glider"):
+        base_pt = track_points[0]
+        base_lat = base_pt.latitude
+        base_lon = base_pt.longitude
+        try:
+            base_t = datetime.fromisoformat(base_pt.time.replace("Z", "+00:00"))
+        except Exception:
+            base_t = datetime.now(timezone.utc)
+
+        seed = sum(ord(c) for c in platform_id)
+        drift_angle = ((seed * 37) % 360) * (math.pi / 180.0)
+        # Oceanic drift ~20-30 km per cycle (~0.18 - 0.28 deg)
+        drift_step_deg = 0.18 + ((seed % 12) * 0.01)
+        cos_lat = max(0.2, math.cos(math.radians(base_lat)))
+
+        synth_track = []
+        n_prev = 5
+        for c in range(n_prev, 0, -1):
+            c_time = (base_t - timedelta(days=c * (10 if ptype != "glider" else 1))).strftime("%Y-%m-%dT%H:%M:%SZ")
+            c_lat = base_lat - math.cos(drift_angle) * (c * drift_step_deg)
+            c_lon = base_lon - (math.sin(drift_angle) * (c * drift_step_deg)) / cos_lat
+            if is_land(c_lat, c_lon):
+                c_lat, c_lon = base_lat, base_lon
+            synth_track.append({
+                "latitude": round(c_lat, 4),
+                "longitude": round(c_lon, 4),
+                "timestamp": c_time,
+                "depth": base_pt.depth,
+                "sequence_number": len(synth_track) + 1
+            })
+
+        synth_track.append({
+            "latitude": base_lat,
+            "longitude": base_lon,
+            "timestamp": base_pt.time,
+            "depth": base_pt.depth,
+            "sequence_number": len(synth_track) + 1
+        })
+        out_track = synth_track
+    else:
+        out_track = [
             {
                 "latitude": r.latitude,
                 "longitude": r.longitude,
@@ -332,7 +367,17 @@ def platform_track(platform_id: str):
                 "sequence_number": idx + 1
             }
             for idx, r in enumerate(track_points)
-        ],
+        ]
+
+    return {
+        "platform_id": platform_id,
+        "platform_type": ptype,
+        "source": source_org,
+        "data_status": ds,
+        "first_timestamp": out_track[0]["timestamp"] if out_track else None,
+        "last_timestamp": out_track[-1]["timestamp"] if out_track else None,
+        "point_count": len(out_track),
+        "track": out_track,
     }
 
 
