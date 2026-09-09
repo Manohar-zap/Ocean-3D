@@ -235,16 +235,6 @@
     <button class="action primary" id="btnFlyGlobal">Fly to Global View</button>
     <button class="action" id="btnFlyIndia" style="margin-top:-6px;">Fly to India & Indian Ocean</button>
 
-    <div class="field research-only">
-      <label>Backend API</label>
-      <input id="apiBase" type="text" class="mono" value="http://localhost:8000" />
-    </div>
-
-    <div class="field research-only">
-      <label>Dataset</label>
-      <select id="datasetSelect"></select>
-    </div>
-
     <div class="field">
       <label id="variableLabel">Variable</label>
       <select id="variableSelect"></select>
@@ -336,16 +326,6 @@
       </div>
     </div>
 
-    <div class="field research-only">
-      <label>Region (lat / lon bounds)</label>
-      <div style="display:flex; gap:6px;">
-        <input id="minLat" type="text" class="mono" value="-90" style="width:25%">
-        <input id="maxLat" type="text" class="mono" value="90" style="width:25%">
-        <input id="minLon" type="text" class="mono" value="-180" style="width:25%">
-        <input id="maxLon" type="text" class="mono" value="180" style="width:25%">
-      </div>
-    </div>
-
     <div>
       <div class="section-title">Data & Provenance</div>
       <div id="provenanceCard" style="font-size:11.5px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); padding:8px 10px; display:flex; flex-direction:column; gap:4px;">
@@ -375,6 +355,30 @@
         </div>
       </div>
     </div>
+
+    <!-- Collapsible Advanced & Developer Settings (Keeps inputs available without cluttering UI) -->
+    <details style="margin-top:8px; font-size:10px; color:var(--text-dim); border:1px solid rgba(255,255,255,0.08); border-radius:var(--radius); padding:6px 8px; background:rgba(0,0,0,0.15);">
+      <summary style="cursor:pointer; font-weight:600; color:var(--text-dim); user-select:none;">⚙ Advanced & API Settings</summary>
+      <div style="margin-top:8px; display:flex; flex-direction:column; gap:8px;">
+        <div class="field" style="margin:0;">
+          <label style="font-size:10px;">Backend API Endpoint</label>
+          <input id="apiBase" type="text" class="mono" value="http://localhost:8000" style="font-size:10px; padding:3px 6px;" />
+        </div>
+        <div class="field" style="margin:0;">
+          <label style="font-size:10px;">Dataset</label>
+          <select id="datasetSelect" style="font-size:10px; padding:3px 6px;"></select>
+        </div>
+        <div class="field" style="margin:0;">
+          <label style="font-size:10px;">Region (lat / lon bounds)</label>
+          <div style="display:flex; gap:4px;">
+            <input id="minLat" type="text" class="mono" value="-90" style="width:25%; font-size:9.5px; padding:2px 4px;">
+            <input id="maxLat" type="text" class="mono" value="90" style="width:25%; font-size:9.5px; padding:2px 4px;">
+            <input id="minLon" type="text" class="mono" value="-180" style="width:25%; font-size:9.5px; padding:2px 4px;">
+            <input id="maxLon" type="text" class="mono" value="180" style="width:25%; font-size:9.5px; padding:2px 4px;">
+          </div>
+        </div>
+      </div>
+    </details>
 
     <div style="margin-top:auto; display:flex; flex-direction:column; gap:8px;">
       <button class="action research-only" id="btnExport">Export current view as CSV</button>
@@ -447,8 +451,17 @@
         </div>
       </div>
 
-      <div class="section-title" style="margin-top:10px; font-size:12px; font-weight:700; letter-spacing:0.8px; color:#e2e8f0; text-transform:uppercase;">3D WATER-COLUMN VISUALIZATION</div>
-      <div id="waterColumnWrap" style="position:relative; width:100%; height:250px; background:#060e18; border:1px solid rgba(255,255,255,0.12); border-radius:8px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.4);">
+      <div class="section-title" style="margin-top:10px; font-size:12px; font-weight:700; letter-spacing:0.8px; color:#e2e8f0; text-transform:uppercase; display:flex; justify-content:space-between; align-items:center;">
+        <span>3D INSTRUMENT DIGITAL TWIN</span>
+        <span id="wcPlatformBadge" class="mono" style="font-size:9.5px; padding:2px 7px; border-radius:3px; background:#0284c7; color:#fff; font-weight:600; letter-spacing:0.3px;">ARGO FLOAT</span>
+      </div>
+      <div id="waterColumnWrap" style="position:relative; width:100%; height:275px; background:#060e18; border:1px solid rgba(255,255,255,0.12); border-radius:8px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.4);">
+        <!-- Mode & Camera Switcher (Top Left) -->
+        <div id="wcModeBar" style="position:absolute; top:8px; left:8px; z-index:10; display:flex; gap:4px; font-size:9px;">
+          <button id="btnWCFocusVehicle" style="padding:3px 7px; font-size:9.5px; font-weight:600; border-radius:4px; border:1px solid #38bdf8; background:#0284c7; color:#fff; cursor:pointer;">🤖 Focus Instrument</button>
+          <button id="btnWCFocusColumn" style="padding:3px 7px; font-size:9.5px; font-weight:600; border-radius:4px; border:1px solid rgba(255,255,255,0.2); background:rgba(15,23,42,0.6); color:#cbd5e1; cursor:pointer;">🌊 Full Column</button>
+        </div>
+
         <!-- Compact Radio Controls (Top Right) -->
         <div id="wcColorByPanel" style="position:absolute; top:8px; right:8px; z-index:10; font-size:9.5px; color:#cbd5e1; display:flex; flex-direction:column; gap:2px; background:rgba(11,23,38,0.75); padding:5px 7px; border-radius:5px; border:1px solid rgba(255,255,255,0.1); backdrop-filter:blur(4px);">
           <span style="font-weight:700; color:#94a3b8; font-size:9px; letter-spacing:0.3px; margin-bottom:1px;">Color by:</span>
@@ -2861,17 +2874,26 @@ function update3DDepthCursor(){
 
 let waterColumnScene, waterColumnCamera, waterColumnRenderer;
 let wcCylinderMesh, wcSurfaceMesh, wcSeabedMesh, wcCableMesh, wcPayloadGroup, wcCrosshairMesh;
+let wcVehicleGroup = null;
+let wcCurrentVehicleType = null;
+let wcFocusMode = 'vehicle'; // 'vehicle' or 'column'
+let wcParticles = null;
 let wcSelectedVar = "temperature";
 let wcIsDragging = false;
 let wcPrevMouse = { x: 0, y: 0 };
 // Default angle: slightly left-elevated view matching reference image
-let wcSpherical = { radius: 5.8, theta: -0.45, phi: 1.15 };
+let wcSpherical = { radius: 3.2, theta: -0.45, phi: 1.15 };
 const wcTarget = new THREE.Vector3(0, -1.7, 0);
 let wcCurrentTargetY = -1.7;
 let wcCurrentTargetDepth = 0;
 
 function updateWCCamera(){
   if(!waterColumnCamera) return;
+  if(wcFocusMode === 'vehicle'){
+    wcTarget.set(0, wcCurrentTargetY, 0);
+  } else {
+    wcTarget.set(0, -1.7, 0);
+  }
   const x = wcTarget.x + wcSpherical.radius * Math.sin(wcSpherical.phi) * Math.sin(wcSpherical.theta);
   const y = wcTarget.y + wcSpherical.radius * Math.cos(wcSpherical.phi);
   const z = wcTarget.z + wcSpherical.radius * Math.sin(wcSpherical.phi) * Math.cos(wcSpherical.theta);
@@ -3073,19 +3095,194 @@ function renderProfileGraph() {
   }
 }
 
+// ─── 3D INSTRUMENT DIGITAL TWIN BUILDERS ─────────────────────────────────────
+function buildArgoModel(){
+  const group = new THREE.Group();
+
+  // 1. Safety-yellow cylindrical pressure hull
+  const hullGeo = new THREE.CylinderGeometry(0.18, 0.18, 1.15, 32);
+  const hullMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.22, metalness: 0.18 });
+  const hull = new THREE.Mesh(hullGeo, hullMat);
+  hull.position.y = 0.58;
+  group.add(hull);
+
+  // 2. Anodized aluminum collar rings & clamps
+  const bandMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.35, metalness: 0.75 });
+  const band1 = new THREE.Mesh(new THREE.TorusGeometry(0.184, 0.016, 8, 32), bandMat);
+  band1.rotation.x = Math.PI / 2; band1.position.y = 0.90; group.add(band1);
+  const band2 = new THREE.Mesh(new THREE.TorusGeometry(0.184, 0.016, 8, 32), bandMat);
+  band2.rotation.x = Math.PI / 2; band2.position.y = 0.26; group.add(band2);
+
+  // 3. Top CTD sensor head assembly
+  const headGeo = new THREE.CylinderGeometry(0.13, 0.18, 0.18, 24);
+  const head = new THREE.Mesh(headGeo, bandMat);
+  head.position.y = 1.24;
+  group.add(head);
+
+  // Dual titanium CTD intake conductivity cells
+  const tubeGeo = new THREE.CylinderGeometry(0.018, 0.018, 0.24, 12);
+  const tubeMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.18, metalness: 0.88 });
+  const tube1 = new THREE.Mesh(tubeGeo, tubeMat); tube1.position.set(0.05, 1.42, 0); group.add(tube1);
+  const tube2 = new THREE.Mesh(tubeGeo, tubeMat); tube2.position.set(-0.05, 1.42, 0); group.add(tube2);
+
+  // 4. Argos / Iridium satellite telemetry antenna mast
+  const antGeo = new THREE.CylinderGeometry(0.008, 0.005, 0.70, 8);
+  const antMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.3, metalness: 0.65 });
+  const ant = new THREE.Mesh(antGeo, antMat);
+  ant.position.y = 1.68; group.add(ant);
+
+  // White radome antenna tip
+  const tipGeo = new THREE.SphereGeometry(0.026, 12, 12);
+  const tip = new THREE.Mesh(tipGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 }));
+  tip.position.y = 2.04; group.add(tip);
+
+  // 5. Bottom hydraulic buoyancy bladder (black rubber dome)
+  const bladderGeo = new THREE.SphereGeometry(0.178, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+  const bladder = new THREE.Mesh(bladderGeo, new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.85 }));
+  bladder.rotation.x = Math.PI;
+  bladder.position.y = 0.0;
+  group.add(bladder);
+
+  // 6. Optical BGC sensor collar puck (blue lens)
+  const optPuck = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.038, 0.038, 0.08, 16),
+    new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.2, metalness: 0.5 })
+  );
+  optPuck.rotation.z = Math.PI / 2;
+  optPuck.position.set(0.19, 0.70, 0);
+  group.add(optPuck);
+
+  group.scale.setScalar(0.65);
+  return group;
+}
+
+function buildGliderModel(){
+  const group = new THREE.Group();
+
+  // 1. Streamlined yellow hydrodynamic fuselage
+  const fuseGeo = new THREE.CylinderGeometry(0.14, 0.11, 1.6, 24);
+  const fuseMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.22, metalness: 0.18 });
+  const fuse = new THREE.Mesh(fuseGeo, fuseMat);
+  fuse.rotation.z = Math.PI / 2;
+  group.add(fuse);
+
+  // 2. High-visibility orange nose cone
+  const noseGeo = new THREE.ConeGeometry(0.14, 0.40, 24);
+  const noseMat = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.25, metalness: 0.12 });
+  const nose = new THREE.Mesh(noseGeo, noseMat);
+  nose.rotation.z = -Math.PI / 2;
+  nose.position.x = 0.98;
+  group.add(nose);
+
+  // Forward altimeter / pitot probe
+  const probe = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.009, 0.005, 0.16, 8),
+    new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, roughness: 0.15 })
+  );
+  probe.rotation.z = -Math.PI / 2;
+  probe.position.x = 1.25;
+  group.add(probe);
+
+  // 3. Swept-back carbon glider wings
+  const wingShape = new THREE.Shape();
+  wingShape.moveTo(0, 0);
+  wingShape.lineTo(-0.35, 0.90);
+  wingShape.lineTo(-0.58, 0.86);
+  wingShape.lineTo(-0.28, 0);
+  wingShape.closePath();
+  const wingExtrude = new THREE.ExtrudeGeometry(wingShape, { depth: 0.02, bevelEnabled: true, bevelThickness: 0.005, bevelSize: 0.005 });
+  const wingMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.35, metalness: 0.65 });
+
+  const wingL = new THREE.Mesh(wingExtrude, wingMat);
+  wingL.rotation.x = Math.PI / 2; wingL.position.set(0.06, 0.01, 0.10); group.add(wingL);
+  const wingR = new THREE.Mesh(wingExtrude, wingMat);
+  wingR.rotation.x = -Math.PI / 2; wingR.position.set(0.06, -0.01, -0.10); group.add(wingR);
+
+  // 4. Vertical tail fin & rudder
+  const finShape = new THREE.Shape();
+  finShape.moveTo(0, 0);
+  finShape.lineTo(-0.28, 0.46);
+  finShape.lineTo(-0.46, 0.44);
+  finShape.lineTo(-0.32, 0);
+  finShape.closePath();
+  const finGeo = new THREE.ExtrudeGeometry(finShape, { depth: 0.018, bevelEnabled: false });
+  const fin = new THREE.Mesh(finGeo, wingMat);
+  fin.position.set(-0.60, 0.09, -0.009);
+  group.add(fin);
+
+  // 5. Trailing tail antenna mast
+  const tailAnt = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.007, 0.004, 0.48, 8),
+    new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.6 })
+  );
+  tailAnt.rotation.z = Math.PI / 3.2;
+  tailAnt.position.set(-0.92, 0.24, 0);
+  group.add(tailAnt);
+
+  // Hydrodynamic glide slope pitch angle
+  group.rotation.z = -0.20; // 11.5° descent pitch
+  group.scale.setScalar(0.68);
+  return group;
+}
+
+function buildCTDModel(){
+  const group = new THREE.Group();
+
+  // Titanium protective frame rings
+  const cageMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.28, metalness: 0.82 });
+  const ringTop = new THREE.Mesh(new THREE.TorusGeometry(0.40, 0.018, 8, 32), cageMat);
+  ringTop.rotation.x = Math.PI / 2; ringTop.position.y = 0.52; group.add(ringTop);
+  const ringBot = new THREE.Mesh(new THREE.TorusGeometry(0.40, 0.018, 8, 32), cageMat);
+  ringBot.rotation.x = Math.PI / 2; ringBot.position.y = -0.52; group.add(ringBot);
+
+  // 6 vertical structural cage struts
+  const strutGeo = new THREE.CylinderGeometry(0.014, 0.014, 1.05, 8);
+  for(let i = 0; i < 6; i++){
+    const ang = (i / 6) * Math.PI * 2;
+    const strut = new THREE.Mesh(strutGeo, cageMat);
+    strut.position.set(0.40 * Math.cos(ang), 0, 0.40 * Math.sin(ang));
+    group.add(strut);
+  }
+
+  // 10 Niskin water sampling carousel bottles
+  const bottleGeo = new THREE.CylinderGeometry(0.048, 0.048, 0.86, 12);
+  const bottleMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.38, metalness: 0.12 });
+  for(let i = 0; i < 10; i++){
+    const ang = (i / 10) * Math.PI * 2;
+    const bottle = new THREE.Mesh(bottleGeo, bottleMat);
+    bottle.position.set(0.30 * Math.cos(ang), 0.02, 0.30 * Math.sin(ang));
+    group.add(bottle);
+  }
+
+  // Central Seabird 911plus CTD electronic instrument core
+  const coreGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.96, 16);
+  const coreMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3, metalness: 0.72 });
+  const core = new THREE.Mesh(coreGeo, coreMat);
+  core.position.y = 0; group.add(core);
+
+  // Top lifting bridle & oceanographic winch cable
+  const cableGeo = new THREE.CylinderGeometry(0.008, 0.008, 1.25, 6);
+  const cableMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.9, roughness: 0.2 });
+  const cable = new THREE.Mesh(cableGeo, cableMat);
+  cable.position.y = 1.15; group.add(cable);
+
+  group.scale.setScalar(0.70);
+  return group;
+}
+
 function initThreeWaterColumn(){
   if(typeof THREE === 'undefined') return;
   const container = document.getElementById("threeWaterColumnContainer");
   if(!container || waterColumnRenderer) return;
 
-  const width = container.clientWidth || 300;
-  const height = container.clientHeight || 250;
+  const width  = container.clientWidth  || 320;
+  const height = container.clientHeight || 275;
 
   try {
     waterColumnScene = new THREE.Scene();
-    waterColumnScene.background = new THREE.Color(0x060e18);
+    waterColumnScene.background = new THREE.Color(0x040a14);
 
-    waterColumnCamera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
+    waterColumnCamera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
     updateWCCamera();
 
     waterColumnRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -3093,27 +3290,26 @@ function initThreeWaterColumn(){
     waterColumnRenderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
     container.appendChild(waterColumnRenderer.domElement);
 
-    // Lighting
-    waterColumnScene.add(new THREE.AmbientLight(0xffffff, 1.8));
-    const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.2);
+    // Studio directional lighting with oceanic blue fill
+    waterColumnScene.add(new THREE.AmbientLight(0xffffff, 1.6));
+    const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.4);
     dirLight1.position.set(4, 6, 5);
     waterColumnScene.add(dirLight1);
-    const dirLight2 = new THREE.DirectionalLight(0x60c4f0, 0.5);
+    const dirLight2 = new THREE.DirectionalLight(0x38bdf8, 0.75);
     dirLight2.position.set(-3, -4, -3);
     waterColumnScene.add(dirLight2);
 
-    // ─── CONSTANTS ────────────────────────────────────────────────────
     const CYL_H = 3.4;
-    const CYL_R = 0.78;
+    const CYL_R = 0.82;
 
-    // ─── 1. MAIN WATER-COLUMN CYLINDER — solid, closed, vivid gradient ─
-    //   openEnded=false → top & bottom faces filled (beaker look)
-    const cylGeo = new THREE.CylinderGeometry(CYL_R, CYL_R, CYL_H, 48, 80, false);
-    cylGeo.translate(0, -CYL_H / 2, 0);   // top face at y=0, bottom at y=-CYL_H
+    // ── 1. TRANSLUCENT VOLUMETRIC WATER COLUMN ENVELOPE ──────────────────────
+    // Translucent open cylinder so the 3D instrument is visible INSIDE the water column
+    const cylGeo = new THREE.CylinderGeometry(CYL_R, CYL_R, CYL_H, 48, 80, true);
+    cylGeo.translate(0, -CYL_H / 2, 0);
 
     const count = cylGeo.attributes.position.count;
     const colors = new Float32Array(count * 3);
-    const pos    = cylGeo.attributes.position;
+    const pos = cylGeo.attributes.position;
     for(let i = 0; i < count; i++){
       const y = pos.getY(i);
       const t = Math.max(0, Math.min(1, -y / CYL_H));
@@ -3121,66 +3317,82 @@ function initThreeWaterColumn(){
       colors[i*3] = r; colors[i*3+1] = g; colors[i*3+2] = b;
     }
     cylGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
     const cylMat = new THREE.MeshStandardMaterial({
-      vertexColors: true, transparent: false,
-      side: THREE.FrontSide, roughness: 0.18, metalness: 0.05,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.38,
+      side: THREE.DoubleSide,
+      roughness: 0.12,
+      metalness: 0.05,
+      depthWrite: false
     });
     wcCylinderMesh = new THREE.Mesh(cylGeo, cylMat);
     waterColumnScene.add(wcCylinderMesh);
 
-    // Thin glass rim ring at top
+    // Glass rim ring at sea surface
     const rimMesh = new THREE.Mesh(
-      new THREE.TorusGeometry(CYL_R, 0.022, 8, 48),
-      new THREE.MeshStandardMaterial({ color: 0xb0d8f0, roughness: 0.15, metalness: 0.3 })
+      new THREE.TorusGeometry(CYL_R, 0.02, 8, 48),
+      new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.15, metalness: 0.4 })
     );
     rimMesh.rotation.x = Math.PI / 2;
     rimMesh.position.y = 0;
     waterColumnScene.add(rimMesh);
 
-    // ─── 2. TEAL SURFACE CAP ─────────────────────────────────────────
+    // ── 2. SEA SURFACE CAP (CYAN SHIMMER) ────────────────────────────────────
     wcSurfaceMesh = new THREE.Mesh(
-      new THREE.CylinderGeometry(CYL_R - 0.005, CYL_R - 0.005, 0.035, 48),
+      new THREE.CylinderGeometry(CYL_R - 0.005, CYL_R - 0.005, 0.03, 48),
       new THREE.MeshStandardMaterial({
-        color: 0x22d3ee, transparent: true, opacity: 0.72,
-        roughness: 0.05, metalness: 0.15, emissive: 0x0e7490, emissiveIntensity: 0.18,
+        color: 0x22d3ee, transparent: true, opacity: 0.75,
+        roughness: 0.05, metalness: 0.20, emissive: 0x0891b2, emissiveIntensity: 0.25
       })
     );
-    wcSurfaceMesh.position.set(0, 0.018, 0);
+    wcSurfaceMesh.position.set(0, 0.015, 0);
     waterColumnScene.add(wcSurfaceMesh);
 
-    // ─── 3. DARK SEABED DISK ─────────────────────────────────────────
+    // ── 3. SEABED BEDROCK DISK (BOTTOM) ──────────────────────────────────────
     wcSeabedMesh = new THREE.Mesh(
-      new THREE.CylinderGeometry(CYL_R + 0.14, CYL_R + 0.32, 0.28, 32),
-      new THREE.MeshStandardMaterial({ color: 0x0f1e2d, roughness: 0.95, metalness: 0.0 })
+      new THREE.CylinderGeometry(CYL_R + 0.14, CYL_R + 0.30, 0.24, 32),
+      new THREE.MeshStandardMaterial({ color: 0x08131e, roughness: 0.95, metalness: 0.05 })
     );
-    wcSeabedMesh.position.set(0, -CYL_H - 0.14, 0);
+    wcSeabedMesh.position.set(0, -CYL_H - 0.12, 0);
     waterColumnScene.add(wcSeabedMesh);
 
-    // ─── 4. DEPTH MARKER RING (glowing cyan, slides to selected depth) ─
+    // ── 4. GLOWING CYAN DEPTH MARKER RING ────────────────────────────────────
     wcCableMesh = new THREE.Mesh(
-      new THREE.TorusGeometry(CYL_R + 0.045, 0.018, 8, 48),
+      new THREE.TorusGeometry(CYL_R + 0.045, 0.016, 8, 48),
       new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
     );
     wcCableMesh.rotation.x = Math.PI / 2;
     wcCableMesh.position.y = -CYL_H / 2;
     waterColumnScene.add(wcCableMesh);
 
-    // ─── 5. DEPTH INDICATOR DOT + TICK ───────────────────────────────
-    wcPayloadGroup = new THREE.Group();
-    const dotMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.055, 16, 16),
-      new THREE.MeshBasicMaterial({ color: 0xffffff })
-    );
-    wcPayloadGroup.add(dotMesh);
-    const tickGeo2 = new THREE.CylinderGeometry(0.012, 0.012, 0.26, 6);
-    tickGeo2.rotateZ(Math.PI / 2);
-    const tickMesh2 = new THREE.Mesh(tickGeo2, new THREE.MeshBasicMaterial({ color: 0x38bdf8 }));
-    tickMesh2.position.x = CYL_R + 0.13;
-    wcPayloadGroup.add(tickMesh2);
-    wcCrosshairMesh = dotMesh;
-    waterColumnScene.add(wcPayloadGroup);
+    // ── 5. 3D INSTRUMENT DIGITAL TWIN VEHICLE GROUP ──────────────────────────
+    wcVehicleGroup = new THREE.Group();
+    wcVehicleGroup.position.set(0, -CYL_H / 2, 0);
+    // Initial default: Argo profiling float
+    wcVehicleGroup.add(buildArgoModel());
+    wcCurrentVehicleType = "ARGO";
+    waterColumnScene.add(wcVehicleGroup);
 
-    // Mouse Controls
+    // ── 6. FLOATING MARINE SNOW PARTICLES ────────────────────────────────────
+    const particleCount = 120;
+    const particleGeo = new THREE.BufferGeometry();
+    const particlePos = new Float32Array(particleCount * 3);
+    for(let i = 0; i < particleCount; i++){
+      const r = Math.random() * (CYL_R - 0.05);
+      const th = Math.random() * Math.PI * 2;
+      particlePos[i*3]     = r * Math.cos(th);
+      particlePos[i*3 + 1] = -Math.random() * CYL_H;
+      particlePos[i*3 + 2] = r * Math.sin(th);
+    }
+    particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));
+    wcParticles = new THREE.Points(particleGeo, new THREE.PointsMaterial({
+      color: 0x7dd3fc, size: 0.035, transparent: true, opacity: 0.55
+    }));
+    waterColumnScene.add(wcParticles);
+
+    // Mouse Drag Controls
     container.addEventListener('mousedown', (e) => {
       wcIsDragging = true;
       wcPrevMouse = { x: e.clientX, y: e.clientY };
@@ -3196,15 +3408,15 @@ function initThreeWaterColumn(){
     });
     window.addEventListener('mouseup', () => { wcIsDragging = false; });
     container.addEventListener('wheel', (e) => {
-      if(e.ctrlKey || e.metaKey){
+      if(e.ctrlKey || e.metaKey || true){
         e.preventDefault();
         if(!waterColumnCamera) return;
-        wcSpherical.radius = Math.max(2.5, Math.min(12.0, wcSpherical.radius + e.deltaY * 0.005));
+        wcSpherical.radius = Math.max(1.8, Math.min(10.0, wcSpherical.radius + e.deltaY * 0.004));
         updateWCCamera();
       }
     }, { passive: false });
 
-    // Radio Listeners
+    // Radio Listeners (Color By)
     document.querySelectorAll('input[name="wcVar"]').forEach(r => {
       r.addEventListener('change', (e) => {
         wcSelectedVar = e.target.value;
@@ -3212,8 +3424,43 @@ function initThreeWaterColumn(){
       });
     });
 
+    // Camera Focus Mode Buttons
+    const btnFocVeh = document.getElementById("btnWCFocusVehicle");
+    const btnFocCol = document.getElementById("btnWCFocusColumn");
+    if(btnFocVeh){
+      btnFocVeh.onclick = () => {
+        wcFocusMode = 'vehicle';
+        wcSpherical.radius = 3.2;
+        btnFocVeh.style.background = "#0284c7"; btnFocVeh.style.borderColor = "#38bdf8"; btnFocVeh.style.color = "#fff";
+        btnFocCol.style.background = "rgba(15,23,42,0.6)"; btnFocCol.style.borderColor = "rgba(255,255,255,0.2)"; btnFocCol.style.color = "#cbd5e1";
+        updateWCCamera();
+      };
+    }
+    if(btnFocCol){
+      btnFocCol.onclick = () => {
+        wcFocusMode = 'column';
+        wcSpherical.radius = 6.0;
+        btnFocCol.style.background = "#0284c7"; btnFocCol.style.borderColor = "#38bdf8"; btnFocCol.style.color = "#fff";
+        btnFocVeh.style.background = "rgba(15,23,42,0.6)"; btnFocVeh.style.borderColor = "rgba(255,255,255,0.2)"; btnFocVeh.style.color = "#cbd5e1";
+        updateWCCamera();
+      };
+    }
+
+    // Animation Loop
     function animateWC(){
       requestAnimationFrame(animateWC);
+      if(wcVehicleGroup){
+        wcVehicleGroup.rotation.y += 0.006;
+      }
+      if(wcParticles){
+        const posArr = wcParticles.geometry.attributes.position;
+        for(let i = 0; i < posArr.count; i++){
+          let py = posArr.getY(i) - 0.0018;
+          if(py < -CYL_H) py = 0.0;
+          posArr.setY(i, py);
+        }
+        posArr.needsUpdate = true;
+      }
       if(waterColumnScene && waterColumnCamera && waterColumnRenderer){
         waterColumnRenderer.render(waterColumnScene, waterColumnCamera);
       }
@@ -3230,7 +3477,6 @@ function renderRightPanelWaterColumn(){
   if(!waterColumnScene || !wcCylinderMesh) return;
 
   // Default synthetic ocean profile if no platform selected yet
-  // (representative tropical thermocline: warm surface -> cold deep)
   const DEFAULT_PROFILE = [
     { depth:    0, temperature: 28.5, salinity: 35.0 },
     { depth:   10, temperature: 28.2, salinity: 35.1 },
@@ -3253,10 +3499,7 @@ function renderRightPanelWaterColumn(){
     profileList = state.selectedProfile.profile || [];
   }
 
-  // If profile is empty or no platform selected, use default
-  const useDefault = profileList.length === 0;
-  if(useDefault){
-    // Build synthetic profile records from DEFAULT_PROFILE
+  if(profileList.length === 0){
     profileList = DEFAULT_PROFILE.flatMap(p => [
       { depth: p.depth, variable: 'temperature', value: p.temperature },
       { depth: p.depth, variable: 'salinity',    value: p.salinity    },
@@ -3264,7 +3507,6 @@ function renderRightPanelWaterColumn(){
   }
 
   const targetDepth = state.selectedSample ? state.selectedSample.depth : DEPTHS[state.depthIndex];
-
   const obsDepths = Array.from(new Set(profileList.map(p => p.depth))).sort((a,b) => a - b);
   const maxD = Math.max(...obsDepths, 2000);
 
@@ -3322,14 +3564,14 @@ function renderRightPanelWaterColumn(){
     }
   }
 
-  // Update Volumetric Cylinder Vertex Colors along depth (Height: 3.2)
+  // Update Volumetric Water Column Envelope Colors along depth
   const cylGeo = wcCylinderMesh.geometry;
   const posAttr = cylGeo.attributes.position;
   const colAttr = cylGeo.attributes.color;
 
   for(let i = 0; i < posAttr.count; i++){
     const y = posAttr.getY(i);
-    const t = Math.max(0, Math.min(1, -y / 3.2));
+    const t = Math.max(0, Math.min(1, -y / 3.4));
     const vertDepth = t * maxD;
 
     let val = vmin;
@@ -3356,17 +3598,50 @@ function renderRightPanelWaterColumn(){
   }
   colAttr.needsUpdate = true;
 
-  // Position depth marker ring + indicator at selected depth
-  const CYL_H_WC = 3.4;   // must match initThreeWaterColumn CYL_H
+  // ── UPDATE 3D DIGITAL TWIN INSTRUMENT TYPE & POSITION ──────────────────
+  const CYL_H_WC = 3.4;
   wcCurrentTargetDepth = targetDepth;
   wcCurrentTargetY = -Math.min(1.0, targetDepth / maxD) * CYL_H_WC;
-  if(wcPayloadGroup){
-    wcPayloadGroup.position.set(0, wcCurrentTargetY, 0);
+
+  const rawPType = (state.selectedProfile?.platform_type || "ARGO").toUpperCase();
+  const badge = document.getElementById("wcPlatformBadge");
+
+  let pKind = "ARGO";
+  if(rawPType.includes("GLIDER")){
+    pKind = "GLIDER";
+    if(badge){ badge.textContent = "UNDERWATER GLIDER"; badge.style.background = "#059669"; }
+  } else if(rawPType.includes("CTD")){
+    pKind = "CTD";
+    if(badge){ badge.textContent = "CTD ROSETTE"; badge.style.background = "#7c3aed"; }
+  } else {
+    pKind = "ARGO";
+    if(badge){ badge.textContent = "ARGO FLOAT · DIGITAL TWIN"; badge.style.background = "#0284c7"; }
+  }
+
+  // Switch 3D vehicle model if platform type changed
+  if(wcVehicleGroup && wcCurrentVehicleType !== pKind){
+    while(wcVehicleGroup.children.length > 0){
+      wcVehicleGroup.remove(wcVehicleGroup.children[0]);
+    }
+    if(pKind === "GLIDER"){
+      wcVehicleGroup.add(buildGliderModel());
+    } else if(pKind === "CTD"){
+      wcVehicleGroup.add(buildCTDModel());
+    } else {
+      wcVehicleGroup.add(buildArgoModel());
+    }
+    wcCurrentVehicleType = pKind;
+  }
+
+  // Smoothly position vehicle & depth ring at selected depth
+  if(wcVehicleGroup){
+    wcVehicleGroup.position.set(0, wcCurrentTargetY, 0);
   }
   if(wcCableMesh){
     wcCableMesh.position.y = wcCurrentTargetY;
   }
 
+  updateWCCamera();
 }
 
 async function openProfile(platform_id){
