@@ -209,6 +209,10 @@
     <div class="wordmark">OCEAN <span class="unit">3D</span></div>
     <div class="subtitle research-only">3D Geographic Ocean Workspace — INCOIS / Copernicus Marine</div>
     <div class="subtitle public-only">Explore live ocean conditions on a 3D Earth Globe</div>
+    <div class="modeswitch" id="mainViewSwitcher" style="margin-right:8px;">
+      <button id="btnViewGIS" class="active" title="Cesium 3D Globe with live ARGO floats, Gliders, and CTD profiles">🌍 Satellite GIS View</button>
+      <button id="btnViewTerrain" title="3D Deformed Earth Without Water & Dynamic Water Level Terrain">🌐 3D Water Level & Geoid Terrain</button>
+    </div>
     <div class="modeswitch">
       <button id="btnResearch" class="active">Research</button>
       <button id="btnPublic">Public</button>
@@ -274,6 +278,10 @@
         <button class="action" id="btnDrainOcean" style="flex:1; padding:3px 4px; font-size:10px; background:rgba(239, 68, 68, 0.15); border-color:#ef4444; color:#ef4444; font-weight:600;">Drained (0%)</button>
         <button class="action" id="btnNormalOcean" style="flex:1; padding:3px 4px; font-size:10px;">Normal (100%)</button>
         <button class="action" id="btnFloodOcean" style="flex:1; padding:3px 4px; font-size:10px; background:rgba(56, 189, 248, 0.15); border-color:#38bdf8; color:#38bdf8; font-weight:600;">+50m Flood</button>
+      </div>
+      <div style="display:flex; gap:4px; margin-top:4px;">
+        <button class="action" id="btnSidebarDrainAnim" style="flex:1; padding:3px 4px; font-size:10px; background:rgba(63, 224, 197, 0.15); border-color:#3fe0c5; color:#3fe0c5; font-weight:600;">▶ Play Drain Anim</button>
+        <button class="action" id="btnSidebarSwitchTerrain" style="flex:1; padding:3px 4px; font-size:10px; background:rgba(142, 201, 224, 0.15); border-color:#8ec9e0; color:#8ec9e0; font-weight:600;">🌐 3D Terrain View</button>
       </div>
       <div id="waterLevelStats" style="font-size:9.5px; color:var(--text-dim); margin-top:6px; display:flex; justify-content:space-between;">
         <span>State: <strong id="wlStateText" style="color:var(--text);">Normal Oceans</strong></span>
@@ -377,6 +385,39 @@
 
   <main>
     <div id="cesiumContainer"></div>
+    <div id="terrainGlobeContainer" style="position:absolute; inset:0; display:none; z-index:3; background:radial-gradient(circle at 50% 50%, #081626 0%, #020710 100%);">
+      <!-- Floating HUD & Control bar for 3D Water Level & Earth Without Water -->
+      <div id="terrainHud" style="position:absolute; top:14px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:10px; background:rgba(8, 20, 32, 0.92); border:1px solid rgba(255,255,255,0.18); border-radius:6px; padding:6px 14px; box-shadow:0 4px 20px rgba(0,0,0,0.6); z-index:10; white-space:nowrap;">
+        <span id="terrainHudTitle" style="font-weight:700; font-size:12px; color:#3fe0c5; font-family:'IBM Plex Mono', monospace; letter-spacing:0.5px;">3D WATER LEVEL TERRAIN</span>
+        <span style="color:rgba(255,255,255,0.3);">|</span>
+        <span id="terrainHudSeaLevel" class="mono" style="font-size:12px; color:#ffffff; font-weight:600;">Sea Level: 0 m (100% Normal)</span>
+        <span style="color:rgba(255,255,255,0.3);">|</span>
+        <button id="btnTerrainAnim" class="action" style="padding:4px 8px; font-size:11px; width:auto; background:rgba(63, 224, 197, 0.2); border-color:#3fe0c5; color:#3fe0c5; font-weight:600;">▶ Play Drain</button>
+        <button id="btnTerrainAutoRotate" class="action" style="padding:4px 8px; font-size:11px; width:auto;">⟳ Rotate</button>
+      </div>
+
+      <!-- Quick viewpoint preset buttons -->
+      <div id="terrainCameraBar" style="position:absolute; bottom:16px; left:50%; transform:translateX(-50%); display:flex; gap:6px; z-index:10; background:rgba(8,20,32,0.85); padding:6px 10px; border-radius:6px; border:1px solid rgba(255,255,255,0.12); white-space:nowrap;">
+        <button id="btnCamIOGL" class="action" style="padding:4px 8px; font-size:11px; width:auto;">🇮🇳 Indian Ocean Low</button>
+        <button id="btnCamNA" class="action" style="padding:4px 8px; font-size:11px; width:auto;">🇪🇺 North Atlantic High</button>
+        <button id="btnCamMAR" class="action" style="padding:4px 8px; font-size:11px; width:auto;">🌊 Mid-Atlantic Ridge</button>
+        <button id="btnCamOverview" class="action" style="padding:4px 8px; font-size:11px; width:auto;">🌏 Reference Overview</button>
+      </div>
+
+      <!-- Informational callout box -->
+      <div id="terrainInfoCallout" style="position:absolute; top:60px; left:16px; width:270px; background:rgba(7, 16, 25, 0.90); border:1px solid rgba(255,255,255,0.14); border-radius:6px; padding:10px 12px; font-size:11px; z-index:10; pointer-events:none; box-shadow:0 4px 16px rgba(0,0,0,0.5);">
+        <div style="font-weight:700; color:#3fe0c5; margin-bottom:4px; font-size:11.5px; display:flex; justify-content:space-between; align-items:center;">
+          <span>EARTH WITHOUT WATER</span>
+          <span style="font-size:9px; background:rgba(242, 166, 90, 0.2); color:#f2a65a; padding:1px 4px; border-radius:2px;">GFZ POTSDAM GEOID</span>
+        </div>
+        <div id="terrainCalloutPhase" style="color:#ffffff; font-weight:600; margin-bottom:4px;">Phase: Normal Ocean Surface</div>
+        <div id="terrainCalloutDesc" style="color:#94a3b8; line-height:1.4;">Water surface is at normal sea level (0 m). Use the Water Level slider in the sidebar to physically sink the 3D ocean water surface and expose the deformed seabed bedrock underneath.</div>
+        <div style="margin-top:8px; border-top:1px solid rgba(255,255,255,0.08); padding-top:6px; display:flex; justify-content:space-between; font-size:10px;">
+          <span style="color:#94a3b8;">Exposed Seabed:</span>
+          <span id="terrainCalloutExposed" class="mono" style="color:#3fe0c5; font-weight:600;">0 km²</span>
+        </div>
+      </div>
+    </div>
     <div id="hint">Drag to orbit Earth globe · scroll to zoom · click an observation platform to inspect</div>
     <div id="depthDisplayBanner">Depth : -0 m</div>
     <div id="coordsReadout" class="mono">Position: 0.00°N, 20.00°E | Global 3D Ocean Globe Workspace</div>
@@ -751,6 +792,441 @@ function getOrCreatePotsdamGeoidCanvas(){
   return c;
 }
 
+// ---------------------------------------------------------------------
+// 3D Physical Water Level Terrain & Solid Earth (Earth Without Water)
+// ---------------------------------------------------------------------
+let threeTerrainGlobeInitialized = false;
+let terrainScene = null;
+let terrainCamera = null;
+let terrainRenderer = null;
+let solidEarthMesh = null;
+let waterTerrainMesh = null;
+let terrainGroup = null;
+let terrainWaterBaseRadii = null;
+let terrainNormals = null;
+let terrainSpherical = { radius: 26.0, theta: 0.95, phi: 1.18 }; // Lat ~22°N, Lon ~48°E
+let terrainIsDragging = false;
+let terrainPrevMouse = { x: 0, y: 0 };
+let terrainAutoRotate = false;
+let terrainDrainTimer = null;
+let terrainDrainDirection = -1;
+
+function switchMainView(mode){
+  state.mainView = mode; // 'gis' or 'terrain'
+  const btnGIS = document.getElementById("btnViewGIS");
+  const btnTerrain = document.getElementById("btnViewTerrain");
+  const cContainer = document.getElementById("cesiumContainer");
+  const tContainer = document.getElementById("terrainGlobeContainer");
+  const hint = document.getElementById("hint");
+  const depthBanner = document.getElementById("depthDisplayBanner");
+  const coordsReadout = document.getElementById("coordsReadout");
+
+  if(mode === 'terrain'){
+    if(btnGIS) btnGIS.classList.remove("active");
+    if(btnTerrain) btnTerrain.classList.add("active");
+    if(cContainer) cContainer.style.display = "none";
+    if(tContainer) tContainer.style.display = "block";
+    if(hint) hint.style.display = "none";
+    if(depthBanner) depthBanner.style.display = "none";
+    if(coordsReadout) coordsReadout.style.display = "none";
+
+    if(!threeTerrainGlobeInitialized){
+      initThreeTerrainGlobe();
+    } else {
+      onTerrainResize();
+    }
+    update3DWaterLevelTerrain(state.waterLevelPercent !== undefined ? state.waterLevelPercent : 100);
+  } else {
+    if(btnGIS) btnGIS.classList.add("active");
+    if(btnTerrain) btnTerrain.classList.remove("active");
+    if(cContainer) cContainer.style.display = "block";
+    if(tContainer) tContainer.style.display = "none";
+    if(hint) hint.style.display = "block";
+    if(depthBanner) depthBanner.style.display = "block";
+    if(coordsReadout) coordsReadout.style.display = "block";
+  }
+}
+
+function updateTerrainCamera(){
+  if(!terrainCamera) return;
+  const r = terrainSpherical.radius;
+  const t = terrainSpherical.theta;
+  const p = terrainSpherical.phi;
+  terrainCamera.position.x = r * Math.sin(p) * Math.sin(t);
+  terrainCamera.position.y = r * Math.cos(p);
+  terrainCamera.position.z = r * Math.sin(p) * Math.cos(t);
+  terrainCamera.lookAt(0, 0, 0);
+}
+
+function setTerrainCameraView(latDeg, lonDeg){
+  const phi = (90.0 - latDeg) * Math.PI / 180.0;
+  const theta = lonDeg * Math.PI / 180.0;
+  terrainSpherical.phi = Math.max(0.08, Math.min(Math.PI - 0.08, phi));
+  terrainSpherical.theta = theta;
+  updateTerrainCamera();
+}
+
+function onTerrainResize(){
+  const container = document.getElementById("terrainGlobeContainer");
+  if(!container || !terrainCamera || !terrainRenderer) return;
+  const w = container.clientWidth || window.innerWidth;
+  const h = container.clientHeight || (window.innerHeight - 136);
+  terrainCamera.aspect = w / h;
+  terrainCamera.updateProjectionMatrix();
+  terrainRenderer.setSize(w, h);
+}
+
+function initThreeTerrainGlobe(){
+  if(typeof THREE === 'undefined') return;
+  const container = document.getElementById("terrainGlobeContainer");
+  if(!container || terrainRenderer) return;
+
+  const width = container.clientWidth || 800;
+  const height = container.clientHeight || 600;
+
+  try {
+    terrainScene = new THREE.Scene();
+    terrainGroup = new THREE.Group();
+    terrainScene.add(terrainGroup);
+
+    terrainCamera = new THREE.PerspectiveCamera(40, width / height, 0.1, 250);
+    updateTerrainCamera();
+
+    terrainRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    terrainRenderer.setSize(width, height);
+    terrainRenderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+    container.appendChild(terrainRenderer.domElement);
+
+    // Ambient light
+    terrainScene.add(new THREE.AmbientLight(0xffffff, 1.4));
+
+    // Sun Key Light
+    const sunLight = new THREE.DirectionalLight(0xfff8ee, 2.4);
+    sunLight.position.set(24, 28, 22);
+    terrainScene.add(sunLight);
+
+    // Rim/Fill Light
+    const fillLight = new THREE.DirectionalLight(0x4095c6, 0.9);
+    fillLight.position.set(-20, -12, -22);
+    terrainScene.add(fillLight);
+
+    // ─── 1. SOLID EARTH MESH (EARTH WITHOUT WATER / POTSDAM GEOID POTATO) ───
+    const segW = 160;
+    const segH = 80;
+    const baseR = 10.0;
+    const solidGeo = new THREE.SphereGeometry(baseR, segW, segH);
+    const posAttr = solidGeo.attributes.position;
+    const count = posAttr.count;
+
+    terrainWaterBaseRadii = new Float32Array(count);
+    terrainNormals = new Float32Array(count * 3);
+
+    for(let i = 0; i < count; i++){
+      const x0 = posAttr.getX(i);
+      const y0 = posAttr.getY(i);
+      const z0 = posAttr.getZ(i);
+      const len = Math.sqrt(x0*x0 + y0*y0 + z0*z0) || 1.0;
+      const nx = x0 / len;
+      const ny = y0 / len;
+      const nz = z0 / len;
+
+      terrainNormals[i*3]     = nx;
+      terrainNormals[i*3 + 1] = ny;
+      terrainNormals[i*3 + 2] = nz;
+
+      const lat = Math.asin(Math.max(-1.0, Math.min(1.0, ny))) * (180.0 / Math.PI);
+      const lon = Math.atan2(nx, nz) * (180.0 / Math.PI);
+
+      // Geoid Undulation: Indian Ocean Low (-105m, deep depression), North Atlantic High (+85m, red bulge)
+      const gVal = calcGeoidUndulation(lat, lon);
+      const dGeoid = (gVal / 80.0) * 1.55;
+
+      // Water Level equilibrium follows the geoid
+      terrainWaterBaseRadii[i] = baseR + dGeoid;
+
+      // Topography & Bathymetry Bedrock
+      let isLand = false;
+      if(oceanMaskData){
+        const px = Math.floor(((lon + 180.0) / 360.0) * 1024) % 1024;
+        const py = Math.floor(((90.0 - lat) / 180.0) * 512) % 512;
+        const pIdx = (py * 1024 + px) * 4;
+        isLand = (oceanMaskData[pIdx] < 128);
+      }
+
+      let dTopo = 0.0;
+      if(isLand){
+        dTopo = 0.28;
+        if(lat > 25 && lat < 38 && lon > 70 && lon < 100) dTopo += 0.45; // Himalayas
+        else if(lat > -45 && lat < 10 && lon > -78 && lon < -65) dTopo += 0.35; // Andes
+      } else {
+        let oceanDepth = 0.65;
+        // Mid-Ocean Ridges (higher than abyssal plain)
+        if(Math.abs(lon - (-30)) < 15 && lat > -50 && lat < 65) oceanDepth = 0.35; // Mid-Atlantic Ridge
+        if(Math.abs(lon - 88) < 8 && lat > -30 && lat < 10) oceanDepth = 0.40; // Ninety East Ridge
+        // Trenches
+        if(Math.abs(lat - 11) < 5 && Math.abs(lon - 142) < 5) oceanDepth = 1.05; // Mariana Trench
+        if(Math.abs(lat - (-9)) < 5 && Math.abs(lon - 110) < 10) oceanDepth = 0.95; // Sunda Trench
+        dTopo = -oceanDepth;
+      }
+
+      const rSolid = baseR + dGeoid + dTopo;
+      posAttr.setXYZ(i, nx * rSolid, ny * rSolid, nz * rSolid);
+    }
+    posAttr.needsUpdate = true;
+    solidGeo.computeVertexNormals();
+
+    const gCanvas = getOrCreatePotsdamGeoidCanvas();
+    const geoidTex = new THREE.CanvasTexture(gCanvas);
+    geoidTex.wrapS = THREE.ClampToEdgeWrapping;
+    geoidTex.wrapT = THREE.ClampToEdgeWrapping;
+    if('SRGBColorSpace' in THREE) geoidTex.colorSpace = THREE.SRGBColorSpace;
+
+    const solidMat = new THREE.MeshStandardMaterial({
+      map: geoidTex,
+      roughness: 0.58,
+      metalness: 0.06,
+      bumpMap: geoidTex,
+      bumpScale: 0.04
+    });
+
+    solidEarthMesh = new THREE.Mesh(solidGeo, solidMat);
+    terrainGroup.add(solidEarthMesh);
+
+    // ─── 2. 3D DYNAMIC WATER LEVEL TERRAIN SHELL ───
+    const waterGeo = new THREE.SphereGeometry(baseR, segW, segH);
+    const waterPosAttr = waterGeo.attributes.position;
+    for(let i = 0; i < count; i++){
+      const nx = terrainNormals[i*3];
+      const ny = terrainNormals[i*3 + 1];
+      const nz = terrainNormals[i*3 + 2];
+      const rw = terrainWaterBaseRadii[i];
+      waterPosAttr.setXYZ(i, nx * rw, ny * rw, nz * rw);
+    }
+    waterPosAttr.needsUpdate = true;
+    waterGeo.computeVertexNormals();
+
+    const waterMat = new THREE.MeshStandardMaterial({
+      color: 0x0072b2,
+      roughness: 0.12,
+      metalness: 0.25,
+      transparent: true,
+      opacity: 0.86,
+      depthWrite: true,
+      depthTest: true
+    });
+
+    waterTerrainMesh = new THREE.Mesh(waterGeo, waterMat);
+    terrainGroup.add(waterTerrainMesh);
+
+    // ─── 3. INTERACTIVE MOUSE & TOUCH ORBIT CONTROLS ───
+    container.addEventListener('mousedown', (e) => {
+      if(e.button !== 0) return;
+      terrainIsDragging = true;
+      terrainPrevMouse = { x: e.clientX, y: e.clientY };
+    });
+    window.addEventListener('mousemove', (e) => {
+      if(!terrainIsDragging || !terrainCamera) return;
+      const dx = e.clientX - terrainPrevMouse.x;
+      const dy = e.clientY - terrainPrevMouse.y;
+      terrainSpherical.theta -= dx * 0.007;
+      terrainSpherical.phi = Math.max(0.08, Math.min(Math.PI - 0.08, terrainSpherical.phi - dy * 0.007));
+      updateTerrainCamera();
+      terrainPrevMouse = { x: e.clientX, y: e.clientY };
+    });
+    window.addEventListener('mouseup', () => { terrainIsDragging = false; });
+
+    let touchStartX = 0, touchStartY = 0;
+    container.addEventListener('touchstart', (e) => {
+      if(e.touches.length === 1){
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+    container.addEventListener('touchmove', (e) => {
+      if(e.touches.length === 1 && terrainCamera){
+        const dx = e.touches[0].clientX - touchStartX;
+        const dy = e.touches[0].clientY - touchStartY;
+        terrainSpherical.theta -= dx * 0.008;
+        terrainSpherical.phi = Math.max(0.08, Math.min(Math.PI - 0.08, terrainSpherical.phi - dy * 0.008));
+        updateTerrainCamera();
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+
+    container.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      if(!terrainCamera) return;
+      terrainSpherical.radius = Math.max(14.0, Math.min(65.0, terrainSpherical.radius + e.deltaY * 0.025));
+      updateTerrainCamera();
+    }, { passive: false });
+
+    window.addEventListener('resize', onTerrainResize);
+
+    // ─── 4. BUTTON EVENT LISTENERS ───
+    const btnIOGL = document.getElementById("btnCamIOGL");
+    if(btnIOGL) btnIOGL.onclick = () => setTerrainCameraView(4.5, 78.0);
+
+    const btnNA = document.getElementById("btnCamNA");
+    if(btnNA) btnNA.onclick = () => setTerrainCameraView(55.0, -25.0);
+
+    const btnMAR = document.getElementById("btnCamMAR");
+    if(btnMAR) btnMAR.onclick = () => setTerrainCameraView(25.0, -40.0);
+
+    const btnOverview = document.getElementById("btnCamOverview");
+    if(btnOverview) btnOverview.onclick = () => setTerrainCameraView(20.0, 50.0);
+
+    const btnAuto = document.getElementById("btnTerrainAutoRotate");
+    if(btnAuto) btnAuto.onclick = () => {
+      terrainAutoRotate = !terrainAutoRotate;
+      btnAuto.style.borderColor = terrainAutoRotate ? "#3fe0c5" : "var(--line)";
+      btnAuto.style.color = terrainAutoRotate ? "#3fe0c5" : "var(--text)";
+    };
+
+    const btnAnim = document.getElementById("btnTerrainAnim");
+    if(btnAnim) btnAnim.onclick = toggleDrainAnimation;
+
+    const btnSideAnim = document.getElementById("btnSidebarDrainAnim");
+    if(btnSideAnim) btnSideAnim.onclick = toggleDrainAnimation;
+
+    const btnSideSwitch = document.getElementById("btnSidebarSwitchTerrain");
+    if(btnSideSwitch) btnSideSwitch.onclick = () => switchMainView('terrain');
+
+    // ─── 5. ANIMATION LOOP ───
+    function animateTerrainGlobe(){
+      requestAnimationFrame(animateTerrainGlobe);
+      if(terrainAutoRotate && terrainGroup){
+        terrainGroup.rotation.y += 0.003;
+      }
+      if(terrainScene && terrainCamera && terrainRenderer && state.mainView === 'terrain'){
+        terrainRenderer.render(terrainScene, terrainCamera);
+      }
+    }
+    animateTerrainGlobe();
+
+    threeTerrainGlobeInitialized = true;
+  } catch(err) {
+    console.error("Three.js Terrain Globe initialization error:", err);
+  }
+}
+
+function update3DWaterLevelTerrain(valPercent){
+  if(!waterTerrainMesh) return;
+
+  const pos = waterTerrainMesh.geometry.attributes.position;
+  const count = pos.count;
+
+  if(valPercent <= 0){
+    // 0% -> Complete Drainage: No water at all! Reveals bare solid Earth without water
+    waterTerrainMesh.visible = false;
+  } else {
+    waterTerrainMesh.visible = true;
+    const hOffset = ((valPercent - 100) / 100.0) * 1.30;
+    for(let i = 0; i < count; i++){
+      const nx = terrainNormals[i*3];
+      const ny = terrainNormals[i*3 + 1];
+      const nz = terrainNormals[i*3 + 2];
+      const r = terrainWaterBaseRadii[i] + hOffset;
+      pos.setXYZ(i, nx * r, ny * r, nz * r);
+    }
+    pos.needsUpdate = true;
+    waterTerrainMesh.geometry.computeVertexNormals();
+  }
+
+  updateTerrainHudReadout(valPercent);
+}
+
+function updateTerrainHudReadout(valPercent){
+  const hudSeaLevel = document.getElementById("terrainHudSeaLevel");
+  const calloutPhase = document.getElementById("terrainCalloutPhase");
+  const calloutDesc = document.getElementById("terrainCalloutDesc");
+  const calloutExposed = document.getElementById("terrainCalloutExposed");
+  const asideDisp = document.getElementById("slDisplayValue");
+  const asideState = document.getElementById("wlStateText");
+  const asideImpact = document.getElementById("wlImpactText");
+  const slider = document.getElementById("waterLevelSlider");
+  if(slider && parseInt(slider.value) !== valPercent){
+    slider.value = valPercent;
+  }
+
+  let meters = 0;
+  let phaseName = "";
+  let desc = "";
+  let exposedKm2 = 0;
+
+  if(valPercent === 0){
+    meters = -11000;
+    phaseName = "Fully Drained: Earth Without Water";
+    desc = "All ocean water is 100% drained. Showing the bare solid deformed Earth bedrock & Potsdam Gravity Geoid Potato.";
+    exposedKm2 = 361900000;
+  } else if(valPercent < 100){
+    const frac = (100 - valPercent) / 100.0;
+    meters = -Math.round(frac * 5500);
+    exposedKm2 = Math.round(frac * 361900000);
+    if(valPercent >= 75){
+      phaseName = "Continental Shelves Exposed";
+      desc = `Water level has receded to ${meters} m. Continental shelves (Sunda Shelf, Doggerland, Beringia) have emerged.`;
+    } else if(valPercent >= 40){
+      phaseName = "Mid-Ocean Ridges Exposed";
+      desc = `Water level has dropped to ${meters} m. The Mid-Atlantic Ridge and Central Indian Ridge form massive mountain ranges above water.`;
+    } else {
+      phaseName = "Abyssal Plains Dry";
+      desc = `Water level has dropped to ${meters} m. Ocean basins are dry plains; only deep subduction trenches hold water.`;
+    }
+  } else if(valPercent === 100){
+    meters = 0;
+    phaseName = "Normal Ocean Equilibrium";
+    desc = "Current global sea level (0 m). Solid continents stand above water, ocean basins filled.";
+    exposedKm2 = 0;
+  } else {
+    meters = Math.round(((valPercent - 100) / 100.0) * 100);
+    phaseName = "Marine Transgression / Coastal Flooding";
+    desc = `Sea level has risen to +${meters} m. Low-lying coastal lands and delta regions are submerged underwater.`;
+    exposedKm2 = -Math.round(((valPercent - 100) / 100.0) * 45000000);
+  }
+
+  if(hudSeaLevel) hudSeaLevel.textContent = `Sea Level: ${meters > 0 ? "+" : ""}${meters} m (${valPercent}%)`;
+  if(calloutPhase) calloutPhase.textContent = `Phase: ${phaseName}`;
+  if(calloutDesc) calloutDesc.textContent = desc;
+  if(calloutExposed) calloutExposed.textContent = `${(Math.abs(exposedKm2) / 1e6).toFixed(1)}M km² ${exposedKm2 >= 0 ? "exposed" : "flooded"}`;
+
+  if(asideDisp) asideDisp.textContent = `${valPercent}% (${meters > 0 ? "+" : ""}${meters} m)`;
+  if(asideState) asideState.textContent = phaseName;
+  if(asideImpact) asideImpact.textContent = `${(Math.abs(exposedKm2) / 1e6).toFixed(1)}M km² ${exposedKm2 >= 0 ? "exposed" : "flooded"}`;
+}
+
+function toggleDrainAnimation(){
+  const btnHud = document.getElementById("btnTerrainAnim");
+  const btnAside = document.getElementById("btnSidebarDrainAnim");
+  if(terrainDrainTimer){
+    clearInterval(terrainDrainTimer);
+    terrainDrainTimer = null;
+    if(btnHud) btnHud.textContent = "▶ Play Drain";
+    if(btnAside) btnAside.textContent = "▶ Play Drain Anim";
+  } else {
+    if(state.mainView !== 'terrain') switchMainView('terrain');
+    if(btnHud) btnHud.textContent = "⏸ Pause";
+    if(btnAside) btnAside.textContent = "⏸ Pause";
+    terrainDrainTimer = setInterval(() => {
+      let curVal = state.waterLevelPercent !== undefined ? state.waterLevelPercent : 100;
+      if(terrainDrainDirection < 0){
+        curVal -= 2;
+        if(curVal <= 0){
+          curVal = 0;
+          terrainDrainDirection = 1;
+        }
+      } else {
+        curVal += 2;
+        if(curVal >= 100){
+          curVal = 100;
+          terrainDrainDirection = -1;
+        }
+      }
+      updateWaterLevelSimulation(curVal);
+    }, 45);
+  }
+}
+
 function updateWaterLevelSimulation(valPercent){
   state.waterLevelPercent = valPercent;
   const slider = document.getElementById("waterLevelSlider");
@@ -758,11 +1234,10 @@ function updateWaterLevelSimulation(valPercent){
     slider.value = valPercent;
   }
 
-  const disp = document.getElementById("slDisplayValue");
-  const stateTxt = document.getElementById("wlStateText");
-  const impactTxt = document.getElementById("wlImpactText");
+  // Update physical 3D water level terrain
+  update3DWaterLevelTerrain(valPercent);
 
-  // Ensure geoid layer exists in viewer
+  // Maintain Cesium imagery layer in sync
   if(!geoidImageryLayer && viewer){
     const c = getOrCreatePotsdamGeoidCanvas();
     const provider = new Cesium.SingleTileImageryProvider({
@@ -773,104 +1248,29 @@ function updateWaterLevelSimulation(valPercent){
     geoidImageryLayer.show = false;
   }
 
-  if(valPercent === 0){
-    // Fully Drained (0% Water) -> Reveal 3D Potsdam Gravity Geoid
-    state.globeViewMode = "relief";
-    state.seaLevelMeters = -6000;
-    state.affectedAreaKm2 = 361900000;
-    if(disp) disp.textContent = "0% (Drained to Geoid)";
-    if(stateTxt) stateTxt.textContent = "Earth Without Water (Potsdam Geoid)";
-    if(impactTxt) impactTxt.textContent = "361.9M km² exposed";
-
-    if(geoidImageryLayer){
+  if(geoidImageryLayer && viewer){
+    if(valPercent === 0){
       geoidImageryLayer.show = true;
       geoidImageryLayer.alpha = 1.0;
-    }
-    if(temperatureImageryLayer){
-      temperatureImageryLayer.show = false;
-    }
-    state.verticalExaggeration = 3.5;
-    const exSlider = document.getElementById("exagSlider");
-    if(exSlider) exSlider.value = "3.5";
-    const exVal = document.getElementById("exagValue");
-    if(exVal) exVal.textContent = "3.5x";
-    if(viewer && viewer.scene && 'verticalExaggeration' in viewer.scene){
-      try { viewer.scene.verticalExaggeration = 3.5; } catch(e){}
-    }
-
-    drawGeoidColorbar();
-
-  } else if(valPercent < 100){
-    // Decreasing Water Level: Ocean water recedes, geoid progressively revealed
-    state.globeViewMode = "cesium";
-    const drainFraction = (100 - valPercent) / 100.0;
-    const metersOffset = -Math.round(drainFraction * 5000);
-    state.seaLevelMeters = metersOffset;
-    state.affectedAreaKm2 = Math.round(drainFraction * 361900000);
-
-    if(disp) disp.textContent = `${valPercent}% (${metersOffset} m)`;
-    if(stateTxt) stateTxt.textContent = "Ocean Water Receding";
-    if(impactTxt) impactTxt.textContent = `${(state.affectedAreaKm2 / 1e6).toFixed(1)}M km² exposed`;
-
-    if(geoidImageryLayer){
+      if(temperatureImageryLayer) temperatureImageryLayer.show = false;
+      drawGeoidColorbar();
+    } else if(valPercent < 100){
+      const drainFraction = (100 - valPercent) / 100.0;
       geoidImageryLayer.show = true;
       geoidImageryLayer.alpha = drainFraction;
-    }
-    if(temperatureImageryLayer){
-      temperatureImageryLayer.show = true;
-      temperatureImageryLayer.alpha = (valPercent / 100.0) * 0.88;
-    }
-    const reliefEx = 1.0 + drainFraction * 2.5;
-    state.verticalExaggeration = reliefEx;
-    if(viewer && viewer.scene && 'verticalExaggeration' in viewer.scene){
-      try { viewer.scene.verticalExaggeration = reliefEx; } catch(e){}
-    }
-    drawColorbar(-2.0, 32.0, state.variable);
-
-  } else if(valPercent === 100){
-    // Normal 100% Water Level
-    state.globeViewMode = "cesium";
-    state.seaLevelMeters = 0;
-    state.affectedAreaKm2 = 0;
-    if(disp) disp.textContent = "100% (Normal)";
-    if(stateTxt) stateTxt.textContent = "Normal Oceans";
-    if(impactTxt) impactTxt.textContent = "0 km²";
-
-    if(geoidImageryLayer){
+      if(temperatureImageryLayer){
+        temperatureImageryLayer.show = true;
+        temperatureImageryLayer.alpha = (valPercent / 100.0) * 0.88;
+      }
+      drawColorbar(-2.0, 32.0, state.variable);
+    } else {
       geoidImageryLayer.show = false;
       geoidImageryLayer.alpha = 0.0;
-    }
-    if(temperatureImageryLayer){
-      temperatureImageryLayer.show = true;
-      temperatureImageryLayer.alpha = 0.88;
-    }
-    state.verticalExaggeration = 1.0;
-    const exSlider = document.getElementById("exagSlider");
-    if(exSlider) exSlider.value = "1.0";
-    const exVal = document.getElementById("exagValue");
-    if(exVal) exVal.textContent = "1.0x";
-    if(viewer && viewer.scene && 'verticalExaggeration' in viewer.scene){
-      try { viewer.scene.verticalExaggeration = 1.0; } catch(e){}
-    }
-    drawColorbar(-2.0, 32.0, state.variable);
-
-  } else {
-    // Increasing Water Level (Sea Level Rise / Flood Simulation)
-    state.globeViewMode = "cesium";
-    const floodMeters = Math.round((valPercent - 100) * 1.0);
-    state.seaLevelMeters = floodMeters;
-    state.affectedAreaKm2 = Math.round(floodMeters * 184000);
-
-    if(disp) disp.textContent = `+${floodMeters} m`;
-    if(stateTxt) stateTxt.textContent = "Coastal Inundation / Flooding";
-    if(impactTxt) impactTxt.textContent = `${(state.affectedAreaKm2 / 1e6).toFixed(2)}M km² inundated`;
-
-    if(geoidImageryLayer){
-      geoidImageryLayer.show = false;
-    }
-    if(temperatureImageryLayer){
-      temperatureImageryLayer.show = true;
-      temperatureImageryLayer.alpha = 0.95;
+      if(temperatureImageryLayer){
+        temperatureImageryLayer.show = true;
+        temperatureImageryLayer.alpha = 0.88;
+      }
+      drawColorbar(-2.0, 32.0, state.variable);
     }
   }
 }
@@ -2831,18 +3231,25 @@ document.getElementById("exagSlider").oninput = async (e) => {
   }
   await refreshAll();
 };
+document.getElementById("btnViewGIS").onclick = () => switchMainView('gis');
+document.getElementById("btnViewTerrain").onclick = () => switchMainView('terrain');
+
 document.getElementById("waterLevelSlider").oninput = (e) => {
   const val = parseInt(e.target.value);
+  if(state.mainView !== 'terrain') switchMainView('terrain');
   updateWaterLevelSimulation(val);
 };
 document.getElementById("btnDrainOcean").onclick = () => {
+  switchMainView('terrain');
   updateWaterLevelSimulation(0);
-  window.flyToGeoidLow();
+  setTerrainCameraView(20.0, 50.0);
 };
 document.getElementById("btnNormalOcean").onclick = () => {
+  switchMainView('terrain');
   updateWaterLevelSimulation(100);
 };
 document.getElementById("btnFloodOcean").onclick = () => {
+  switchMainView('terrain');
   updateWaterLevelSimulation(150);
 };
 document.getElementById("depthSlider").oninput = async (e) => {
