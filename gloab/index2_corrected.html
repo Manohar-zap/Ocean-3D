@@ -576,7 +576,11 @@
     <div id="toolbar" class="glass-panel">
         <button class="btn-tool active" id="btnToggleRotate" onclick="toggleAutoRotation()">
             <span id="rotateIcon">⏸</span>
-            <span>Toggle Rotation</span>
+            <span>Rotation</span>
+        </button>
+        <button class="btn-tool active" id="btnToggleObs" onclick="toggleObservations()">
+            <span>🛰</span>
+            <span>Observations</span>
         </button>
         <button class="btn-tool" onclick="resetView()">
             <span>↺</span>
@@ -726,9 +730,14 @@
   let trackLine = null; // Single track line for selected platform
 
   function getProvenanceBadge(source) {
-      if (!source) return '';
-      const cls = `prov-${source}`;
-      const label = source === 'cached' ? 'Cached Real' : source;
+      const mapping = {
+          "real": "REAL DATA",
+          "cached": "CACHED REAL DATA",
+          "synthetic": "DEMONSTRATION DATA",
+          "unavailable": "UNAVAILABLE"
+      };
+      const label = mapping[source] || mapping["unavailable"];
+      const cls = `prov-${source || "unavailable"}`;
       return `<span class="prov-badge ${cls}">${label}</span>`;
   }
 
@@ -1390,10 +1399,21 @@
   async function fetchObservations() {
     setStatus('SYNCING OBSERVATIONS...', true);
     try {
-      const res = await fetch(`${API_BASE}/api/observations`);
-      if (!res.ok) throw new Error(`Observations API returned ${res.status}`);
+      const res = await fetch(`${API_BASE}/api/observations/platforms/latest`);
+      if (!res.ok) throw new Error(`Platforms API returned ${res.status}`);
       const data = await res.json();
-      renderObservationMarkers(data.markers);
+
+      // Adapt the platforms data to the marker format expected by renderObservationMarkers
+      const markers = data.platforms.map(p => ({
+          platform_id: p.platform_id,
+          platform_type: p.platform_type,
+          lat: p.latitude,
+          lon: p.longitude,
+          time: p.timestamp,
+          data_source: p.data_source
+      }));
+
+      renderObservationMarkers(markers);
       setStatus('OBSERVATIONS SYNCED', false);
     } catch (err) {
       console.error('Observations fetch failed:', err);
@@ -1656,6 +1676,14 @@
     controls.autoRotate = !controls.autoRotate;
     if (rotateIcon) rotateIcon.textContent = controls.autoRotate ? '⏸' : '▶';
     if (btnToggleRotate) btnToggleRotate.classList.toggle('active', controls.autoRotate);
+  };
+
+  let showObservations = true;
+  window.toggleObservations = function() {
+    showObservations = !showObservations;
+    obsMarkersGroup.visible = showObservations;
+    const btn = $('btnToggleObs');
+    if (btn) btn.classList.toggle('active', showObservations);
   };
 
   const INITIAL_CAMERA_POS = camera.position.clone();

@@ -128,8 +128,23 @@ def query_model_volume(
     }
 
 
-# NOTE: /api/model/grid3d removed (Requirement 5: API Cleanup).
-# Volumetric visualization is handled by /api/model/volume.
+@app.get("/api/model/grid3d")
+def query_model_grid3d(
+    dataset_id: str = Query(...),
+    variable: str = Query(...),
+    min_lat: float = -90, max_lat: float = 90,
+    min_lon: float = -180, max_lon: float = 180,
+    min_depth: float = 0, max_depth: float = 6000,
+    time: Optional[str] = None,
+):
+    """3D scalar grid for isosurface extraction (Future Phase: Requirement 12)."""
+    f = QueryFilters(dataset_id=dataset_id, variable=variable,
+                      min_lat=min_lat, max_lat=max_lat, min_lon=min_lon, max_lon=max_lon,
+                      min_depth=min_depth, max_depth=max_depth, time=time)
+    res = query_service.model_grid3d(f)
+    if not res or not res.get("grid"):
+        raise HTTPException(404, "No 3D grid data found for this query")
+    return res
 
 
 @app.get("/api/bathymetry")
@@ -174,15 +189,6 @@ def get_terrain_heightmap_meta():
     if not json_path.exists():
         raise HTTPException(404, "Heightmap metadata json not found")
     return json.loads(json_path.read_text(encoding="utf-8"))
-
-# ARGO Legacy Alias (Requirement 2)
-@app.get("/api/heightmap")
-def get_heightmap_alias():
-    return get_terrain_heightmap()
-
-@app.get("/api/heightmap/meta")
-def get_heightmap_meta_alias():
-    return get_terrain_heightmap_meta()
 
 
 @app.get("/api/observations")

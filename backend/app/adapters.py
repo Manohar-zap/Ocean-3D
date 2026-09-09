@@ -189,7 +189,6 @@ class CopernicusMarineAdapter:
                                     is_real=True,
                                     data_source="real",
                                     source_model="Copernicus Marine Service",
-                                    data_status="REAL DATA",
                                     retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
                                 ))
                 if records: return records
@@ -236,7 +235,6 @@ class BathymetryAdapter:
             "units": self.UNITS,
             "platform_type": None,
             "data_source": source,
-            "data_status": "CACHED REAL DATA" if source == "cached" else "UNAVAILABLE",
             "source_organization": "GEBCO (General Bathymetric Chart of the Oceans)",
             "product_id": "GEBCO_2023_GRID",
             "retrieval_timestamp": datetime.now(timezone.utc).isoformat(),
@@ -369,7 +367,6 @@ def parse_netcdf_records(filepath: str, dataset_id: str, data_status: str, sourc
                                 data_source="cached",
                                 source_model=source_org,
                                 source_file=filepath,
-                                data_status="CACHED REAL DATA",
                                 source_organization=source_org,
                                 product_id=product_id,
                                 retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
@@ -414,7 +411,6 @@ def parse_synthetic_grid(dataset_id: str, variables: list[str], units: dict[str,
                             data_source="synthetic",
                             source_model=source_org,
                             source_file="global_grid",
-                            data_status="DEMONSTRATION DATA",
                             source_organization=source_org,
                             product_id=product_id,
                             retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
@@ -467,7 +463,6 @@ class BGCFieldAdapter:
                                 data_source="synthetic",
                                 source_model="INCOIS-BGC-demo",
                                 source_file="synthetic_bgc_grid",
-                                data_status="DEMONSTRATION DATA",
                             ))
         return records
 
@@ -679,7 +674,15 @@ class ArgoGliderAdapter:
 
     def _fetch_and_parse_argovis_live(self, api_key: str) -> list[StandardRecord]:
         if not should_try_real(): return []
-        url = f"{ARGOVIS_BASE_URL}/argo?startDate=2026-03-01T00:00:00Z&endDate=2026-03-08T00:00:00Z&data=pressure,temperature,salinity"
+
+        # Calculate dynamic 30-day window (Requirement 7)
+        now = datetime.now(timezone.utc)
+        start_dt = now - timedelta(days=30)
+        start_str = start_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+        end_str = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        # Explicit variable narrowing (Requirement 10)
+        url = f"{ARGOVIS_BASE_URL}/argo?startDate={start_str}&endDate={end_str}&data=pressure,temperature,salinity"
         headers = {"User-Agent": "OCEAN3D-FastAPI/1.0"}
         if api_key and api_key != "your_argovis_api_key_here":
             headers["x-argokey"] = api_key
@@ -733,7 +736,7 @@ class ArgoGliderAdapter:
                 latitude=round(lat, 4), longitude=round(lon, 4), depth=0.0,
                 time=timestamp, value=20.0, unit="degC",
                 platform_id=platform_id, platform_type="argo", quality_flag="good",
-                data_source=source_type, data_status="REAL DATA" if source_type == "real" else "CACHED REAL DATA",
+                data_source=source_type,
                 source_organization="Argo GDAC / Argovis", retrieval_timestamp=datetime.now(timezone.utc).isoformat()
             ))
         return records
@@ -750,7 +753,6 @@ class ArgoGliderAdapter:
                 platform_id=pid, platform_type=platform_type,
                 data_source="synthetic",
                 source_organization=f"{platform_type.title()} DAC (Demo)",
-                data_status="DEMONSTRATION DATA"
             ))
         return records
 
@@ -841,7 +843,7 @@ class CTD_ERDDAP_Adapter:
                 latitude=round(lat, 4), longitude=round(lon, 4), depth=0.0,
                 time=timestamp, value=22.0, unit="degC",
                 platform_id=pid, platform_type="ctd", quality_flag="good",
-                data_source=source_type, data_status="CACHED REAL DATA",
+                data_source=source_type,
                 source_organization="NOAA / IOOS ERDDAP"
             ))
         return records
@@ -892,7 +894,7 @@ class BGCArgoAdapter:
                 latitude=round(lat, 4), longitude=round(lon, 4), depth=0.0,
                 time=timestamp, value=200.0, unit="umol/kg",
                 platform_id=pid, platform_type="bgc", quality_flag="good",
-                data_source=source_type, data_status="CACHED REAL DATA",
+                data_source=source_type,
                 source_organization="Argo GDAC / Argovis BGC"
             ))
         return records
@@ -967,7 +969,6 @@ def run_ingestion() -> tuple[list[StandardRecord], dict[str, dict]]:
             "units": {"temperature": "degC", "salinity": "psu"},
             "platform_type": "multi",
             "data_source": "synthetic",
-            "data_status": "DEMONSTRATION DATA",
             "source_organization": "Synthetic Generator",
             "product_id": "synthetic_obs_v1",
             "retrieval_timestamp": datetime.now(timezone.utc).isoformat(),
@@ -988,7 +989,8 @@ def _generate_synthetic_observations() -> list[StandardRecord]:
                 time=_time_at(0), value=_synthetic_value("temperature", lat, lon, d, 0) + random.uniform(-0.5, 0.5),
                 unit="degC", platform_id=pid, platform_type="argo",
                 data_source="synthetic",
-                data_status="DEMONSTRATION DATA", source_organization="Synthetic Generator"
+                source_organization="Synthetic Generator",
+                retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
             ))
     return records
 

@@ -7,7 +7,7 @@ source-specific shape again. This is what makes FR-038-040 (add a new
 source/variable/instrument without touching core layers) possible.
 """
 from __future__ import annotations
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 from typing import Optional, Literal
 
 
@@ -32,13 +32,24 @@ class StandardRecord(BaseModel):
     source_file: Optional[str] = None
     ingestion_ts: Optional[str] = None      # Time the snapshot was retrieved (download_time)
     is_real: bool = False                   # Flag for Copernicus vs Synthetic
-    data_source: Literal["real", "cached", "synthetic", "unavailable"] = "cached"
-    data_status: Literal["REAL DATA", "CACHED REAL DATA", "DEMONSTRATION DATA"] = "CACHED REAL DATA"
+    data_source: Literal["real", "cached", "synthetic", "unavailable"] = "unavailable"
+    data_status: str = "UNAVAILABLE"
     source_organization: Optional[str] = "INCOIS / Copernicus Marine"
     product_id: Optional[str] = None
     retrieval_timestamp: Optional[str] = None
     status: Optional[str] = "ACTIVE"
     sequence_number: Optional[int] = None
+
+    @model_validator(mode='after')
+    def set_data_status(self) -> 'StandardRecord':
+        mapping = {
+            "real": "REAL DATA",
+            "cached": "CACHED REAL DATA",
+            "synthetic": "DEMONSTRATION DATA",
+            "unavailable": "UNAVAILABLE"
+        }
+        self.data_status = mapping.get(self.data_source, "UNAVAILABLE")
+        return self
 
 
 class DatasetMeta(BaseModel):
@@ -51,11 +62,22 @@ class DatasetMeta(BaseModel):
     source_url: Optional[str] = None
     last_updated: Optional[str] = None
     kind: RecordKind
-    data_source: Literal["real", "cached", "synthetic", "unavailable"] = "cached"
-    data_status: Literal["REAL DATA", "CACHED REAL DATA", "DEMONSTRATION DATA"] = "CACHED REAL DATA"
+    data_source: Literal["real", "cached", "synthetic", "unavailable"] = "unavailable"
+    data_status: str = "UNAVAILABLE"
     source_organization: Optional[str] = "INCOIS / Copernicus Marine"
     product_id: Optional[str] = None
     retrieval_timestamp: Optional[str] = None
+
+    @model_validator(mode='after')
+    def set_data_status(self) -> 'DatasetMeta':
+        mapping = {
+            "real": "REAL DATA",
+            "cached": "CACHED REAL DATA",
+            "synthetic": "DEMONSTRATION DATA",
+            "unavailable": "UNAVAILABLE"
+        }
+        self.data_status = mapping.get(self.data_source, "UNAVAILABLE")
+        return self
 
 
 class QueryFilters(BaseModel):
