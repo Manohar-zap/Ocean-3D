@@ -328,15 +328,15 @@
       <div>
         <div class="section-title research-only">Instrument Overlays</div>
         <div class="section-title public-only">Show on map</div>
-        <div class="toggle-row"><span><span class="swatch" style="background:#f2a65a"></span>Argo Floats</span>
+        <div class="toggle-row"><span><img src="assets/icons/argo_float.png" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#f2a65a"></span>Argo Floats</span>
           <label class="switch"><input type="checkbox" id="ovArgo" checked><span class="slider-toggle"></span></label></div>
-        <div class="toggle-row"><span><span class="swatch" style="background:#38bdf8"></span>Moored Buoys (OMNI)</span>
+        <div class="toggle-row"><span><img src="assets/icons/ctd.png" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#38bdf8"></span>Moored Buoys (OMNI)</span>
           <label class="switch"><input type="checkbox" id="ovMooring" checked><span class="slider-toggle"></span></label></div>
-        <div class="toggle-row research-only"><span><span class="swatch" style="background:#8ec9e0"></span>Autonomous Gliders</span>
+        <div class="toggle-row research-only"><span><img src="assets/icons/glider.png" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#8ec9e0"></span>Autonomous Gliders</span>
           <label class="switch"><input type="checkbox" id="ovGlider" checked><span class="slider-toggle"></span></label></div>
-        <div class="toggle-row research-only"><span><span class="swatch" style="background:#c58ee0"></span>Shipboard CTD Casts</span>
+        <div class="toggle-row research-only"><span><img src="assets/icons/ctd.png" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#c58ee0"></span>Shipboard CTD Casts</span>
           <label class="switch"><input type="checkbox" id="ovCtd" checked><span class="slider-toggle"></span></label></div>
-        <div class="toggle-row research-only"><span><span class="swatch" style="background:#8ee0a4"></span>BGC-Argo Floats</span>
+        <div class="toggle-row research-only"><span><img src="assets/icons/bgc.png" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#8ee0a4"></span>BGC-Argo Floats</span>
           <label class="switch"><input type="checkbox" id="ovBgc" checked><span class="slider-toggle"></span></label></div>
       </div>
 
@@ -1753,7 +1753,8 @@ async function initCesiumGlobe(){
     });
   }
 
-  viewer.scene.globe.depthTestAgainstTerrain = state.worldTerrainLoaded;
+  // Enforce globe depth testing unconditionally so far-side / back-hemisphere entities are occluded
+  viewer.scene.globe.depthTestAgainstTerrain = true;
   viewer.scene.globe.enableLighting = true;
 
   // Enforce camera zoom limits to allow full global Earth view
@@ -2465,8 +2466,7 @@ async function loadVectors(){
           material: new FlowLineMaterialProperty({
             color: Cesium.Color.fromCssColorString(colorStr),
             duration: 1800 + (idx % 5) * 200
-          }),
-          disableDepthTestDistance: Number.POSITIVE_INFINITY
+          })
         }
       });
       vectorEntities.push(flowEnt);
@@ -2511,8 +2511,7 @@ async function loadVectors(){
         material: new FlowLineMaterialProperty({
           color: Cesium.Color.fromCssColorString(gc.color),
           duration: gc.dur
-        }),
-        disableDepthTestDistance: Number.POSITIVE_INFINITY
+        })
       }
     });
     vectorEntities.push(ent);
@@ -2590,7 +2589,7 @@ async function loadPlatformTrack(platform_id){
   if(track.length >= 2){
     const positions = [];
     track.forEach(pt => {
-      positions.push(pt.longitude, pt.latitude, 120.0);
+      positions.push(pt.longitude, pt.latitude, 2500.0);
     });
 
     trackEntity = viewer.entities.add({
@@ -2601,45 +2600,14 @@ async function loadPlatformTrack(platform_id){
           glowPower: 0.35,
           taperPower: 0.65,
           color: Cesium.Color.fromCssColorString(trackColorCss)
-        }),
-        disableDepthTestDistance: Number.POSITIVE_INFINITY
+        })
       }
     });
   }
 
-  // Render small observation markers for historical trajectory cycles (Obs #1, #2, #3...)
-  const historicalPts = track.length > 1 ? track.slice(0, track.length - 1) : track;
-  historicalPts.forEach((pt, idx) => {
-    const seq = pt.sequence_number || (idx + 1);
-    const ptEntity = viewer.entities.add({
-      position: Cesium.Cartesian3.fromDegrees(pt.longitude, pt.latitude, 120.0),
-      point: {
-        pixelSize: 8,
-        color: Cesium.Color.fromCssColorString(trackColorCss),
-        outlineColor: Cesium.Color.WHITE,
-        outlineWidth: 1.5,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY
-      },
-      label: {
-        text: `Cycle #${seq} (${formatDateOnly(pt.timestamp)})`,
-        font: '10px IBM Plex Mono',
-        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-        pixelOffset: new Cesium.Cartesian2(0, -14),
-        fillColor: Cesium.Color.WHITE,
-        show: false
-      }
-    });
-    ptEntity.userData = {
-      platform_id: data.platform_id,
-      platform_type: data.platform_type,
-      sequence_number: seq,
-      timestamp: pt.timestamp,
-      lat: pt.latitude,
-      lon: pt.longitude,
-      isTrackPoint: true
-    };
-    trackPointEntities.push(ptEntity);
-  });
+  // NOTE: Clutter reduction — historical cycle dots are omitted as requested.
+  // Only the clean glowing trajectory polyline above is displayed for the selected platform.
+  trackPointEntities = [];
 
   // Re-render observation card with updated trajectory stats
   if(state.selectedProfile && state.selectedProfile.platform_id === platform_id){
@@ -2723,45 +2691,50 @@ async function loadObservations(){
     return pa - pb;
   });
 
+  const hasActiveSelection = !!(state.selectedProfile && state.selectedProfile.platform_id);
+
   let drawnPillarsCount = 0;
   for(const m of sortedMarkers){
     const ptype = (m.platform_type || "argo").toLowerCase();
     if(!toggles[ptype]) continue;
 
-    const isSelected = !!(state.selectedProfile && state.selectedProfile.platform_id === m.platform_id);
+    const isSelected = hasActiveSelection && state.selectedProfile.platform_id === m.platform_id;
+    // When an instrument is selected, isolate it: all other instruments are hidden
+    const isVisible = hasActiveSelection ? isSelected : true;
+
     const iconUrl = PLATFORM_ICON[ptype] || 'assets/icons/argo_float.png';
     const colorCss = PLATFORM_COLOR[ptype] || '#f2a65a';
 
-    const posHeight = ptype === "glider" ? 500.0 : 100.0;
-    const pSize = isSelected ? 12 : (ptype === "mooring" ? 8 : (ptype === "glider" ? 7 : 5.5));
+    const posHeight = ptype === "glider" ? 3000.0 : 2500.0;
+    const pSize = isSelected ? 12 : (ptype === "mooring" ? 8 : (ptype === "glider" ? 7 : 6));
 
     const entity = viewer.entities.add({
       position: Cesium.Cartesian3.fromDegrees(m.lon, m.lat, posHeight),
+      billboard: {
+        image: iconUrl,
+        width: isSelected ? 34 : 20,
+        height: isSelected ? 34 : 20,
+        pixelOffset: new Cesium.Cartesian2(0, isSelected ? -14 : -10),
+        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        scaleByDistance: new Cesium.NearFarScalar(1.0e5, 1.0, 2.0e7, 0.6)
+      },
       point: {
         pixelSize: pSize,
         color: Cesium.Color.fromCssColorString(colorCss),
         outlineColor: isSelected ? Cesium.Color.WHITE : Cesium.Color.fromCssColorString('#071019'),
-        outlineWidth: isSelected ? 2.5 : 1.2,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY
+        outlineWidth: isSelected ? 2.5 : 1.2
       },
-      billboard: isSelected ? {
-        image: iconUrl,
-        width: 32,
-        height: 32,
-        pixelOffset: new Cesium.Cartesian2(0, -12),
-        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY
-      } : undefined,
       label: {
         text: m.platform_id,
         font: 'bold 11px IBM Plex Mono',
         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-        pixelOffset: new Cesium.Cartesian2(0, isSelected ? -46 : -16),
+        pixelOffset: new Cesium.Cartesian2(0, isSelected ? -48 : -30),
         fillColor: Cesium.Color.WHITE,
         outlineColor: Cesium.Color.BLACK,
         outlineWidth: 3,
         show: isSelected
-      }
+      },
+      show: isVisible
     });
     entity.userData = {
       platform_id: m.platform_id,
@@ -2778,7 +2751,7 @@ async function loadObservations(){
     state.markers[m.platform_id] = entity;
 
     // 3D Vertical Water-Column Depth Sounding Pillar descending down into the ocean
-    const canDrawPillar = isSelected || (state.showProfileLines && drawnPillarsCount < 10);
+    const canDrawPillar = isSelected || (!hasActiveSelection && state.showProfileLines && drawnPillarsCount < 10);
     if(canDrawPillar){
       drawnPillarsCount++;
       const maxDepth = Math.min(2000.0, (m.depth && m.depth > 10 ? m.depth : 1500.0));
@@ -2786,7 +2759,7 @@ async function loadObservations(){
       const lineEntity = viewer.entities.add({
         polyline: {
           positions: Cesium.Cartesian3.fromDegreesArrayHeights([
-            m.lon, m.lat, 20.0,
+            m.lon, m.lat, 2500.0,
             m.lon, m.lat, targetDepthAlt
           ]),
           width: isSelected ? 3.5 : 2.0,
@@ -2794,10 +2767,14 @@ async function loadObservations(){
             glowPower: 0.35,
             taperPower: 0.8,
             color: Cesium.Color.fromCssColorString(colorCss).withAlpha(isSelected ? 0.95 : 0.65)
-          }),
-          disableDepthTestDistance: Number.POSITIVE_INFINITY
-        }
+          })
+        },
+        show: isVisible
       });
+      lineEntity.userData = {
+        isPillar: true,
+        platform_id: m.platform_id
+      };
       profileEntities.push(lineEntity);
     }
   }
@@ -4200,6 +4177,32 @@ async function openProfile(platform_id){
   // Load historical drift track on globe for selected platform
   loadPlatformTrack(platform_id);
 
+  // Platform Isolation: Hide all other instrument markers and pillars on the globe
+  profileEntities.forEach(ent => {
+    if(ent.userData && ent.userData.platform_id){
+      const isTarget = ent.userData.platform_id === platform_id;
+      ent.show = isTarget;
+      if(isTarget){
+        if(ent.billboard){
+          ent.billboard.width = 34;
+          ent.billboard.height = 34;
+          ent.billboard.pixelOffset = new Cesium.Cartesian2(0, -14);
+        }
+        if(ent.point){
+          ent.point.pixelSize = 12;
+          ent.point.outlineColor = Cesium.Color.WHITE;
+          ent.point.outlineWidth = 2.5;
+        }
+        if(ent.label){
+          ent.label.show = true;
+          ent.label.pixelOffset = new Cesium.Cartesian2(0, -48);
+        }
+      }
+    } else {
+      ent.show = false;
+    }
+  });
+
   const sample = data.profile[0] || {};
   const lat = sample.latitude ?? data.lat;
   const lon = sample.longitude ?? data.lon;
@@ -4217,17 +4220,43 @@ async function openProfile(platform_id){
   }
 }
 
-document.getElementById("closeProfile").onclick = () => {
-  if(state.selectedProfile && state.markers[state.selectedProfile.platform_id]){
-    const mEntity = state.markers[state.selectedProfile.platform_id];
-    if(mEntity){
-      if(mEntity.billboard){
-        mEntity.billboard.width = 28;
-        mEntity.billboard.height = 28;
+function restoreObservationMarkers(){
+  const toggles = {
+    argo: document.getElementById("ovArgo") ? document.getElementById("ovArgo").checked : true,
+    mooring: document.getElementById("ovMooring") ? document.getElementById("ovMooring").checked : true,
+    glider: document.getElementById("ovGlider") ? document.getElementById("ovGlider").checked : true,
+    ctd: document.getElementById("ovCtd") ? document.getElementById("ovCtd").checked : true,
+    bgc: document.getElementById("ovBgc") ? document.getElementById("ovBgc").checked : true,
+  };
+
+  profileEntities.forEach(ent => {
+    if(ent.userData){
+      if(ent.userData.isPillar){
+        ent.show = state.showProfileLines;
+      } else if(ent.userData.platform_type){
+        const ptype = ent.userData.platform_type.toLowerCase();
+        ent.show = toggles[ptype] !== false;
+        if(ent.billboard){
+          ent.billboard.width = 20;
+          ent.billboard.height = 20;
+          ent.billboard.pixelOffset = new Cesium.Cartesian2(0, -10);
+        }
+        if(ent.point){
+          const pSize = ptype === "mooring" ? 8 : (ptype === "glider" ? 7 : 6);
+          ent.point.pixelSize = pSize;
+          ent.point.outlineColor = Cesium.Color.fromCssColorString('#071019');
+          ent.point.outlineWidth = 1.2;
+        }
+        if(ent.label){
+          ent.label.show = false;
+        }
       }
-      if(mEntity.label) mEntity.label.show = false;
     }
-  }
+  });
+}
+
+document.getElementById("closeProfile").onclick = () => {
+  restoreObservationMarkers();
   clearPlatformTrack();
   state.selectedProfile = null;
   state.selectedSample = null;
@@ -4238,6 +4267,12 @@ document.getElementById("closeProfile").onclick = () => {
   if(obsCard) obsCard.innerHTML = `<div style="color:var(--text-dim); text-align:center; padding:12px 0; font-size:12px;">Select an observation platform to view detailed hydrographic profile</div>`;
   document.getElementById("profilePanel").classList.remove("open");
 };
+
+window.addEventListener('keydown', (e) => {
+  if(e.key === 'Escape' && state.selectedProfile){
+    document.getElementById("closeProfile")?.click();
+  }
+});
 
 document.getElementById("btnCompare").onclick = async () => {
   if(!state.selectedProfile) return;
