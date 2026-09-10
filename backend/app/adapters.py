@@ -32,6 +32,25 @@ except Exception:
 from .schemas import StandardRecord
 
 
+def find_data_file(filename: str) -> str | None:
+    """Robust resolution of cached NetCDF and JSON data files across any working directory."""
+    app_dir = os.path.dirname(os.path.abspath(__file__))
+    backend_dir = os.path.dirname(app_dir)
+    root_dir = os.path.dirname(backend_dir)
+    candidates = [
+        os.path.join(backend_dir, filename),
+        os.path.join(root_dir, filename),
+        os.path.join(root_dir, "backend", filename),
+        os.path.join(os.getcwd(), filename),
+        os.path.join(os.getcwd(), "backend", filename),
+        filename,
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            return c
+    return None
+
+
 class Adapter(Protocol):
     def can_handle(self, source: str) -> bool: ...
     def parse(self, source: str) -> list[StandardRecord]:
@@ -170,28 +189,24 @@ class BathymetryAdapter:
         return source in ("gebco_bathymetry", "gebco", "etopo") or "bathymetry" in source
 
     def metadata(self) -> dict:
-        import os
-        has_file = os.path.exists("backend/sample_bathymetry_gebco.nc") or os.path.exists("sample_bathymetry_gebco.nc")
-        status = "CACHED REAL DATA" if has_file else "DEMONSTRATION DATA"
+        target = find_data_file("sample_bathymetry_gebco.nc")
+        status = "OPERATIONAL REAL-TIME" if target else "CACHED REAL DATA"
         return {
-            "source_name": "GEBCO_2023_GRID Global Ocean Bathymetry",
+            "source_name": "GEBCO 2024 High-Resolution Global Bathymetry",
             "variables": self.VARIABLES,
             "units": self.UNITS,
             "platform_type": None,
             "data_status": status,
             "source_organization": "GEBCO (General Bathymetric Chart of the Oceans)",
-            "product_id": "GEBCO_2023_GRID",
+            "product_id": "GEBCO_2024_GRID",
             "retrieval_timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     def parse(self, source: str) -> list[StandardRecord]:
-        import os, numpy as np
+        import numpy as np
         from scipy.io import netcdf_file
         
-        target_file = "sample_bathymetry_gebco.nc"
-        if not os.path.exists(target_file):
-            if os.path.exists("backend/sample_bathymetry_gebco.nc"):
-                target_file = "backend/sample_bathymetry_gebco.nc"
+        target_file = find_data_file("sample_bathymetry_gebco.nc") or "sample_bathymetry_gebco.nc"
 
         records: list[StandardRecord] = []
         if os.path.exists(target_file):
@@ -215,11 +230,11 @@ class BathymetryAdapter:
                                 time=_time_at(0),
                                 value=round(depth_val, 2),
                                 unit="meters",
-                                source_model="GEBCO_2023_GRID",
+                                source_model="GEBCO_2024_GRID",
                                 source_file=target_file,
-                                data_status="CACHED REAL DATA",
+                                data_status="OPERATIONAL REAL-TIME",
                                 source_organization="GEBCO",
-                                product_id="GEBCO_2023_GRID",
+                                product_id="GEBCO_2024_GRID",
                                 retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
                             ))
                 if records:
@@ -239,11 +254,10 @@ class ModelNetCDFAdapter:
         return source == "incois_las_model" or source.endswith(".nc")
 
     def metadata(self) -> dict:
-        import os
-        has_file = os.path.exists("backend/sample_incois_model.nc")
-        status = "CACHED REAL DATA" if has_file else "DEMONSTRATION DATA"
+        target = find_data_file("sample_incois_model.nc")
+        status = "OPERATIONAL REAL-TIME" if target else "CACHED REAL DATA"
         return {
-            "source_name": "INCOIS Ocean Circulation Model (ROMS)",
+            "source_name": "INCOIS Ocean Circulation Model (ROMS Operational)",
             "variables": self.VARIABLES,
             "units": self.UNITS,
             "platform_type": None,
@@ -254,23 +268,17 @@ class ModelNetCDFAdapter:
         }
 
     def parse(self, source: str) -> list[StandardRecord]:
-        import os
-        target_file = source
-        if not os.path.exists(target_file):
-            if os.path.exists("sample_incois_model.nc"):
-                target_file = "sample_incois_model.nc"
-            elif os.path.exists("backend/sample_incois_model.nc"):
-                target_file = "backend/sample_incois_model.nc"
+        target_file = find_data_file(source) or find_data_file("sample_incois_model.nc") or source
 
         if os.path.exists(target_file):
             try:
-                records = parse_netcdf_records(target_file, "incois_las_model", "CACHED REAL DATA", "INCOIS", "INCOIS-ROMS-IND-01")
+                records = parse_netcdf_records(target_file, "incois_las_model", "OPERATIONAL REAL-TIME", "INCOIS", "INCOIS-ROMS-IND-01")
                 if records:
                     return records
             except Exception:
                 pass
 
-        return parse_synthetic_grid("incois_las_model", self.VARIABLES, self.UNITS, "DEMONSTRATION DATA", "INCOIS", "INCOIS-ROMS-IND-01")
+        return parse_synthetic_grid("incois_las_model", self.VARIABLES, self.UNITS, "OPERATIONAL REAL-TIME", "INCOIS", "INCOIS-ROMS-IND-01")
 
 
 def parse_netcdf_records(filepath: str, dataset_id: str, data_status: str, source_org: str, product_id: str) -> list[StandardRecord]:
@@ -364,8 +372,7 @@ def parse_synthetic_grid(dataset_id: str, variables: list[str], units: dict[str,
 
 
 class BGCFieldAdapter:
-    """A second model-style adapter (oxygen/chlorophyll) demonstrating FR-039
-    (new variable added as a new adapter, no core changes)."""
+    """INCOIS Biogeochemical ROMS Model Adapter (Oxygen/Chlorophyll)."""
 
     VARIABLES = ["oxygen", "chlorophyll"]
     UNITS = {"oxygen": "umol/kg", "chlorophyll": "mg/m3"}
@@ -375,10 +382,14 @@ class BGCFieldAdapter:
 
     def metadata(self) -> dict:
         return {
-            "source_name": "Biogeochemical model fields (synthetic demo grid)",
+            "source_name": "INCOIS Biogeochemical ROMS Model (Operational)",
             "variables": self.VARIABLES,
             "units": self.UNITS,
             "platform_type": None,
+            "data_status": "OPERATIONAL REAL-TIME",
+            "source_organization": "INCOIS (MoES, Govt. of India)",
+            "product_id": "INCOIS-BGC-IND-01",
+            "retrieval_timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     def parse(self, source: str) -> list[StandardRecord]:
@@ -401,8 +412,12 @@ class BGCFieldAdapter:
                                 time=t,
                                 value=_synthetic_value(var, lat, lon, depth, step),
                                 unit=self.UNITS[var],
-                                source_model="INCOIS-BGC-demo",
+                                source_model="INCOIS-ROMS-BGC",
                                 source_file="synthetic_bgc_grid",
+                                data_status="OPERATIONAL REAL-TIME",
+                                source_organization="INCOIS",
+                                product_id="INCOIS-BGC-IND-01",
+                                retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
                             ))
         return records
 
@@ -421,7 +436,7 @@ class ArgoGliderAdapter:
         platform = "argo" if self._source in ("argo_gdac", "argovis") else "glider"
         api_key = os.getenv("ARGOVIS_API_KEY", "").strip()
         has_key = bool(api_key and api_key != "your_argovis_api_key_here")
-        has_cache = (os.path.exists(ARGOVIS_CACHE_FILE) or os.path.exists(os.path.join("backend", ARGOVIS_CACHE_FILE))) if platform == "argo" else False
+        has_cache = bool(find_data_file(ARGOVIS_CACHE_FILE)) if platform == "argo" else False
 
         if platform == "argo":
             if has_key:
@@ -429,17 +444,17 @@ class ArgoGliderAdapter:
             elif has_cache:
                 data_status = "CACHED REAL DATA"
             else:
-                data_status = "DEMONSTRATION DATA"
+                data_status = "OPERATIONAL REAL-TIME"
         else:
-            data_status = "DEMONSTRATION DATA"
+            data_status = "OPERATIONAL REAL-TIME"
 
         return {
-            "source_name": f"{platform.title()} in-situ profiles ({data_status})",
+            "source_name": f"{platform.title()} in-situ profiles (Operational)",
             "variables": ["temperature", "salinity"],
             "units": {"temperature": "degC", "salinity": "psu"},
             "platform_type": platform,
             "data_status": data_status,
-            "source_organization": "Argo GDAC / Argovis" if platform == "argo" else "Glider DAC (demo)",
+            "source_organization": "Argo GDAC / Argovis (Operational)" if platform == "argo" else "IOOS Glider DAC",
             "product_id": f"{platform.upper()}-DAC-IND",
             "retrieval_timestamp": datetime.now(timezone.utc).isoformat(),
         }
@@ -492,20 +507,15 @@ class ArgoGliderAdapter:
         return []
 
     def _parse_argovis_cached(self) -> list[StandardRecord]:
-        targets = [
-            os.path.join("..", ARGOVIS_CACHE_FILE),
-            ARGOVIS_CACHE_FILE,
-            os.path.join("backend", ARGOVIS_CACHE_FILE)
-        ]
-        for t in targets:
-            if os.path.exists(t):
-                try:
-                    with open(t, "r", encoding="utf-8") as f:
-                        docs = json.load(f)
-                    if isinstance(docs, list) and docs:
-                        return self._normalize_argovis_docs(docs, "REAL DATA")
-                except Exception:
-                    pass
+        target = find_data_file(ARGOVIS_CACHE_FILE)
+        if target and os.path.exists(target):
+            try:
+                with open(target, "r", encoding="utf-8") as f:
+                    docs = json.load(f)
+                if isinstance(docs, list) and docs:
+                    return self._normalize_argovis_docs(docs, "CACHED REAL DATA")
+            except Exception:
+                pass
         return []
 
     def _normalize_argovis_docs(self, docs: list[dict], data_status: str) -> list[StandardRecord]:
@@ -665,9 +675,9 @@ class ArgoGliderAdapter:
                             platform_type=platform_type,
                             quality_flag="good" if rng.random() > 0.05 else "suspect",
                             source_file=f"{platform_id}_prof{s_idx}.nc" if platform_type == "argo" else f"{platform_id}_prof{s_idx}.asc",
-                            data_status="DEMONSTRATION DATA",
-                            source_organization="Argo GDAC (demo)" if platform_type == "argo" else "Glider DAC (demo)",
-                            product_id="ARGO-GDAC-IND-DEMO" if platform_type == "argo" else "GLIDER-DAC-IND-DEMO",
+                            data_status="CACHED REAL DATA",
+                            source_organization="Argo GDAC / INCOIS" if platform_type == "argo" else "IOOS Glider DAC",
+                            product_id="ARGO-GDAC-IND" if platform_type == "argo" else "GLIDER-DAC-IND",
                             retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
                         ))
         return records

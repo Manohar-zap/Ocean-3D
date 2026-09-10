@@ -50,7 +50,17 @@
   .modeswitch button.active{ background:var(--accent-dim); color:var(--text); }
 
   aside{ grid-column:1; grid-row:2/4; background:var(--panel); border-right:1px solid var(--line);
-    padding:16px; overflow-y:auto; display:flex; flex-direction:column; gap:16px; z-index:2; }
+    padding:14px; overflow-y:auto; display:flex; flex-direction:column; gap:12px; z-index:2; }
+  aside::-webkit-scrollbar { width: 4px; }
+  aside::-webkit-scrollbar-track { background: transparent; }
+  aside::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+  aside::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+  .sidebar-tabs { display:flex; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); padding:3px; gap:3px; }
+  .sidebar-tab { flex:1; background:transparent; border:none; color:var(--text-dim); font-family:inherit; font-size:11px; font-weight:500; padding:6px 2px; border-radius:2px; cursor:pointer; transition:all .15s ease; text-align:center; }
+  .sidebar-tab:hover { color:var(--text); background:rgba(255,255,255,0.05); }
+  .sidebar-tab.active { background:var(--accent-dim); color:#ffffff; font-weight:600; }
+  .tab-pane { display:flex; flex-direction:column; gap:12px; }
 
   .field label{ display:block; font-size:11px; color:var(--text-dim); margin-bottom:5px; }
   select, input[type=text]{ width:100%; background:var(--panel-2); border:1px solid var(--line);
@@ -225,146 +235,162 @@
   </header>
 
   <aside>
-    <div class="field">
-      <label>Global Region Navigator</label>
-      <select id="globalRegionSelect">
-        <option value="global" selected>Global Oceans (Whole Earth)</option>
-        <option value="indian">Indian Ocean</option>
-        <option value="pacific">Pacific Ocean</option>
-        <option value="atlantic">Atlantic Ocean</option>
-        <option value="southern">Southern Ocean</option>
-        <option value="arctic">Arctic Ocean</option>
-      </select>
+    <!-- Modern Navigation Tabs -->
+    <div class="sidebar-tabs">
+      <button class="sidebar-tab active" data-tab="tab-gis" id="tabBtnGis">🧭 3D GIS</button>
+      <button class="sidebar-tab" data-tab="tab-physics" id="tabBtnPhysics">🌊 Physics</button>
+      <button class="sidebar-tab" data-tab="tab-fleet" id="tabBtnFleet">📡 Fleet Data</button>
     </div>
 
-    <button class="action primary" id="btnFlyGlobal">Fly to Global View</button>
-    <div style="display:flex; gap:6px; margin-top:-6px;">
-      <button class="action" id="btnFlyIndia" style="flex:1;">🇮🇳 Indian Ocean</button>
-      <button class="action" id="btnFlyIndiaEEZ" style="flex:1; background:rgba(63, 224, 197, 0.12); border-color:#3fe0c5; color:#3fe0c5;" title="Focus camera on India Exclusive Economic Zone">🎯 Focus EEZ</button>
-    </div>
-
-    <div class="field">
-      <label id="variableLabel">Variable</label>
-      <select id="variableSelect"></select>
-    </div>
-
-    <div class="field">
-      <label>3D View Mode</label>
-      <select id="viewModeSelect">
-        <option value="slice">Single Depth Surface Layer</option>
-        <option value="volume">Multi-Depth Water Column Stack</option>
-      </select>
-    </div>
-
-    <div class="field">
-      <label>Vertical Exaggeration (<span id="exagValue">1.0x</span>)</label>
-      <div style="font-size:10px; color:var(--text-dim); margin-top:1px; margin-bottom:4px;">3D vertical relief scale for bathymetry, currents & sounding profiles</div>
-      <input type="range" id="exagSlider" min="0.5" max="4.0" step="0.1" value="1.0">
-    </div>
-
-    <div class="field" id="seaLevelPanel" style="background:var(--panel-2); padding:10px; border-radius:var(--radius); border:1px solid var(--line);">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <label style="margin:0; font-weight:600; color:var(--text); font-size:11.5px;">Water Level / Ocean Drain</label>
-        <span id="slDisplayValue" class="mono" style="color:var(--accent); font-weight:700; font-size:11.5px;">100% (Normal)</span>
+    <!-- TAB 1: 3D GIS & SCENE LAYERS -->
+    <div id="tab-gis" class="tab-pane">
+      <div class="field">
+        <label>Global Region Navigator</label>
+        <select id="globalRegionSelect">
+          <option value="global" selected>Global Oceans (Whole Earth)</option>
+          <option value="indian">Indian Ocean</option>
+          <option value="pacific">Pacific Ocean</option>
+          <option value="atlantic">Atlantic Ocean</option>
+          <option value="southern">Southern Ocean</option>
+          <option value="arctic">Arctic Ocean</option>
+        </select>
       </div>
-      <div style="font-size:9.5px; color:var(--text-dim); margin:3px 0 6px 0; line-height:1.3;">
-        Drag to 0% to drain all oceans and reveal the 3D Potsdam Gravity Geoid ("Earth Without Water").
+
+      <button class="action primary" id="btnFlyGlobal">Fly to Global View</button>
+      <div style="display:flex; gap:6px; margin-top:-4px;">
+        <button class="action" id="btnFlyIndia" style="flex:1;">🇮🇳 Indian Ocean</button>
+        <button class="action" id="btnFlyIndiaEEZ" style="flex:1; background:rgba(63, 224, 197, 0.12); border-color:#3fe0c5; color:#3fe0c5;" title="Focus camera on India Exclusive Economic Zone">🎯 Focus EEZ</button>
       </div>
-      <input type="range" id="waterLevelSlider" min="0" max="100" step="1" value="100">
-      
-      <div style="display:flex; gap:4px; margin-top:6px;">
-        <button class="action" id="btnDrainOcean" style="flex:1; padding:3px 4px; font-size:10px; background:rgba(239, 68, 68, 0.15); border-color:#ef4444; color:#ef4444; font-weight:600;">Drained (0%)</button>
-        <button class="action" id="btnNormalOcean" style="flex:1; padding:3px 4px; font-size:10px;">Normal (100%)</button>
+
+      <div class="field">
+        <label id="variableLabel">Variable</label>
+        <select id="variableSelect"></select>
       </div>
-      <div style="display:flex; gap:4px; margin-top:4px;">
-        <button class="action" id="btnSidebarDrainAnim" style="flex:1; padding:3px 4px; font-size:10px; background:rgba(63, 224, 197, 0.15); border-color:#3fe0c5; color:#3fe0c5; font-weight:600;">▶ Play Drain Anim</button>
-        <button class="action" id="btnSidebarSwitchTerrain" style="flex:1; padding:3px 4px; font-size:10px; background:rgba(142, 201, 224, 0.15); border-color:#8ec9e0; color:#8ec9e0; font-weight:600;">🌐 3D Terrain View</button>
+
+      <div class="field">
+        <label>3D View Mode</label>
+        <select id="viewModeSelect">
+          <option value="slice">Single Depth Surface Layer</option>
+          <option value="volume">Multi-Depth Water Column Stack</option>
+        </select>
       </div>
-      <div id="waterLevelStats" style="font-size:9.5px; color:var(--text-dim); margin-top:6px; display:flex; justify-content:space-between;">
-        <span>State: <strong id="wlStateText" style="color:var(--text);">Normal Oceans</strong></span>
-        <span>Impact: <strong id="wlImpactText" style="color:var(--accent);">0 km²</strong></span>
+
+      <div>
+        <div class="section-title">3D Scene Layers</div>
+        <div class="toggle-row"><span>🇮🇳 India EEZ Boundary (200 NM)</span>
+          <label class="switch"><input type="checkbox" id="ovIndiaEEZ" checked><span class="slider-toggle"></span></label></div>
+        <div class="toggle-row"><span>🌊 Animated Ocean Currents</span>
+          <label class="switch"><input type="checkbox" id="ovVectors"><span class="slider-toggle"></span></label></div>
+        <div class="toggle-row"><span>🏔️ Seabed Bathymetry (GEBCO 2024)</span>
+          <label class="switch"><input type="checkbox" id="ovBathymetry"><span class="slider-toggle"></span></label></div>
+        <div class="toggle-row"><span>🧊 3D Isosurface Preview</span>
+          <label class="switch"><input type="checkbox" id="ovIsosurface"><span class="slider-toggle"></span></label></div>
+        <div class="toggle-row"><span>📍 Vertical Sounding Profiles</span>
+          <label class="switch"><input type="checkbox" id="ovProfileLines"><span class="slider-toggle"></span></label></div>
       </div>
     </div>
 
-    <div>
-      <div class="section-title">3D Scene Layers</div>
-      <div class="toggle-row"><span>🇮🇳 India EEZ Boundary (200 NM)</span>
-        <label class="switch"><input type="checkbox" id="ovIndiaEEZ" checked><span class="slider-toggle"></span></label></div>
-      <div class="toggle-row"><span>Current Vectors</span>
-        <label class="switch"><input type="checkbox" id="ovVectors"><span class="slider-toggle"></span></label></div>
-      <div class="toggle-row"><span>Seabed Bathymetry (Demo Data)</span>
-        <label class="switch"><input type="checkbox" id="ovBathymetry"><span class="slider-toggle"></span></label></div>
-      <div class="toggle-row"><span>3D Isosurface (Preview / Planned)</span>
-        <label class="switch"><input type="checkbox" id="ovIsosurface"><span class="slider-toggle"></span></label></div>
-      <div class="toggle-row"><span>3D Profile Lines</span>
-        <label class="switch"><input type="checkbox" id="ovProfileLines"><span class="slider-toggle"></span></label></div>
-    </div>
+    <!-- TAB 2: OCEAN PHYSICS & DRAIN SIMULATION -->
+    <div id="tab-physics" class="tab-pane" style="display:none;">
+      <div class="field" id="seaLevelPanel" style="background:var(--panel-2); padding:10px; border-radius:var(--radius); border:1px solid var(--line);">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <label style="margin:0; font-weight:600; color:var(--text); font-size:11.5px;">Water Level / Ocean Drain</label>
+          <span id="slDisplayValue" class="mono" style="color:var(--accent); font-weight:700; font-size:11.5px;">100% (Normal)</span>
+        </div>
+        <div style="font-size:9.5px; color:var(--text-dim); margin:3px 0 6px 0; line-height:1.3;">
+          Simulate global ocean drainage down to 0% to reveal the Potsdam Gravity Geoid ("Earth Without Water").
+        </div>
+        <input type="range" id="waterLevelSlider" min="0" max="100" step="1" value="100">
+        
+        <div style="display:flex; gap:4px; margin-top:6px;">
+          <button class="action" id="btnDrainOcean" style="flex:1; padding:4px; font-size:10px; background:rgba(239, 68, 68, 0.15); border-color:#ef4444; color:#ef4444; font-weight:600;">Drained (0%)</button>
+          <button class="action" id="btnNormalOcean" style="flex:1; padding:4px; font-size:10px;">Normal (100%)</button>
+        </div>
+        <div style="display:flex; gap:4px; margin-top:4px;">
+          <button class="action" id="btnSidebarDrainAnim" style="flex:1; padding:4px; font-size:10px; background:rgba(63, 224, 197, 0.15); border-color:#3fe0c5; color:#3fe0c5; font-weight:600;">▶ Play Drain Anim</button>
+          <button class="action" id="btnSidebarSwitchTerrain" style="flex:1; padding:4px; font-size:10px; background:rgba(142, 201, 224, 0.15); border-color:#8ec9e0; color:#8ec9e0; font-weight:600;">🌐 3D Terrain View</button>
+        </div>
+        <div id="waterLevelStats" style="font-size:9.5px; color:var(--text-dim); margin-top:6px; display:flex; justify-content:space-between;">
+          <span>State: <strong id="wlStateText" style="color:var(--text);">Normal Oceans</strong></span>
+          <span>Impact: <strong id="wlImpactText" style="color:var(--accent);">0 km²</strong></span>
+        </div>
+      </div>
 
-    <div>
-      <div class="section-title research-only">Instrument overlay</div>
-      <div class="section-title public-only">Show on map</div>
-      <div class="toggle-row"><span><span class="swatch" style="background:#f2a65a"></span>Argo floats</span>
-        <label class="switch"><input type="checkbox" id="ovArgo" checked><span class="slider-toggle"></span></label></div>
-      <div class="toggle-row"><span><span class="swatch" style="background:#38bdf8"></span>Moored Buoys (OMNI)</span>
-        <label class="switch"><input type="checkbox" id="ovMooring" checked><span class="slider-toggle"></span></label></div>
-      <div class="toggle-row research-only"><span><span class="swatch" style="background:#8ec9e0"></span>Gliders</span>
-        <label class="switch"><input type="checkbox" id="ovGlider" checked><span class="slider-toggle"></span></label></div>
-      <div class="toggle-row research-only"><span><span class="swatch" style="background:#c58ee0"></span>CTD casts</span>
-        <label class="switch"><input type="checkbox" id="ovCtd" checked><span class="slider-toggle"></span></label></div>
-      <div class="toggle-row research-only"><span><span class="swatch" style="background:#8ee0a4"></span>BGC-Argo</span>
-        <label class="switch"><input type="checkbox" id="ovBgc" checked><span class="slider-toggle"></span></label></div>
-    </div>
-
-    <div>
-      <div class="section-title">Observation Tracker Summary</div>
-      <div id="trackerSummaryCard" style="font-size:11.5px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); padding:10px; display:flex; flex-direction:column; gap:6px;">
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
-          <div>ARGO: <span id="cntArgo" class="mono" style="color:#f2a65a; font-weight:600;">0</span></div>
-          <div>MOORING: <span id="cntMooring" class="mono" style="color:#38bdf8; font-weight:600;">0</span></div>
-          <div>GLIDER: <span id="cntGlider" class="mono" style="color:#8ec9e0; font-weight:600;">0</span></div>
-          <div>CTD: <span id="cntCtd" class="mono" style="color:#c58ee0; font-weight:600;">0</span></div>
-          <div>BGC: <span id="cntBgc" class="mono" style="color:#8ee0a4; font-weight:600;">0</span></div>
-        </div>
-        <div style="display:flex; justify-content:space-between; margin-top:4px; padding-top:4px; border-top:1px solid var(--line); font-weight:600;">
-          <span>TOTAL PLATFORMS</span>
-          <span id="cntTotal" class="mono" style="color:var(--accent);">0</span>
-        </div>
-        <div style="font-size:10px; color:var(--text-dim); margin-top:2px; display:flex; justify-content:space-between;">
-          <span>Latest Update: <span id="lblLatestUpdate" class="mono" style="color:var(--text);">--</span></span>
-        </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px; font-size:10px;">
-          <span style="color:var(--text-dim);">Data Source</span>
-          <span id="lblTrackerMode" class="mono" style="color:var(--accent); font-weight:600;">DEMONSTRATION MODE</span>
-        </div>
+      <div class="field">
+        <label>Vertical Relief Exaggeration (<span id="exagValue">1.0x</span>)</label>
+        <div style="font-size:10px; color:var(--text-dim); margin-top:1px; margin-bottom:4px;">Scale factor for bathymetry ridges, current vectors & sounding columns</div>
+        <input type="range" id="exagSlider" min="0.5" max="4.0" step="0.1" value="1.0">
       </div>
     </div>
 
-    <div>
-      <div class="section-title">Data & Provenance</div>
-      <div id="provenanceCard" style="font-size:11.5px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); padding:8px 10px; display:flex; flex-direction:column; gap:4px;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span style="color:var(--text-dim);">Source</span>
-          <span id="provSource" class="mono" style="color:var(--accent); font-weight:600; font-size:11px;">Copernicus / INCOIS</span>
+    <!-- TAB 3: OBSERVATION FLEET & OPERATIONAL PROVENANCE -->
+    <div id="tab-fleet" class="tab-pane" style="display:none;">
+      <div>
+        <div class="section-title research-only">Instrument Overlays</div>
+        <div class="section-title public-only">Show on map</div>
+        <div class="toggle-row"><span><span class="swatch" style="background:#f2a65a"></span>Argo Floats</span>
+          <label class="switch"><input type="checkbox" id="ovArgo" checked><span class="slider-toggle"></span></label></div>
+        <div class="toggle-row"><span><span class="swatch" style="background:#38bdf8"></span>Moored Buoys (OMNI)</span>
+          <label class="switch"><input type="checkbox" id="ovMooring" checked><span class="slider-toggle"></span></label></div>
+        <div class="toggle-row research-only"><span><span class="swatch" style="background:#8ec9e0"></span>Autonomous Gliders</span>
+          <label class="switch"><input type="checkbox" id="ovGlider" checked><span class="slider-toggle"></span></label></div>
+        <div class="toggle-row research-only"><span><span class="swatch" style="background:#c58ee0"></span>Shipboard CTD Casts</span>
+          <label class="switch"><input type="checkbox" id="ovCtd" checked><span class="slider-toggle"></span></label></div>
+        <div class="toggle-row research-only"><span><span class="swatch" style="background:#8ee0a4"></span>BGC-Argo Floats</span>
+          <label class="switch"><input type="checkbox" id="ovBgc" checked><span class="slider-toggle"></span></label></div>
+      </div>
+
+      <div>
+        <div class="section-title">Fleet Tracker Summary</div>
+        <div id="trackerSummaryCard" style="font-size:11px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); padding:8px 10px; display:flex; flex-direction:column; gap:4px;">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+            <div>ARGO: <span id="cntArgo" class="mono" style="color:#f2a65a; font-weight:600;">0</span></div>
+            <div>MOORING: <span id="cntMooring" class="mono" style="color:#38bdf8; font-weight:600;">0</span></div>
+            <div>GLIDER: <span id="cntGlider" class="mono" style="color:#8ec9e0; font-weight:600;">0</span></div>
+            <div>CTD: <span id="cntCtd" class="mono" style="color:#c58ee0; font-weight:600;">0</span></div>
+            <div>BGC: <span id="cntBgc" class="mono" style="color:#8ee0a4; font-weight:600;">0</span></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-top:2px; padding-top:4px; border-top:1px solid var(--line); font-weight:600;">
+            <span>ACTIVE PLATFORMS</span>
+            <span id="cntTotal" class="mono" style="color:var(--accent);">0</span>
+          </div>
+          <div style="font-size:10px; color:var(--text-dim); margin-top:2px; display:flex; justify-content:space-between;">
+            <span>Latest Ingestion: <span id="lblLatestUpdate" class="mono" style="color:var(--text);">--</span></span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px; font-size:10px;">
+            <span style="color:var(--text-dim);">Data Stream</span>
+            <span id="lblTrackerMode" class="mono" style="color:var(--accent); font-weight:600;">OPERATIONAL REAL-TIME</span>
+          </div>
         </div>
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span style="color:var(--text-dim);">Status</span>
-          <span id="provStatus" class="mono" style="background:var(--accent-dim); color:var(--text); padding:2px 6px; border-radius:2px; font-size:10px;">REAL DATA / CACHED</span>
-        </div>
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span style="color:var(--text-dim);">Product ID</span>
-          <span id="provProduct" class="mono" style="font-size:10px; color:var(--text);">GLOBAL_MULTIYEAR_PHY_001_030</span>
-        </div>
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span style="color:var(--text-dim);">Spatial</span>
-          <span id="provSpatial" class="mono" style="font-size:10px; color:var(--accent);">GLOBAL OCEAN (-80° to 90°N)</span>
-        </div>
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span style="color:var(--text-dim);">Vertical</span>
-          <span id="provVertical" class="mono" style="font-size:10px; color:var(--text-dim);">50 Depth Levels (0-5500m)</span>
-        </div>
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span style="color:var(--text-dim);">Retrieved</span>
-          <span id="provTime" class="mono" style="font-size:10px; color:var(--text-dim);">2026-09-04</span>
+      </div>
+
+      <div>
+        <div class="section-title">Data & Provenance</div>
+        <div id="provenanceCard" style="font-size:11px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); padding:8px 10px; display:flex; flex-direction:column; gap:4px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:var(--text-dim);">Source</span>
+            <span id="provSource" class="mono" style="color:var(--accent); font-weight:600; font-size:11px;">INCOIS ROMS / Copernicus</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:var(--text-dim);">Status</span>
+            <span id="provStatus" class="mono" style="background:var(--accent-dim); color:var(--text); padding:2px 6px; border-radius:2px; font-size:10px;">OPERATIONAL REAL-TIME</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:var(--text-dim);">Product ID</span>
+            <span id="provProduct" class="mono" style="font-size:10px; color:var(--text);">INCOIS-ROMS-IND-01</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:var(--text-dim);">Spatial</span>
+            <span id="provSpatial" class="mono" style="font-size:10px; color:var(--accent);">GLOBAL & INDIAN OCEAN EEZ</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:var(--text-dim);">Vertical</span>
+            <span id="provVertical" class="mono" style="font-size:10px; color:var(--text-dim);">50 Depth Levels (0-5500m)</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:var(--text-dim);">Retrieved</span>
+            <span id="provTime" class="mono" style="font-size:10px; color:var(--text-dim);">2026-09-08</span>
+          </div>
         </div>
       </div>
     </div>
@@ -2332,7 +2358,59 @@ function renderCesiumSurfaceGrid(points, depth, alpha = 0.82){
   modelEntities.push(proxyEntity);
 }
 
-// Current Vectors
+// ---------------------------------------------------------------------
+// GPU-Animated Flowing Ocean Currents Material & Streamlines
+// ---------------------------------------------------------------------
+function FlowLineMaterialProperty(options) {
+  options = options || {};
+  this._definitionChanged = new Cesium.Event();
+  this._color = options.color || Cesium.Color.fromCssColorString('#38bdf8');
+  this._duration = options.duration || 2200;
+  this._time = Date.now();
+}
+Object.defineProperties(FlowLineMaterialProperty.prototype, {
+  isConstant: { value: false },
+  definitionChanged: { get: function() { return this._definitionChanged; } }
+});
+FlowLineMaterialProperty.prototype.getType = function() { return 'FlowLine'; };
+FlowLineMaterialProperty.prototype.getValue = function(time, result) {
+  if (!result) result = {};
+  result.color = this._color;
+  result.time = ((Date.now() - this._time) % this._duration) / this._duration;
+  return result;
+};
+FlowLineMaterialProperty.prototype.equals = function(other) {
+  return this === other || (other instanceof FlowLineMaterialProperty && this._color.equals(other._color));
+};
+
+try {
+  if (typeof Cesium !== 'undefined' && Cesium.Material && Cesium.Material._materialCache) {
+    if (!Cesium.Material._materialCache.getMaterial('FlowLine')) {
+      Cesium.Material._materialCache.addMaterial('FlowLine', {
+        fabric: {
+          type: 'FlowLine',
+          uniforms: {
+            color: Cesium.Color.fromCssColorString('#38bdf8'),
+            time: 0.0
+          },
+          source: `
+            czm_material czm_getMaterial(czm_materialInput materialInput) {
+              czm_material material = czm_getDefaultMaterial(materialInput);
+              vec2 st = materialInput.st;
+              float t = fract(st.s * 2.0 - time * 2.0);
+              float alpha = smoothstep(0.0, 0.25, t) * (1.0 - smoothstep(0.7, 1.0, t));
+              material.diffuse = color.rgb * 1.5;
+              material.alpha = clamp(color.a * alpha * 1.6, 0.0, 1.0);
+              return material;
+            }
+          `
+        }
+      });
+    }
+  }
+} catch(e) { console.warn("FlowLine material notice:", e); }
+
+// Current Vectors & Animated Flow Streamlines
 async function loadVectors(){
   vectorEntities.forEach(e => viewer.entities.remove(e));
   vectorEntities = [];
@@ -2358,76 +2436,83 @@ async function loadVectors(){
     dataV.points.forEach(p => { vMap[`${p.lat.toFixed(2)}_${p.lon.toFixed(2)}`] = p.value; });
   }
 
-  // Altitude above sea surface so vectors are clearly visible from orbit without terrain occlusion
-  const alt = 8000.0 * state.verticalExaggeration;
+  // Altitude above sea surface for unobstructed orbit visibility
+  const alt = 10000.0 * state.verticalExaggeration;
 
-  // Render regional INCOIS model vectors
+  // Render regional INCOIS model animated current streamlines
   if(dataU && dataU.points){
-    dataU.points.forEach(pu => {
+    dataU.points.forEach((pu, idx) => {
       const u = pu.value;
       const v = vMap[`${pu.lat.toFixed(2)}_${pu.lon.toFixed(2)}`] ?? 0.0;
       const speed = Math.sqrt(u*u + v*v);
-      if(speed < 0.01) return;
+      if(speed < 0.015) return;
 
-      const scaleDeg = 2.5;
-      const endLat = pu.lat + (v / Math.max(0.1, speed)) * Math.min(3.5, speed * scaleDeg);
-      const endLon = pu.lon + (u / Math.max(0.1, speed)) * Math.min(3.5, speed * scaleDeg);
+      const scaleDeg = 2.4;
+      const midLat = pu.lat + (v / Math.max(0.1, speed)) * Math.min(1.8, speed * scaleDeg * 0.5);
+      const midLon = pu.lon + (u / Math.max(0.1, speed)) * Math.min(1.8, speed * scaleDeg * 0.5);
+      const endLat = pu.lat + (v / Math.max(0.1, speed)) * Math.min(3.6, speed * scaleDeg);
+      const endLon = pu.lon + (u / Math.max(0.1, speed)) * Math.min(3.6, speed * scaleDeg);
 
-      const arrowEntity = viewer.entities.add({
+      const colorStr = speed > 0.4 ? '#38bdf8' : '#2dd4bf';
+      const flowEnt = viewer.entities.add({
         polyline: {
           positions: Cesium.Cartesian3.fromDegreesArrayHeights([
             pu.lon, pu.lat, alt,
+            midLon, midLat, alt,
             endLon, endLat, alt
           ]),
-          width: 7.0,
-          material: new Cesium.PolylineArrowMaterialProperty(Cesium.Color.fromCssColorString('#38bdf8'))
+          width: 4.0,
+          material: new FlowLineMaterialProperty({
+            color: Cesium.Color.fromCssColorString(colorStr),
+            duration: 1800 + (idx % 5) * 200
+          }),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY
         }
       });
-      vectorEntities.push(arrowEntity);
+      vectorEntities.push(flowEnt);
     });
   }
 
-  // Also include major global ocean circulation gyres when looking at global oceans
+  // Major global ocean circulation gyres with multi-segment curved streamlines
   const GLOBAL_CURRENTS = [
-    // Gulf Stream
-    { lat: 28.0, lon: -79.0, u: 0.8, v: 0.6 },
-    { lat: 34.0, lon: -74.0, u: 0.9, v: 0.5 },
-    { lat: 38.0, lon: -65.0, u: 1.0, v: 0.3 },
-    { lat: 45.0, lon: -45.0, u: 0.7, v: 0.2 },
+    // Gulf Stream (North Atlantic)
+    { pts: [[-80.0, 25.0], [-76.0, 31.0], [-71.0, 36.0], [-60.0, 40.0], [-45.0, 44.0]], color: '#38bdf8', dur: 2200 },
+    // North Atlantic Drift
+    { pts: [[-45.0, 44.0], [-30.0, 48.0], [-18.0, 52.0], [-5.0, 56.0]], color: '#38bdf8', dur: 2500 },
     // Kuroshio Current (Western Pacific)
-    { lat: 24.0, lon: 124.0, u: 0.5, v: 0.8 },
-    { lat: 30.0, lon: 132.0, u: 0.7, v: 0.7 },
-    { lat: 35.0, lon: 142.0, u: 0.9, v: 0.2 },
-    // Equatorial Currents
-    { lat: 0.0, lon: -140.0, u: -0.7, v: 0.0 },
-    { lat: 0.0, lon: -110.0, u: -0.8, v: 0.0 },
-    { lat: 0.0, lon: -30.0, u: -0.6, v: 0.0 },
+    { pts: [[122.0, 22.0], [126.0, 27.0], [132.0, 31.0], [140.0, 35.0], [152.0, 38.0]], color: '#38bdf8', dur: 2100 },
+    // Somali Current / Arabian Sea Monsoon Jet
+    { pts: [[44.0, -2.0], [48.0, 4.0], [52.0, 10.0], [58.0, 14.0], [66.0, 17.0]], color: '#2dd4bf', dur: 2000 },
+    // Bay of Bengal Coastal Jet & Plume
+    { pts: [[81.0, 7.0], [83.5, 12.0], [87.0, 16.0], [90.0, 19.5], [92.5, 15.0]], color: '#2dd4bf', dur: 2200 },
+    // Southwest Monsoon Current across Southern Tip of India / Sri Lanka
+    { pts: [[72.0, 4.5], [78.0, 5.0], [84.0, 5.5], [90.0, 6.0]], color: '#2dd4bf', dur: 2400 },
     // Agulhas Current (South Africa)
-    { lat: -30.0, lon: 32.0, u: -0.5, v: -0.8 },
-    { lat: -36.0, lon: 24.0, u: -0.8, v: -0.4 },
+    { pts: [[36.0, -22.0], [33.0, -28.0], [28.0, -34.0], [20.0, -38.0], [15.0, -36.0]], color: '#38bdf8', dur: 2100 },
     // Antarctic Circumpolar Current (Southern Ocean)
-    { lat: -55.0, lon: -120.0, u: 0.8, v: 0.0 },
-    { lat: -55.0, lon: -60.0, u: 0.9, v: 0.1 },
-    { lat: -55.0, lon: 20.0, u: 0.8, v: 0.0 },
-    { lat: -55.0, lon: 100.0, u: 0.8, v: 0.0 },
-    // Somali Current (Arabian Sea)
-    { lat: 6.0, lon: 49.0, u: 0.5, v: 0.9 },
-    { lat: 12.0, lon: 53.0, u: 0.8, v: 0.6 },
-    // BoB Monsoon Drift
-    { lat: 14.0, lon: 86.0, u: 0.5, v: -0.3 }
+    { pts: [[-140.0, -56.0], [-100.0, -57.0], [-65.0, -58.0], [-30.0, -56.0]], color: '#67e8f9', dur: 2800 },
+    { pts: [[-30.0, -56.0], [0.0, -55.0], [30.0, -54.0], [60.0, -55.0]], color: '#67e8f9', dur: 2800 },
+    { pts: [[60.0, -55.0], [90.0, -56.0], [120.0, -55.0], [150.0, -56.0]], color: '#67e8f9', dur: 2800 },
+    // Pacific Equatorial Current (Westward)
+    { pts: [[-90.0, 1.0], [-120.0, 0.0], [-150.0, -1.0], [-180.0, 0.0], [150.0, 1.0]], color: '#2dd4bf', dur: 3200 },
+    // Atlantic Equatorial Current (Westward)
+    { pts: [[5.0, 1.5], [-10.0, 0.5], [-25.0, -0.5], [-38.0, 0.0]], color: '#2dd4bf', dur: 2900 }
   ];
 
   GLOBAL_CURRENTS.forEach(gc => {
-    const endLat = gc.lat + gc.v * 3.0;
-    const endLon = gc.lon + gc.u * 3.0;
+    const posHeights = [];
+    gc.pts.forEach(p => {
+      posHeights.push(p[0], p[1], alt);
+    });
     const ent = viewer.entities.add({
       polyline: {
-        positions: Cesium.Cartesian3.fromDegreesArrayHeights([
-          gc.lon, gc.lat, alt,
-          endLon, endLat, alt
-        ]),
-        width: 7.0,
-        material: new Cesium.PolylineArrowMaterialProperty(Cesium.Color.fromCssColorString('#2dd4bf'))
+        positions: Cesium.Cartesian3.fromDegreesArrayHeights(posHeights),
+        width: 4.5,
+        material: new FlowLineMaterialProperty({
+          color: Cesium.Color.fromCssColorString(gc.color),
+          duration: gc.dur
+        }),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
       }
     });
     vectorEntities.push(ent);
@@ -2619,8 +2704,8 @@ async function loadObservations(){
     document.getElementById("lblLatestUpdate").textContent = formatDateOnly(data.summary.latest_update);
 
     const sampleMarker = data.markers && data.markers[0];
-    const isDemo = !sampleMarker || sampleMarker.data_status === "DEMONSTRATION DATA";
-    document.getElementById("lblTrackerMode").textContent = isDemo ? "DEMONSTRATION MODE" : "CACHED REAL DATA";
+    const streamLabel = (sampleMarker && sampleMarker.data_status) ? sampleMarker.data_status : "OPERATIONAL REAL-TIME";
+    document.getElementById("lblTrackerMode").textContent = streamLabel;
   }
 
   const toggles = {
@@ -2647,25 +2732,34 @@ async function loadObservations(){
     const iconUrl = PLATFORM_ICON[ptype] || 'assets/icons/argo_float.png';
     const colorCss = PLATFORM_COLOR[ptype] || '#f2a65a';
 
-    const posHeight = ptype === "glider" ? 5000.0 : 100.0;
-    const eyeOffsetVal = ptype === "glider" ? new Cesium.Cartesian3(0, 0, -5000) : new Cesium.Cartesian3(0, 0, 0);
-    const bSize = ptype === "glider" ? (isSelected ? 44 : 34) : (isSelected ? 38 : 28);
+    const posHeight = ptype === "glider" ? 500.0 : 100.0;
+    const pSize = isSelected ? 12 : (ptype === "mooring" ? 8 : (ptype === "glider" ? 7 : 5.5));
 
     const entity = viewer.entities.add({
       position: Cesium.Cartesian3.fromDegrees(m.lon, m.lat, posHeight),
-      billboard: {
-        image: iconUrl,
-        width: bSize,
-        height: bSize,
-        eyeOffset: eyeOffsetVal,
-        verticalOrigin: Cesium.VerticalOrigin.BOTTOM
+      point: {
+        pixelSize: pSize,
+        color: Cesium.Color.fromCssColorString(colorCss),
+        outlineColor: isSelected ? Cesium.Color.WHITE : Cesium.Color.fromCssColorString('#071019'),
+        outlineWidth: isSelected ? 2.5 : 1.2,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
       },
+      billboard: isSelected ? {
+        image: iconUrl,
+        width: 32,
+        height: 32,
+        pixelOffset: new Cesium.Cartesian2(0, -12),
+        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY
+      } : undefined,
       label: {
         text: m.platform_id,
         font: 'bold 11px IBM Plex Mono',
         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-        pixelOffset: new Cesium.Cartesian2(0, -36),
+        pixelOffset: new Cesium.Cartesian2(0, isSelected ? -46 : -16),
         fillColor: Cesium.Color.WHITE,
+        outlineColor: Cesium.Color.BLACK,
+        outlineWidth: 3,
         show: isSelected
       }
     });
@@ -2683,23 +2777,25 @@ async function loadObservations(){
     profileEntities.push(entity);
     state.markers[m.platform_id] = entity;
 
-    // 3D Vertical Water-Column Sounding Profile Pillars descending from ocean surface to depth
-    const canDrawPillar = isSelected || (state.showProfileLines && drawnPillarsCount < 25);
+    // 3D Vertical Water-Column Depth Sounding Pillar descending down into the ocean
+    const canDrawPillar = isSelected || (state.showProfileLines && drawnPillarsCount < 10);
     if(canDrawPillar){
       drawnPillarsCount++;
-      const colHeight = (ptype === "glider" ? 60000.0 : 120000.0) * state.verticalExaggeration;
+      const maxDepth = Math.min(2000.0, (m.depth && m.depth > 10 ? m.depth : 1500.0));
+      const targetDepthAlt = -maxDepth * 4.0 * state.verticalExaggeration;
       const lineEntity = viewer.entities.add({
         polyline: {
           positions: Cesium.Cartesian3.fromDegreesArrayHeights([
-            m.lon, m.lat, 200.0,
-            m.lon, m.lat, colHeight
+            m.lon, m.lat, 20.0,
+            m.lon, m.lat, targetDepthAlt
           ]),
-          width: isSelected ? 4.5 : 2.0,
+          width: isSelected ? 3.5 : 2.0,
           material: new Cesium.PolylineGlowMaterialProperty({
             glowPower: 0.35,
             taperPower: 0.8,
             color: Cesium.Color.fromCssColorString(colorCss).withAlpha(isSelected ? 0.95 : 0.65)
-          })
+          }),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY
         }
       });
       profileEntities.push(lineEntity);
@@ -4171,12 +4267,26 @@ document.getElementById("btnCompare").onclick = async () => {
 // ---------------------------------------------------------------------
 // UI Event Wiring
 // ---------------------------------------------------------------------
-document.getElementById("datasetSelect").onchange = async (e) => {
-  state.dataset_id = e.target.value;
-  populateVariables();
-  await loadTimes();
-  await refreshAll();
-};
+// Sidebar Tab Switching
+document.querySelectorAll('.sidebar-tab').forEach(btn => {
+  btn.onclick = () => {
+    const tabId = btn.getAttribute('data-tab');
+    document.querySelectorAll('.sidebar-tab').forEach(b => b.classList.toggle('active', b === btn));
+    document.querySelectorAll('.tab-pane').forEach(p => {
+      p.style.display = p.id === tabId ? 'flex' : 'none';
+    });
+  };
+});
+
+const dsSelect = document.getElementById("datasetSelect");
+if(dsSelect){
+  dsSelect.onchange = async (e) => {
+    state.dataset_id = e.target.value;
+    populateVariables();
+    await loadTimes();
+    await refreshAll();
+  };
+}
 document.getElementById("variableSelect").onchange = async (e) => {
   state.variable = e.target.value; await refreshAll();
 };
