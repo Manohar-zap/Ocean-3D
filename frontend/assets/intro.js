@@ -255,6 +255,9 @@ class Ocean3DIntro {
       s.classList.toggle('active', (idx + 1) === n);
     });
 
+    // Update container classes for stage-specific styling
+    this.container.className = `stage-${n}-active`;
+
     this.updateUI();
   }
 
@@ -270,7 +273,7 @@ class Ocean3DIntro {
     const headers = [
       { title: '', subtitle: '' },
       { title: 'OBSERVATION INSTRUMENTS', subtitle: 'Five ways we observe the ocean' },
-      { title: 'OCEAN OBSERVATIONS', subtitle: 'Location • Depth • Time • Measurements' },
+      { title: '', subtitle: '' },
       { title: 'OCEAN MODEL + OBSERVATIONS', subtitle: 'Integrating theoretical models with real-world data' },
       { title: 'EXPLORE THE OCEAN', subtitle: 'Interactive discovery through the Ocean 3D platform' }
     ];

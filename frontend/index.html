@@ -2936,7 +2936,8 @@ function FlowLineMaterialProperty(options) {
   this._definitionChanged = new Cesium.Event();
   this._color = options.color || Cesium.Color.fromCssColorString('#38bdf8');
   this._duration = options.duration || 2200;
-  this._time = Date.now();
+  // Independent particle start times to prevent synchronized pulsing
+  this._time = Date.now() - Math.random() * this._duration;
 }
 Object.defineProperties(FlowLineMaterialProperty.prototype, {
   isConstant: { value: false },
@@ -2960,17 +2961,24 @@ try {
         fabric: {
           type: 'FlowLine',
           uniforms: {
-            color: Cesium.Color.fromCssColorString('#38bdf8'),
+            color: Cesium.Color.fromCssColorString('#3fe0c5'),
             time: 0.0
           },
           source: `
             czm_material czm_getMaterial(czm_materialInput materialInput) {
               czm_material material = czm_getDefaultMaterial(materialInput);
               vec2 st = materialInput.st;
-              float t = fract(st.s * 2.0 - time * 2.0);
-              float alpha = smoothstep(0.0, 0.25, t) * (1.0 - smoothstep(0.7, 1.0, t));
-              material.diffuse = color.rgb * 1.5;
-              material.alpha = clamp(color.a * alpha * 1.6, 0.0, 1.0);
+              // High-density pulses along the streamline
+              float speed = 1.2;
+              float pulse = fract(st.s * 1.5 - time * speed);
+              float alpha = smoothstep(0.0, 0.1, pulse) * (1.0 - smoothstep(0.3, 0.5, pulse));
+
+              // Taper transparency at the very ends of the long streamline
+              float edgeTaper = smoothstep(0.0, 0.05, st.s) * (1.0 - smoothstep(0.95, 1.0, st.s));
+
+              material.diffuse = color.rgb * 1.4;
+              material.emission = color.rgb * alpha * 0.6;
+              material.alpha = clamp(color.a * alpha * 1.8 * edgeTaper, 0.0, 1.0);
               return material;
             }
           `
@@ -2980,111 +2988,230 @@ try {
   }
 } catch(e) { console.warn("FlowLine material notice:", e); }
 
-// Current Vectors & Animated Flow Streamlines
+// Vector Field Sampler for Bi-Linear Interpolation
+class OceanVectorField {
+  constructor(uData, vData) {
+    this.points = [];
+    const valMap = new Map();
+    const lats = new Set(), lons = new Set();
+
+    if(uData && uData.points) {
+      uData.points.forEach(p => {
+        const key = `${p.lat.toFixed(2)}_${p.lon.toFixed(2)}`;
+        valMap.set(key, { u: p.value, v: 0 });
+        lats.add(p.lat); lons.add(p.lon);
+      });
+    }
+    if(vData && vData.points) {
+      vData.points.forEach(p => {
+        const key = `${p.lat.toFixed(2)}_${p.lon.toFixed(2)}`;
+        const cur = valMap.get(key) || { u: 0, v: 0 };
+        cur.v = p.value;
+        valMap.set(key, cur);
+      });
+    }
+
+    this.sortedLats = Array.from(lats).sort((a,b) => a - b);
+    this.sortedLons = Array.from(lons).sort((a,b) => a - b);
+    this.valMap = valMap;
+    this.timestamp = uData?.time || vData?.time || null;
+  }
+
+  sample(lat, lon) {
+    if(!this.sortedLats.length) return null;
+
+    // Normalize longitude to [-180, 180]
+    let nLon = ((lon + 180) % 360);
+    if (nLon < 0) nLon += 360;
+    nLon -= 180;
+
+    // Find neighbors for interpolation
+    let i = this.sortedLats.findIndex(l => l > lat) - 1;
+    let j = this.sortedLons.findIndex(l => l > nLon) - 1;
+
+    if(i < 0 || i >= this.sortedLats.length - 1 || j < 0 || j >= this.sortedLons.length - 1) {
+      // Fallback: Nearest neighbor if outside sorted bounds
+      const flatLat = this.sortedLats.reduce((a, b) => Math.abs(b - lat) < Math.abs(a - lat) ? b : a);
+      const flatLon = this.sortedLons.reduce((a, b) => Math.abs(b - lon) < Math.abs(a - lon) ? b : a);
+      return this.valMap.get(`${flatLat.toFixed(2)}_${flatLon.toFixed(2)}`);
+    }
+
+    const lat0 = this.sortedLats[i], lat1 = this.sortedLats[i+1];
+    const lon0 = this.sortedLons[j], lon1 = this.sortedLons[j+1];
+
+    const v00 = this.valMap.get(`${lat0.toFixed(2)}_${lon0.toFixed(2)}`) || {u:0, v:0};
+    const v10 = this.valMap.get(`${lat1.toFixed(2)}_${lon0.toFixed(2)}`) || {u:0, v:0};
+    const v01 = this.valMap.get(`${lat0.toFixed(2)}_${lon1.toFixed(2)}`) || {u:0, v:0};
+    const v11 = this.valMap.get(`${lat1.toFixed(2)}_${lon1.toFixed(2)}`) || {u:0, v:0};
+
+    const x = (lon - lon0) / (lon1 - lon0);
+    const y = (lat - lat0) / (lat1 - lat0);
+
+    return {
+      u: (v00.u * (1-x)*(1-y) + v01.u * x*(1-y) + v10.u * (1-x)*y + v11.u * x*y),
+      v: (v00.v * (1-x)*(1-y) + v01.v * x*(1-y) + v10.v * (1-x)*y + v11.v * x*y)
+    };
+  }
+}
+
+// Current Vectors & Realistic Flow Streamlines (Integrated with NOAA ERDDAP)
 async function loadVectors(){
-  vectorEntities.forEach(e => viewer.entities.remove(e));
-  vectorEntities = [];
-  if(!state.showVectors) return;
+  if (!viewer || !viewer.entities) return;
+
+  if(!state.showVectors) {
+    vectorEntities.forEach(e => viewer.entities.remove(e));
+    vectorEntities = [];
+    return;
+  }
 
   const depth = DEPTHS[state.depthIndex];
   const time = state.times[state.timeIndex];
 
+  // 1. Determine if we use Real-Time NOAA or Model data
+  const useNoaa = (depth === 0);
+  const datasetId = useNoaa ? "noaa_currents" : "incois_las_model";
+
+  const hint = document.getElementById("hint");
+  if(useNoaa && hint) hint.textContent = "Connecting to NOAA Real-Time Currents (Preloaded)...";
+
   let dataU = null, dataV = null;
   try {
+    const b = currentBounds();
     const [resU, resV] = await Promise.all([
-      fetch(apiUrl(`/api/model?dataset_id=incois_las_model&variable=current_u&min_depth=${depth}&max_depth=${depth}&time=${encodeURIComponent(time||"")}&min_lat=-50&max_lat=30&min_lon=30&max_lon=120`)),
-      fetch(apiUrl(`/api/model?dataset_id=incois_las_model&variable=current_v&min_depth=${depth}&max_depth=${depth}&time=${encodeURIComponent(time||"")}&min_lat=-50&max_lat=30&min_lon=30&max_lon=120`))
+      fetch(apiUrl(`/api/model?dataset_id=${datasetId}&variable=current_u&min_depth=${depth}&max_depth=${depth}&time=${encodeURIComponent(time||"")}&min_lat=${b.min_lat}&max_lat=${b.max_lat}&min_lon=${b.min_lon}&max_lon=${b.max_lon}`)),
+      fetch(apiUrl(`/api/model?dataset_id=${datasetId}&variable=current_v&min_depth=${depth}&max_depth=${depth}&time=${encodeURIComponent(time||"")}&min_lat=${b.min_lat}&max_lat=${b.max_lat}&min_lon=${b.min_lon}&max_lon=${b.max_lon}`))
     ]);
+
+    if(resU.status === 202 || resV.status === 202) {
+      if(hint) hint.textContent = "Preparing NOAA surface currents in background. Please wait...";
+      setTimeout(loadVectors, 3000);
+      return;
+    }
+
     if(resU.ok && resV.ok){
       dataU = await resU.json();
       dataV = await resV.json();
+    } else {
+      const errU = !resU.ok ? await resU.json().catch(() => ({detail: resU.statusText})) : null;
+      const errV = !resV.ok ? await resV.json().catch(() => ({detail: resV.statusText})) : null;
+      const msg = (errU?.detail || errV?.detail || "Data temporarily unavailable");
+      console.error("NOAA Fetch Error:", msg);
+      if(hint) hint.textContent = `NOAA Currents: ${msg}`;
+      return;
     }
-  } catch(e) { console.warn("Currents fetch error:", e); }
-
-  const vMap = {};
-  if(dataV && dataV.points){
-    dataV.points.forEach(p => { vMap[`${p.lat.toFixed(2)}_${p.lon.toFixed(2)}`] = p.value; });
+  } catch(e) {
+    console.warn("Currents fetch error:", e);
+    if(hint) hint.textContent = "Unable to connect to NOAA current service.";
+    return;
   }
 
-  // Altitude above sea surface for unobstructed orbit visibility
-  const alt = 10000.0 * state.verticalExaggeration;
+  if(hint) {
+    if(useNoaa) {
+      const noaaTime = dataU?.time ? new Date(dataU.time).toLocaleDateString() : "latest";
+      hint.textContent = `Source: NOAA CoastWatch (Valid: ${noaaTime})`;
+    } else {
+      hint.textContent = "Source: INCOIS LAS Model";
+    }
+  }
 
-  // Render regional INCOIS model animated current streamlines
-  if(dataU && dataU.points){
-    dataU.points.forEach((pu, idx) => {
-      const u = pu.value;
-      const v = vMap[`${pu.lat.toFixed(2)}_${pu.lon.toFixed(2)}`] ?? 0.0;
-      const speed = Math.sqrt(u*u + v*v);
-      if(speed < 0.015) return;
+  if(!dataU || !dataV) return;
 
-      const scaleDeg = 2.4;
-      const midLat = pu.lat + (v / Math.max(0.1, speed)) * Math.min(1.8, speed * scaleDeg * 0.5);
-      const midLon = pu.lon + (u / Math.max(0.1, speed)) * Math.min(1.8, speed * scaleDeg * 0.5);
-      const endLat = pu.lat + (v / Math.max(0.1, speed)) * Math.min(3.6, speed * scaleDeg);
-      const endLon = pu.lon + (u / Math.max(0.1, speed)) * Math.min(3.6, speed * scaleDeg);
+  const field = new OceanVectorField(dataU, dataV);
+  const alt = 12000.0 * state.verticalExaggeration;
 
-      const colorStr = speed > 0.4 ? '#38bdf8' : '#2dd4bf';
-      const flowEnt = viewer.entities.add({
-        polyline: {
-          positions: Cesium.Cartesian3.fromDegreesArrayHeights([
-            pu.lon, pu.lat, alt,
-            midLon, midLat, alt,
-            endLon, endLat, alt
-          ]),
-          width: 4.0,
-          material: new FlowLineMaterialProperty({
-            color: Cesium.Color.fromCssColorString(colorStr),
-            duration: 1800 + (idx % 5) * 200
-          })
-        }
-      });
-      vectorEntities.push(flowEnt);
+  // 2. Optimized Atomic Field Replacement
+  // We use suspendEvents to prevent Cesium from re-rendering for every entity added
+  viewer.entities.suspendEvents();
+
+  // Clear old entities
+  vectorEntities.forEach(e => viewer.entities.remove(e));
+  vectorEntities = [];
+
+  const b = currentBounds();
+  const numStreamlines = useNoaa ? 2200 : 800;
+  const integrationSteps = 16;
+  const dt = 120000; // Virtual timestep in seconds
+
+  for (let s = 0; s < numStreamlines; s++) {
+    let lat = b.min_lat + Math.random() * (b.max_lat - b.min_lat);
+    let lon = b.min_lon + Math.random() * (b.max_lon - b.min_lon);
+
+    const positions = [lon, lat, alt];
+    let curLat = lat, curLon = lon;
+
+    for (let i = 0; i < integrationSteps; i++) {
+      const v = field.sample(curLat, curLon);
+      if(!v || (Math.abs(v.u) < 0.005 && Math.abs(v.v) < 0.005)) break;
+
+      const radLat = Math.PI * Math.max(-85, Math.min(85, curLat)) / 180.0;
+      const k1_v = (v.v * dt) / 111320;
+      const k1_u = (v.u * dt) / (111320 * Math.cos(radLat));
+
+      const midLat = curLat + k1_v * 0.5;
+      const midLon = curLon + k1_u * 0.5;
+      const v_mid = field.sample(midLat, midLon);
+      if(!v_mid) break;
+
+      const radMidLat = Math.PI * Math.max(-85, Math.min(85, midLat)) / 180.0;
+      const k2_v = (v_mid.v * dt) / 111320;
+      const k2_u = (v_mid.u * dt) / (111320 * Math.cos(radMidLat));
+
+      curLat += k2_v;
+      curLon += k2_u;
+
+      if (curLon > 180) curLon -= 360;
+      else if (curLon < -180) curLon += 360;
+
+      positions.push(curLon, curLat, alt);
+      if(curLat < b.min_lat || curLat > b.max_lat || curLon < b.min_lon || curLon > b.max_lon) break;
+    }
+
+    if(positions.length < 9) continue;
+
+    const sampleV = field.sample(lat, lon);
+    const speed = Math.sqrt(sampleV.u**2 + sampleV.v**2);
+    const dur = 2500 / Math.max(0.5, speed * 2.0);
+
+    const flowEnt = viewer.entities.add({
+      polyline: {
+        positions: Cesium.Cartesian3.fromDegreesArrayHeights(positions),
+        width: 2.5,
+        material: new FlowLineMaterialProperty({
+          color: Cesium.Color.fromCssColorString('#3fe0c5').withAlpha(0.8),
+          duration: dur + Math.random() * 500
+        }),
+        zIndex: 5
+      }
     });
+    vectorEntities.push(flowEnt);
   }
 
-  // Major global ocean circulation gyres with multi-segment curved streamlines
+  // 3. Highlight Major Global Currents
   const GLOBAL_CURRENTS = [
-    // Gulf Stream (North Atlantic)
-    { pts: [[-80.0, 25.0], [-76.0, 31.0], [-71.0, 36.0], [-60.0, 40.0], [-45.0, 44.0]], color: '#38bdf8', dur: 2200 },
-    // North Atlantic Drift
-    { pts: [[-45.0, 44.0], [-30.0, 48.0], [-18.0, 52.0], [-5.0, 56.0]], color: '#38bdf8', dur: 2500 },
-    // Kuroshio Current (Western Pacific)
-    { pts: [[122.0, 22.0], [126.0, 27.0], [132.0, 31.0], [140.0, 35.0], [152.0, 38.0]], color: '#38bdf8', dur: 2100 },
-    // Somali Current / Arabian Sea Monsoon Jet
-    { pts: [[44.0, -2.0], [48.0, 4.0], [52.0, 10.0], [58.0, 14.0], [66.0, 17.0]], color: '#2dd4bf', dur: 2000 },
-    // Bay of Bengal Coastal Jet & Plume
-    { pts: [[81.0, 7.0], [83.5, 12.0], [87.0, 16.0], [90.0, 19.5], [92.5, 15.0]], color: '#2dd4bf', dur: 2200 },
-    // Southwest Monsoon Current across Southern Tip of India / Sri Lanka
-    { pts: [[72.0, 4.5], [78.0, 5.0], [84.0, 5.5], [90.0, 6.0]], color: '#2dd4bf', dur: 2400 },
-    // Agulhas Current (South Africa)
-    { pts: [[36.0, -22.0], [33.0, -28.0], [28.0, -34.0], [20.0, -38.0], [15.0, -36.0]], color: '#38bdf8', dur: 2100 },
-    // Antarctic Circumpolar Current (Southern Ocean)
-    { pts: [[-140.0, -56.0], [-100.0, -57.0], [-65.0, -58.0], [-30.0, -56.0]], color: '#67e8f9', dur: 2800 },
-    { pts: [[-30.0, -56.0], [0.0, -55.0], [30.0, -54.0], [60.0, -55.0]], color: '#67e8f9', dur: 2800 },
-    { pts: [[60.0, -55.0], [90.0, -56.0], [120.0, -55.0], [150.0, -56.0]], color: '#67e8f9', dur: 2800 },
-    // Pacific Equatorial Current (Westward)
-    { pts: [[-90.0, 1.0], [-120.0, 0.0], [-150.0, -1.0], [-180.0, 0.0], [150.0, 1.0]], color: '#2dd4bf', dur: 3200 },
-    // Atlantic Equatorial Current (Westward)
-    { pts: [[5.0, 1.5], [-10.0, 0.5], [-25.0, -0.5], [-38.0, 0.0]], color: '#2dd4bf', dur: 2900 }
+    { pts: [[-80, 25], [-76, 31], [-70, 36], [-60, 40], [-45, 43], [-30, 46]], name: "Gulf Stream", color: '#38bdf8' },
+    { pts: [[122, 20], [128, 25], [135, 32], [145, 38], [155, 36]], name: "Kuroshio", color: '#38bdf8' },
+    { pts: [[45, -2], [52, 6], [58, 12], [65, 16], [72, 18]], name: "Somali Jet", color: '#2dd4bf' },
+    { pts: [[-100, -55], [-60, -58], [-20, -55], [20, -54], [60, -56]], name: "ACC Sector", color: '#67e8f9' }
   ];
 
   GLOBAL_CURRENTS.forEach(gc => {
     const posHeights = [];
-    gc.pts.forEach(p => {
-      posHeights.push(p[0], p[1], alt);
-    });
+    gc.pts.forEach(p => posHeights.push(p[0], p[1], alt));
     const ent = viewer.entities.add({
       polyline: {
         positions: Cesium.Cartesian3.fromDegreesArrayHeights(posHeights),
-        width: 4.5,
+        width: 3.5,
         material: new FlowLineMaterialProperty({
-          color: Cesium.Color.fromCssColorString(gc.color),
-          duration: gc.dur
-        })
+          color: Cesium.Color.fromCssColorString(gc.color || '#38bdf8'),
+          duration: 3000 + Math.random() * 1000
+        }),
+        zIndex: 4
       }
     });
     vectorEntities.push(ent);
   });
+
+  viewer.entities.resumeEvents();
 }
 
 // ---------------------------------------------------------------------
@@ -3383,14 +3510,18 @@ async function loadObservations(){
 }
 
 async function refreshAll(){
-  clearModelEntities();
-  await Promise.all([
-    loadModelData(),
-    state.showBathymetry ? loadBathymetry() : Promise.resolve(),
-    state.showVectors ? loadVectors() : Promise.resolve(),
-    state.showIsosurface ? loadIsosurface() : Promise.resolve(),
-    loadObservations()
-  ]);
+  try {
+    clearModelEntities();
+    await Promise.all([
+      loadModelData().catch(e => console.error("loadModelData error:", e)),
+      state.showBathymetry ? loadBathymetry().catch(e => console.error("loadBathymetry error:", e)) : Promise.resolve(),
+      state.showVectors ? loadVectors().catch(e => console.error("loadVectors error:", e)) : Promise.resolve(),
+      state.showIsosurface ? loadIsosurface().catch(e => console.error("loadIsosurface error:", e)) : Promise.resolve(),
+      loadObservations().catch(e => console.error("loadObservations error:", e))
+    ]);
+  } catch(e) {
+    console.error("refreshAll error:", e);
+  }
 }
 
 // ---------------------------------------------------------------------
@@ -5875,20 +6006,37 @@ if(btnPrevStory) btnPrevStory.onclick = prevStoryStep;
 // Boot Sequence
 // ---------------------------------------------------------------------
 (async function boot(){
+  const loader = document.getElementById("loading");
+
+  const hideLoader = () => {
+    if(loader && loader.style.display !== "none") {
+       console.log("Boot: Hiding loader.");
+       loader.style.display = "none";
+    }
+  };
+
+  // Safety fallback: ensure loader disappears even if something hangs
+  const safetyTimeout = setTimeout(() => {
+    console.warn("Boot sequence taking too long, forcing loader removal.");
+    hideLoader();
+  }, 6000);
+
   try{
-    await initCesiumGlobe();
-    // Initialize Natural Earth pixel-perfect ocean land-sea mask
+    console.log("Boot: Initializing 3D Globe...");
+    // DO NOT await this if it's potentially blocking the loader removal
+    // Actually, initCesiumGlobe is async but should resolve quickly.
+    await initCesiumGlobe().catch(err => console.error("Cesium init error:", err));
+
+    console.log("Boot: Initializing Ocean Mask...");
     initOceanMask();
 
-    // Hide loading screen immediately once 3D Globe is initialized!
-    const loader = document.getElementById("loading");
-    if(loader) loader.style.display = "none";
+    // HIDE LOADER NOW - globe is at least initializing
+    hideLoader();
+    clearTimeout(safetyTimeout);
 
-    // Load data catalog & ocean layers in background
+    console.log("Boot: Loading Catalog in background...");
     loadCatalog().catch(err => console.warn("loadCatalog notice:", err));
 
-    // Eagerly initialize the Three.js water column renderer and render the default profile
-    // so the 3D visualization section is always visible (not blank) when the panel opens
     setTimeout(() => {
       try {
         if(typeof THREE !== 'undefined') {
@@ -5900,8 +6048,8 @@ if(btnPrevStory) btnPrevStory.onclick = prevStoryStep;
 
   }catch(err){
     console.error("Boot error:", err);
-    const loader = document.getElementById("loading");
-    if(loader) loader.style.display = "none";
+    hideLoader();
+    clearTimeout(safetyTimeout);
   }
 })();
 </script>

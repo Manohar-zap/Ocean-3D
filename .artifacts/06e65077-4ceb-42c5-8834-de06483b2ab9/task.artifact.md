@@ -1,0 +1,8 @@
+- [x] Implement robust NOAA preloading with strides and async background task in `noaa_service.py`
+- [x] Implement backend caching for processed velocity fields
+- [x] Implement date-snapping logic for NOAA datasets
+- [x] Update `/api/model` endpoint to handle `LOADING`, `READY`, and `ERROR` states
+- [x] Fix favicon 404 in `main.py`
+- [x] Update frontend `loadVectors()` to handle new backend states and metadata
+- [x] Optimize frontend particle system for smoothness (fixed buffers, jitter reduction)
+- [x] Verify full end-to-end flow and measure performance (startup time, latency, FPS)

@@ -11,7 +11,8 @@ import json
 import urllib.request
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Any
-from fastapi import FastAPI, HTTPException, Query
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -20,14 +21,37 @@ from .schemas import QueryFilters
 from .storage import store
 from .services import query_service, comparison_service, export_service
 from .adapters import is_land
+from .noaa_service import noaa_service
 from .fisher_engine import fisher_engine
 from .prediction_engine import prediction_engine
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Preload NOAA currents in background - truly non-blocking thread
+    import threading
+    def run_preload():
+        import asyncio
+        try:
+            # Create a new event loop for the background thread to avoid any interference
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(noaa_service.preload())
+        except Exception as e:
+            print(f"[Startup] NOAA Preload thread error: {e}")
+
+    # Kick off the thread and detach
+    thread = threading.Thread(target=run_preload, daemon=True)
+    thread.start()
+
+    yield
+    # Shutdown: No cleanup needed for now
 
 app = FastAPI(
     title="OCEAN 3D API",
     description="Web API layer for INCOIS OCEAN 3D — dataset discovery, "
                  "spatial/temporal/depth queries, model-observation comparison, and export.",
     version="1.0.0",
+    lifespan=lifespan
 )
 
 app.add_middleware(
@@ -54,7 +78,7 @@ def get_catalog():
 
 @app.get("/api/model")
 def query_model(
-    dataset_id: str = Query(..., description="e.g. incois_las_model, bgc_model"),
+    dataset_id: str = Query(..., description="e.g. incois_las_model, bgc_model, noaa_currents"),
     variable: str = Query(...),
     min_lat: float = -90, max_lat: float = 90,
     min_lon: float = -180, max_lon: float = 180,
@@ -67,6 +91,43 @@ def query_model(
     if min_depth > max_depth:
         raise HTTPException(400, "min_depth must be <= max_depth")
 
+    # 1. Specialized handling for Real-Time NOAA Currents (Geostrophic)
+    if dataset_id == "noaa_currents":
+        if noaa_service.status == "LOADING":
+             return Response(
+                content=json.dumps({"status": "LOADING", "message": "Preparing NOAA surface currents in background..."}),
+                status_code=202,
+                media_type="application/json"
+            )
+
+        if noaa_service.status == "ERROR":
+            raise HTTPException(502, detail=f"NOAA Integration Error: {noaa_service.last_error}")
+
+        try:
+            # We use a default stride of 2 for interactive queries if not specified,
+            # but for now we'll stick to a balance.
+            points = noaa_service.fetch_surface_currents(min_lat, max_lat, min_lon, max_lon, time)
+            if not points:
+                # If cache is empty or no data found
+                raise HTTPException(404, "No NOAA data found for this region/time")
+
+            # Filter by requested variable (U or V)
+            return {
+                "status": "READY",
+                "count": len(points),
+                "time": points[0]["time"],
+                "unit": "m/s",
+                "points": [
+                    {"lat": p["lat"], "lon": p["lon"], "depth": 0.0, "value": p["u" if variable == "current_u" else "v"]}
+                    for p in points
+                ],
+            }
+        except Exception as e:
+            detail = str(e)
+            print(f"[API Error] NOAA Integration: {detail}")
+            raise HTTPException(502, detail=f"NOAA ERDDAP Integration Error: {detail}")
+
+    # 2. Standard Model Path
     f = QueryFilters(dataset_id=dataset_id, variable=variable,
                       min_lat=min_lat, max_lat=max_lat, min_lon=min_lon, max_lon=max_lon,
                       min_depth=min_depth, max_depth=max_depth, time=time)
@@ -656,6 +717,17 @@ def get_config_js():
         if os.path.exists(candidate):
             return FileResponse(candidate, media_type="application/javascript")
     raise HTTPException(404, "config.js not found")
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+@app.head("/favicon.ico", include_in_schema=False)
+def get_favicon():
+    """Silence favicon 404s with a minimal transparent 1x1 base64 icon."""
+    import base64
+    from fastapi.responses import Response
+    # 1x1 transparent PNG
+    pixel = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==")
+    return Response(content=pixel, media_type="image/png")
 
 
 @app.get("/service-worker.js", response_class=PlainTextResponse)
