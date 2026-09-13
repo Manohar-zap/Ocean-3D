@@ -4,9 +4,9 @@ pydantic==2.9.2
 python-dotenv==1.2.1
 copernicusmarine==2.4.1
 netCDF4==1.7.4
-xarray==2026.7.0
-scipy==1.15.2
-numpy==2.3.2
+xarray>=2024.1.0
+scipy>=1.10.0
+numpy>=1.24.0
 shapely==2.1.2
 httpx==0.28.1
 selenium==4.49.0

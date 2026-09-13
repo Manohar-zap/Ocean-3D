@@ -1,0 +1,306 @@
+/* OCEAN 3D — Refined Interactive Intro Overlay Styles */
+
+#ocean3d-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(7, 16, 25, 0.75);
+  backdrop-filter: blur(3px);
+  display: flex;
+  flex-direction: column;
+  color: #dceaf0;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  overflow: hidden;
+  transition: opacity 1s ease, visibility 1s;
+}
+
+#ocean3d-intro.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.intro-content {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Global Section Header */
+.intro-section-header {
+  position: absolute;
+  top: 80px;
+  width: 100%;
+  text-align: center;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.intro-section-header h2 {
+  font-size: 24px;
+  letter-spacing: 0.2em;
+  font-weight: 600;
+  margin: 0;
+  color: #3fe0c5;
+}
+
+.intro-section-header p {
+  font-size: 13px;
+  color: #7c93a0;
+  font-family: 'IBM Plex Mono', monospace;
+  margin-top: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Stage Management */
+.intro-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(10px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.intro-stage.active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+/* Stage 1: Identity */
+.intro-identity {
+  text-align: center;
+}
+
+.intro-title {
+  font-size: 56px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  margin: 0;
+}
+
+.intro-subtitle {
+  font-size: 16px;
+  color: #7c93a0;
+  font-family: 'IBM Plex Mono', monospace;
+  margin-top: 12px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+}
+
+/* Stage 2: Platforms Horizontal Layout */
+.intro-platforms {
+  width: 90%;
+  max-width: 1200px;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.platform-box {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: staggered-up 0.8s ease backwards;
+}
+
+.platform-box:nth-child(1) { animation-delay: 0.1s; }
+.platform-box:nth-child(2) { animation-delay: 0.2s; }
+.platform-box:nth-child(3) { animation-delay: 0.3s; }
+.platform-box:nth-child(4) { animation-delay: 0.4s; }
+.platform-box:nth-child(5) { animation-delay: 0.5s; }
+
+@keyframes staggered-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.platform-icon-anim {
+  width: 100%;
+  height: 140px;
+  position: relative;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.platform-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #3fe0c5;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.platform-desc {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #7c93a0;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* Existing Instrument Animations (Preserved & Adjusted) */
+.argo-dot { width: 8px; height: 8px; background: #f2a65a; border-radius: 50%; position: absolute; left: 50%; margin-left: -4px; animation: argo-move 4s infinite ease-in-out; }
+@keyframes argo-move { 0% { top: 15%; } 50% { top: 80%; } 100% { top: 15%; } }
+.argo-trace { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: rgba(242, 166, 90, 0.2); }
+
+.buoy-base { width: 12px; height: 12px; background: #38bdf8; border-radius: 50%; position: absolute; top: 20%; left: 50%; margin-left: -6px; }
+.mooring-line { position: absolute; left: 50%; top: 25%; height: 70%; width: 1px; background: rgba(56, 189, 248, 0.2); }
+.pulse { position: absolute; left: 50%; margin-left: -2px; width: 4px; height: 4px; background: #38bdf8; border-radius: 50%; animation: mooring-pulse 2s infinite linear; }
+@keyframes mooring-pulse { 0% { top: 25%; opacity: 1; } 100% { top: 90%; opacity: 0; } }
+
+.glider-dot { width: 12px; height: 7px; background: #8ec9e0; border-radius: 3px; position: absolute; animation: glider-sawtooth 5s infinite linear; }
+@keyframes glider-sawtooth { 0% { top: 20%; left: 10%; } 25% { top: 50%; left: 40%; } 50% { top: 80%; left: 70%; } 55% { top: 75%; left: 75%; } 100% { top: 20%; left: 10%; } }
+
+.ship-icon { width: 24px; height: 10px; background: #c58ee0; position: absolute; top: 15%; left: 50%; margin-left: -12px; border-radius: 1px 1px 4px 4px; }
+.ctd-probe { width: 4px; height: 6px; background: #c58ee0; position: absolute; left: 50%; margin-left: -2px; animation: ctd-move 4s infinite ease-in-out; }
+@keyframes ctd-move { 0% { top: 20%; } 70% { top: 85%; } 100% { top: 20%; } }
+
+.bgc-dot { width: 8px; height: 8px; background: #8ee0a4; border-radius: 50%; position: absolute; left: 50%; margin-left: -4px; animation: argo-move 4s infinite ease-in-out; }
+.bgc-bubble { position: absolute; width: 3px; height: 3px; background: #8ee0a4; border-radius: 50%; opacity: 0.6; animation: bgc-bubble-rise 3s infinite ease-out; }
+@keyframes bgc-bubble-rise { 0% { transform: translateY(0) scale(1); opacity: 0.6; } 100% { transform: translateY(-40px) scale(1.5); opacity: 0; } }
+
+/* Stage 3: Observations */
+.obs-visual-wrap { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.obs-flow-text { display: flex; align-items: center; gap: 30px; z-index: 2; }
+.flow-item { font-size: 18px; font-weight: 600; letter-spacing: 0.1em; color: #7c93a0; }
+.flow-item.highlight { color: #3fe0c5; text-shadow: 0 0 15px rgba(63, 224, 197, 0.4); }
+.flow-arrow { font-size: 24px; color: #3fe0c5; }
+
+.arch-visual { position: absolute; inset: 0; background-image: linear-gradient(rgba(63, 224, 197, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(63, 224, 197, 0.05) 1px, transparent 1px); background-size: 50px 50px; }
+.data-particle { position: absolute; width: 4px; height: 4px; background: #3fe0c5; border-radius: 50%; box-shadow: 0 0 10px #3fe0c5; animation: data-stream 2s infinite linear; }
+@keyframes data-stream { 0% { transform: translate(-50vw, -10vh); opacity: 0; } 20% { opacity: 1; } 80% { opacity: 1; } 100% { transform: translate(50vw, 10vh); opacity: 0; } }
+
+/* Stage 4: Merge */
+.merge-visual-wrap { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
+.merge-grid { position: absolute; inset: 0; background-image: radial-gradient(circle, rgba(63, 224, 197, 0.1) 1px, transparent 1px); background-size: 30px 30px; }
+.merge-content { display: flex; align-items: center; gap: 40px; z-index: 2; }
+.merge-side { display: flex; flex-direction: column; align-items: center; gap: 15px; }
+.merge-label { font-size: 14px; font-weight: 600; letter-spacing: 0.1em; color: #7c93a0; }
+.merge-icon { font-size: 40px; }
+.merge-icon.large { font-size: 80px; filter: drop-shadow(0 0 20px rgba(63, 224, 197, 0.3)); }
+.merge-plus, .merge-equals { font-size: 30px; color: #3fe0c5; font-weight: 300; }
+.merge-result { display: flex; flex-direction: column; align-items: center; gap: 15px; background: rgba(63, 224, 197, 0.05); padding: 30px; border-radius: 50%; border: 1px solid rgba(63, 224, 197, 0.2); }
+
+/* Stage 5: Capabilities */
+.intro-caps { width: 80%; max-width: 900px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px; margin-bottom: 50px; }
+.cap-item { display: flex; flex-direction: column; align-items: center; gap: 15px; text-align: center; }
+.cap-icon { width: 80px; height: 80px; border: 1px solid rgba(63, 224, 197, 0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; background: rgba(255,255,255,0.02); }
+.cap-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #3fe0c5; font-family: 'IBM Plex Mono', monospace; }
+
+.flow-lines { width: 40px; height: 20px; position: relative; }
+.flow-line { position: absolute; height: 2px; background: #3fe0c5; border-radius: 1px; animation: flow-anim 2s infinite linear; }
+@keyframes flow-anim { 0% { left: -100%; width: 0; opacity: 0; } 50% { left: 0; width: 100%; opacity: 1; } 100% { left: 100%; width: 0; opacity: 0; } }
+
+.depth-gauge { width: 4px; height: 40px; background: rgba(255,255,255,0.1); position: relative; }
+.depth-marker { position: absolute; width: 20px; left: -8px; height: 2px; background: #3fe0c5; animation: depth-anim 3s infinite alternate ease-in-out; }
+@keyframes depth-anim { 0% { top: 0; } 100% { top: 100%; } }
+
+.final-cta { font-size: 14px; letter-spacing: 0.4em; color: #7c93a0; font-family: 'IBM Plex Mono', monospace; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; margin-top: 20px; }
+
+/* Navigation Bar */
+.intro-nav-bar {
+  position: absolute;
+  bottom: 80px;
+  left: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 60px;
+  z-index: 10;
+}
+
+.nav-btn {
+  background: none;
+  border: 1px solid rgba(63, 224, 197, 0.4);
+  color: #3fe0c5;
+  padding: 10px 24px;
+  font-size: 13px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  letter-spacing: 0.1em;
+}
+
+.nav-btn:hover {
+  background: rgba(63, 224, 197, 0.1);
+  border-color: #3fe0c5;
+  box-shadow: 0 0 15px rgba(63, 224, 197, 0.2);
+}
+
+.nav-btn.primary {
+  background: rgba(63, 224, 197, 0.15);
+  border-color: #3fe0c5;
+}
+
+.nav-btn.primary:hover {
+  background: #3fe0c5;
+  color: #071019;
+}
+
+.intro-progress {
+  font-size: 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  color: #7c93a0;
+  letter-spacing: 0.2em;
+}
+
+/* Skip Intro Button */
+#skip-intro {
+  position: absolute;
+  bottom: 30px;
+  right: 40px;
+  background: none;
+  border: none;
+  color: #7c93a0;
+  font-size: 11px;
+  font-family: 'IBM Plex Mono', monospace;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.6;
+  transition: opacity 0.3s;
+}
+
+#skip-intro:hover {
+  opacity: 1;
+  color: #dceaf0;
+}
+
+/* Particle effect */
+.intro-particles { position: absolute; inset: 0; pointer-events: none; }
+.particle { position: absolute; background: #3fe0c5; border-radius: 50%; opacity: 0.2; animation: float-particle 15s infinite linear; }
+@keyframes float-particle { 0% { transform: translate(0, 0); } 100% { transform: translate(var(--dx), var(--dy)); } }
+
+/* Responsive Adjustments */
+@media (max-width: 1024px) {
+  .intro-platforms { flex-wrap: wrap; justify-content: center; gap: 30px; }
+  .platform-box { flex: none; width: 40%; }
+  .intro-caps { grid-template-columns: repeat(2, 1fr); width: 60%; }
+}
+
+@media (max-width: 768px) {
+  .intro-title { font-size: 36px; }
+  .platform-box { width: 100%; }
+  .intro-nav-bar { flex-direction: column; gap: 20px; bottom: 100px; }
+  .merge-content { flex-direction: column; gap: 20px; }
+  .merge-plus, .merge-equals { transform: rotate(90deg); }
+  .cap-icon { width: 60px; height: 60px; font-size: 24px; }
+}
