@@ -20,6 +20,8 @@ from .schemas import QueryFilters
 from .storage import store
 from .services import query_service, comparison_service, export_service
 from .adapters import is_land
+from .fisher_engine import fisher_engine
+from .prediction_engine import prediction_engine
 
 app = FastAPI(
     title="OCEAN 3D API",
@@ -413,6 +415,7 @@ def observation_profile(platform_id: str, variable: Optional[str] = None, time: 
         "latitude": cycle_rows[0].latitude,
         "longitude": cycle_rows[0].longitude,
         "latest_time": latest_time,
+        "updated_date": getattr(cycle_rows[0], "retrieval_timestamp", None),
         "platform_status": status,
         "data_status": getattr(cycle_rows[0], "data_status", "OPERATIONAL REAL-TIME"),
         "source_organization": getattr(cycle_rows[0], "source_organization", "INCOIS / Argo GDAC (Operational)"),
@@ -517,6 +520,110 @@ def get_heightmap():
         raise HTTPException(404, "ETOPO1 heightmap binary file not found")
         
     return FileResponse(file_path, media_type="application/octet-stream")
+
+
+# ---------------------------------------------------------------------------
+# Fisher Intelligence & Fisheries Analytics API Layer (Steps 4-8)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/fisher/feature-vector")
+def get_fisher_feature_vector(
+    lat: float = Query(9.8, description="Latitude"),
+    lon: float = Query(75.8, description="Longitude"),
+    depth: float = Query(0.0, description="Depth in meters"),
+    time: Optional[str] = Query(None, description="ISO Timestamp")
+):
+    """Extract raw ocean variables and derived features (current velocity, thermal gradient, upwelling index)."""
+    return fisher_engine.feature_gen.extract_feature_vector(lat, lon, depth, time)
+
+
+@app.get("/api/fisher/habitat")
+def get_fisher_habitat(
+    lat: float = Query(9.8, description="Latitude"),
+    lon: float = Query(75.8, description="Longitude"),
+    depth: float = Query(0.0, description="Depth in meters"),
+    species: str = Query("mackerel", description="Target commercial species"),
+    time: Optional[str] = Query(None, description="ISO Timestamp")
+):
+    """Species-specific Environmental Habitat Suitability Index (0 - 100)."""
+    fv = fisher_engine.feature_gen.extract_feature_vector(lat, lon, depth, time)
+    return fisher_engine.habitat_module.compute_suitability(fv, species)
+
+
+@app.get("/api/fisher/pfz")
+def get_fisher_pfz(
+    min_lat: float = -10, max_lat: float = 30,
+    min_lon: float = 50, max_lon: float = 100,
+    species: str = Query("mackerel")
+):
+    """Potential Fishing Zones (PFZ) & Environmental Fishing Opportunity Index."""
+    hotspots = [
+        {"lat": 9.8, "lon": 75.8, "label": "Malabar Coast (Off Kochi)"},
+        {"lat": 17.5, "lon": 83.5, "label": "Bay of Bengal (Off Vizag)"},
+        {"lat": 20.8, "lon": 70.2, "label": "Arabian Sea (Off Veraval)"}
+    ]
+    results = []
+    for h in hotspots:
+        if min_lat <= h["lat"] <= max_lat and min_lon <= h["lon"] <= max_lon:
+            fv = fisher_engine.feature_gen.extract_feature_vector(h["lat"], h["lon"], 0.0)
+            hs = fisher_engine.habitat_module.compute_suitability(fv, species)
+            opp = fisher_engine.opportunity_module.compute_opportunity(fv, hs)
+            results.append(opp.model_dump())
+
+    return {
+        "index_label": "Environmental Fishing Opportunity Index",
+        "species": species,
+        "count": len(results),
+        "zones": results
+    }
+
+
+@app.get("/api/fisher/prediction")
+def get_fisher_prediction(
+    lat: float = Query(9.8),
+    lon: float = Query(75.8),
+    depth: float = Query(0.0),
+    variable: str = Query("temperature"),
+    horizon_hours: int = Query(24, description="Forecast horizon in hours (24, 48, 72)")
+):
+    """Environmental condition prediction API interface. Returns explicit UNAVAILABLE state if ML offline."""
+    return prediction_engine.predict_environment(lat, lon, depth, variable, horizon_hours)
+
+
+@app.get("/api/fisher/events")
+def get_fisher_events(
+    lat: float = Query(9.8),
+    lon: float = Query(75.8),
+    depth: float = Query(0.0)
+):
+    """Detect oceanographic hazard events (Thermal fronts, upwelling, hypoxia, strong currents)."""
+    fv = fisher_engine.feature_gen.extract_feature_vector(lat, lon, depth)
+    events = fisher_engine.event_module.detect_events(fv)
+    return {"count": len(events), "events": [e.model_dump() for e in events]}
+
+
+@app.get("/api/fisher/safety")
+def get_fisher_safety(
+    lat: float = Query(9.8),
+    lon: float = Query(75.8),
+    depth: float = Query(0.0)
+):
+    """Environmental risk and navigational safety assessment."""
+    fv = fisher_engine.feature_gen.extract_feature_vector(lat, lon, depth)
+    return fisher_engine.risk_module.assess_risk(fv).model_dump()
+
+
+@app.get("/api/fisher/intelligence")
+def get_fisher_intelligence(
+    lat: float = Query(9.8, description="Latitude"),
+    lon: float = Query(75.8, description="Longitude"),
+    depth: float = Query(0.0, description="Depth"),
+    species: str = Query("mackerel", description="Target species"),
+    time: Optional[str] = Query(None)
+):
+    """Master Fisher Intelligence Summary combining conditions, habitat, opportunity index, risk, events, and explainability."""
+    summary = fisher_engine.generate_intelligence_summary(lat, lon, depth, species, time)
+    return summary.model_dump()
 
 
 # ---------------------------------------------------------------------------

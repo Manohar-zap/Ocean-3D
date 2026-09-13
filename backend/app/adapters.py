@@ -536,6 +536,11 @@ class ArgoGliderAdapter:
                 continue
             lon, lat = float(coords[0]), float(coords[1])
             timestamp = doc.get("timestamp", doc.get("date", "2026-03-01T00:00:00Z"))
+            doc_updated = doc.get("date_updated_argovis")
+            if not doc_updated and isinstance(doc.get("source"), list) and doc["source"]:
+                doc_updated = doc["source"][0].get("date_updated")
+            if not doc_updated:
+                doc_updated = datetime.now(timezone.utc).isoformat()
 
             data_info = doc.get("data_info", [])
             keys = data_info[0] if (data_info and isinstance(data_info, list) and isinstance(data_info[0], list)) else ["pressure", "salinity", "temperature"]
@@ -573,7 +578,7 @@ class ArgoGliderAdapter:
                             platform_id=platform_id, platform_type="argo", quality_flag="good",
                             source_file=f"{platform_id}_argovis.json", data_status=data_status,
                             source_organization="Argo GDAC / Argovis", product_id="ARGOVIS-V2-ARGO-IN-SITU",
-                            retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
+                            retrieval_timestamp=doc_updated,
                         ))
 
                     if s_val is not None:
@@ -584,7 +589,7 @@ class ArgoGliderAdapter:
                             platform_id=platform_id, platform_type="argo", quality_flag="good",
                             source_file=f"{platform_id}_argovis.json", data_status=data_status,
                             source_organization="Argo GDAC / Argovis", product_id="ARGOVIS-V2-ARGO-IN-SITU",
-                            retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
+                            retrieval_timestamp=doc_updated,
                         ))
             # Format B: data = [[p1, t1, s1], [p2, t2, s2], ...]
             else:
@@ -609,7 +614,7 @@ class ArgoGliderAdapter:
                             platform_id=platform_id, platform_type="argo", quality_flag="good",
                             source_file=f"{platform_id}_argovis.json", data_status=data_status,
                             source_organization="Argo GDAC / Argovis", product_id="ARGOVIS-V2-ARGO-IN-SITU",
-                            retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
+                            retrieval_timestamp=doc_updated,
                         ))
 
                     if sal_idx is not None and len(row) > sal_idx and row[sal_idx] is not None:
@@ -620,7 +625,7 @@ class ArgoGliderAdapter:
                             platform_id=platform_id, platform_type="argo", quality_flag="good",
                             source_file=f"{platform_id}_argovis.json", data_status=data_status,
                             source_organization="Argo GDAC / Argovis", product_id="ARGOVIS-V2-ARGO-IN-SITU",
-                            retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
+                            retrieval_timestamp=doc_updated,
                         ))
         return records
 

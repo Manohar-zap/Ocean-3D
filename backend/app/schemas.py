@@ -8,7 +8,7 @@ source/variable/instrument without touching core layers) possible.
 """
 from __future__ import annotations
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, Literal
+from typing import Optional, Literal, Any, Union, List
 
 
 RecordKind = Literal["model", "observation"]
@@ -80,3 +80,146 @@ class ComparisonResult(BaseModel):
     time_gap_hours: float
     matched_depth: float
     matched_time: str
+
+
+# ---------------------------------------------------------------------------
+# Fisher Intelligence & Fisheries Analytics Schemas (Steps 4-8)
+# ---------------------------------------------------------------------------
+
+ProvenanceType = Literal["OBSERVED", "MODELED", "DERIVED", "PREDICTED"]
+
+
+class FisherOutputMetadata(BaseModel):
+    value: Union[float, str]
+    unit: str
+    timestamp: str
+    source: str
+    method: str
+    confidence: float                   # 0.0 to 1.0 confidence score
+    provenance: ProvenanceType
+    status: Literal["OK", "UNAVAILABLE", "LOW_CONFIDENCE", "ERROR"] = "OK"
+
+
+class FisherFeatureVector(BaseModel):
+    latitude: float
+    longitude: float
+    depth: float
+    time: str
+    temperature: Optional[float] = None          # degC
+    salinity: Optional[float] = None             # psu
+    chlorophyll: Optional[float] = None          # mg/m3
+    oxygen: Optional[float] = None               # umol/kg
+    current_speed: Optional[float] = None        # m/s
+    current_direction: Optional[float] = None    # degrees (0-360)
+    bathymetry: Optional[float] = None           # meters depth
+    temp_gradient: Optional[float] = None        # degC / km
+    upwelling_index: Optional[float] = None      # 0.0 - 1.0
+    ssta_anomaly: Optional[float] = None         # degC anomaly from mean
+
+
+class HabitatSuitabilityResponse(BaseModel):
+    species: str
+    species_name: str
+    latitude: float
+    longitude: float
+    depth: float
+    time: str
+    suitability_score: float             # 0 - 100
+    confidence: float                   # 0.0 - 1.0
+    provenance: ProvenanceType = "DERIVED"
+    contributing_variables: dict[str, float]
+    method: str
+    status: str = "OK"
+
+
+class FishingOpportunityZone(BaseModel):
+    zone_id: str
+    label: str
+    center_lat: float
+    center_lon: float
+    min_lat: float
+    max_lat: float
+    min_lon: float
+    max_lon: float
+    opportunity_score: float             # 0 - 100 Environmental Fishing Opportunity Index
+    risk_score: float                    # 0 - 100
+    confidence: float                    # 0.0 - 1.0
+    provenance: ProvenanceType = "DERIVED"
+    index_label: str = "Environmental Fishing Opportunity Index"
+    opportunity_level: Literal["HIGH", "MODERATE", "LOW", "INSUFFICIENT_DATA"]
+    contributing_variables: dict[str, float]
+    why_this_area: list[str]
+    method: str
+
+
+class FisherEvent(BaseModel):
+    event_id: str
+    event_type: Literal[
+        "temperature_anomaly",
+        "marine_heatwave",
+        "strong_current",
+        "upwelling_indicator",
+        "front_gradient_indicator",
+        "eddy_indicator",
+        "low_oxygen_condition",
+        "rapid_environmental_change"
+    ]
+    title: str
+    latitude: float
+    longitude: float
+    start_time: str
+    detected_time: str
+    severity: Literal["LOW", "MODERATE", "HIGH", "CRITICAL"]
+    affected_area_km2: float
+    affected_variables: list[str]
+    detection_method: str
+    confidence: float
+    provenance: ProvenanceType = "DERIVED"
+
+
+class FisherRiskAssessment(BaseModel):
+    location: str
+    latitude: float
+    longitude: float
+    environmental_risk_score: float       # 0 - 100
+    navigational_risk_score: float        # 0 - 100
+    prediction_uncertainty: float         # 0.0 - 1.0
+    risk_level: Literal["SAFE", "CAUTION", "DANGER"]
+    environmental_warnings: list[str]
+    provenance: ProvenanceType = "DERIVED"
+
+
+class FisherPredictionResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
+    latitude: float
+    longitude: float
+    depth: float
+    variable: str
+    forecast_horizon_hours: int
+    prediction_value: Optional[float] = None
+    unit: str
+    confidence: float = 0.0
+    uncertainty_range: Optional[list[float]] = None
+    provenance: ProvenanceType = "PREDICTED"
+    model_version: str = "INCOIS-ML-v1.0-OFFLINE"
+    training_data_period: str = "2018-02 to 2026-03"
+    timestamp: str
+    status: Literal["UNAVAILABLE", "OK", "ERROR"] = "UNAVAILABLE"
+    message: str = "Prediction model not connected (ML Inference Engine Offline)"
+
+
+class FisherIntelligenceSummary(BaseModel):
+    location_name: str
+    latitude: float
+    longitude: float
+    depth: float
+    time: str
+    current_conditions: dict[str, Any]
+    prediction: FisherPredictionResponse
+    habitat_suitability: HabitatSuitabilityResponse
+    opportunity: FishingOpportunityZone
+    risk: FisherRiskAssessment
+    events: list[FisherEvent]
+    confidence_overall: float
+    why_this_area: list[str]
