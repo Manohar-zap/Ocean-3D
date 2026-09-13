@@ -1,0 +1,48 @@
+#adaptivePanel {
+  position: absolute;
+  top: 64px;
+  right: 14px;
+  width: 330px;
+  max-height: calc(100% - 86px);
+  overflow: auto;
+  z-index: 12;
+  display: none;
+  background: rgba(8, 20, 32, 0.96);
+  border: 1px solid #284252;
+  border-radius: 5px;
+  box-shadow: 0 12px 35px rgba(0,0,0,.45);
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  color: #dceaf0;
+}
+#adaptivePanel.open { display: block; }
+#adaptivePanel .ap-head { padding: 12px 14px; border-bottom: 1px solid #1a2f3c; display:flex; justify-content:space-between; align-items:center; }
+#adaptivePanel .ap-title { font-size: 12px; font-weight: 700; letter-spacing:.06em; text-transform:uppercase; }
+#adaptivePanel .ap-sub { font-size: 10px; color:#7c93a0; margin-top:3px; }
+#adaptivePanel .ap-close { background:none; border:0; color:#7c93a0; cursor:pointer; font-size:17px; }
+#adaptivePanel .ap-body { padding: 12px 14px 14px; display:flex; flex-direction:column; gap:10px; }
+#adaptivePanel .ap-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+#adaptivePanel .ap-field label { display:block; font-size:10px; color:#7c93a0; margin-bottom:4px; }
+#adaptivePanel .ap-field input, #adaptivePanel .ap-field select { width:100%; background:#10212e; color:#dceaf0; border:1px solid #1a2f3c; border-radius:3px; padding:6px; font-size:11px; }
+#adaptivePanel .ap-button { width:100%; border:1px solid #1f6e63; background:#123c37; color:#dceaf0; padding:8px; border-radius:3px; cursor:pointer; font-size:11px; font-weight:600; }
+#adaptivePanel .ap-button:hover { background:#1f6e63; }
+#adaptivePanel .ap-button.secondary { border-color:#284252; background:#10212e; }
+#adaptivePanel .ap-status { font-family:'IBM Plex Mono', monospace; font-size:10px; color:#7c93a0; min-height:14px; }
+#adaptivePanel .ap-score { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+#adaptivePanel .ap-card { background:#10212e; border:1px solid #1a2f3c; border-radius:3px; padding:9px; }
+#adaptivePanel .ap-label { color:#7c93a0; font-size:9px; text-transform:uppercase; letter-spacing:.05em; }
+#adaptivePanel .ap-value { font-family:'IBM Plex Mono', monospace; font-size:18px; font-weight:700; margin-top:4px; }
+#adaptivePanel .ap-value.warn { color:#f59e0b; }
+#adaptivePanel .ap-value.good { color:#3fe0c5; }
+#adaptivePanel .ap-section { border-top:1px solid #1a2f3c; padding-top:9px; }
+#adaptivePanel .ap-section-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; margin-bottom:7px; }
+#adaptivePanel .ap-row { display:flex; justify-content:space-between; gap:10px; padding:3px 0; font-size:10.5px; }
+#adaptivePanel .ap-row span:first-child { color:#7c93a0; }
+#adaptivePanel .ap-recommend { border:1px solid #1f6e63; background:rgba(31,110,99,.12); border-radius:3px; padding:9px; font-size:10.5px; line-height:1.45; }
+#adaptivePanel .ap-recommend.monitor { border-color:#284252; background:#10212e; }
+#adaptivePanel .ap-bar { height:7px; background:#071019; border:1px solid #1a2f3c; border-radius:3px; overflow:hidden; margin-top:5px; }
+#adaptivePanel .ap-bar > div { height:100%; width:0; background:#3fe0c5; transition:width .25s; }
+#adaptivePanel .ap-sim { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+#adaptivePanel .ap-sim .ap-card { text-align:center; }
+#adaptivePanel .ap-sim .ap-value { font-size:15px; }
+#adaptiveToggle { position:absolute; top:64px; right:14px; z-index:11; border:1px solid #1f6e63; background:rgba(13,26,36,.92); color:#dceaf0; padding:7px 10px; border-radius:3px; cursor:pointer; font:600 11px 'IBM Plex Sans', sans-serif; }
+#adaptiveToggle:hover { background:#123c37; }
