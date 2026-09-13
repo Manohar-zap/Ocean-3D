@@ -475,14 +475,13 @@ class ArgoGliderAdapter:
         if platform_type == "argo":
             # 1. Check for local NetCDF profile files (*.nc) in backend/data/argo_cache or backend/data
             netcdf_records = self._parse_local_netcdf_cache()
-            if netcdf_records:
-                logger.info(f"Loaded {len(netcdf_records)} real Argo NetCDF observation records from local .nc cache.")
-                return netcdf_records
 
             # 2. Load local real GDAC Argovis dataset (139 real floats, instant <0.1s startup)
             cached_records = self._parse_argovis_cached()
-            if cached_records:
-                return cached_records
+
+            combined_records = netcdf_records + cached_records
+            if combined_records:
+                return combined_records
 
             # 3. Live Argovis GDAC API Query fallback if cache missing
             api_key = os.getenv("ARGOVIS_API_KEY", "").strip()
