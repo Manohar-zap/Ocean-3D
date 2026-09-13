@@ -1,7 +1,9 @@
 """
 Unit & Integration Tests for Phase 1 Correction: AI Ocean-State Prediction & Uncertainty Layer.
 """
+import os
 import unittest
+from pathlib import Path
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -41,12 +43,32 @@ class TestPredictionEnginePhase1Correction(unittest.TestCase):
         self.assertIn("val_t_minus1", dict_f)
         self.assertIn("val_t_minus2", dict_f)
 
-    def test_missing_data_safety(self):
-        """Verify that when features/data are unavailable, prediction_value is None and status != OK."""
+    def test_missing_data_safety_returns_none(self):
+        """Verify that when features/lags are unavailable, prediction_value is None and status is INSUFFICIENT_DATA."""
         res = prediction_engine.predict_environment(-88.0, -178.0, 0.0, "temperature", 24)
         self.assertEqual(res.status, "INSUFFICIENT_DATA")
         self.assertIsNone(res.prediction_value)
         self.assertIsNone(res.uncertainty_range)
+
+    def test_legacy_model_fallback_disabled(self):
+        """Verify deleting/renaming dedicated model file returns UNAVAILABLE rather than falling back to legacy binary."""
+        found_bins = []
+        for p_str in ["models/salinity_48h_ml_v1.bin", "backend/models/salinity_48h_ml_v1.bin"]:
+            p = Path(p_str)
+            if p.exists():
+                tmp_p = Path(p_str + ".tmp")
+                p.rename(tmp_p)
+                found_bins.append((p, tmp_p))
+
+        try:
+            res = prediction_engine.predict_environment(9.8, 75.8, 0.0, "salinity", 48)
+            self.assertEqual(res.status, "UNAVAILABLE")
+            self.assertIsNone(res.prediction_value)
+            self.assertIsNone(res.uncertainty_range)
+        finally:
+            for p, tmp_p in found_bins:
+                if tmp_p.exists():
+                    tmp_p.rename(p)
 
     def test_horizon_model_selection(self):
         """Verify 24h and 48h horizons use distinct model binaries."""

@@ -38,9 +38,7 @@ class FisherPredictionEngine:
         
         candidates = [
             os.path.join(self.model_dir, f"{var_clean}_{horizon}h_ml_v1.bin"),
-            os.path.join("backend/models", f"{var_clean}_{horizon}h_ml_v1.bin"),
-            os.path.join(self.model_dir, "incois_fisher_ml_v1.bin"),
-            os.path.join("backend/models", "incois_fisher_ml_v1.bin")
+            os.path.join("backend/models", f"{var_clean}_{horizon}h_ml_v1.bin")
         ]
         for c in candidates:
             if os.path.exists(c):
