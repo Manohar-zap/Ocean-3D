@@ -20,10 +20,13 @@ import os
 import math
 import random
 import json
+import logging
 import urllib.request
 import urllib.parse
 from datetime import datetime, timedelta, timezone
 from typing import Protocol
+
+logger = logging.getLogger(__name__)
 try:
     import dotenv
     dotenv.load_dotenv()
@@ -201,7 +204,7 @@ class BathymetryAdapter:
             "platform_type": None,
             "data_status": status,
             "source_organization": "GEBCO (General Bathymetric Chart of the Oceans)",
-            "product_id": "GEBCO_2024_GRID",
+            "product_id": "GEBCO_2023_GRID",
             "retrieval_timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -233,11 +236,11 @@ class BathymetryAdapter:
                                 time=_time_at(0),
                                 value=round(depth_val, 2),
                                 unit="meters",
-                                source_model="GEBCO_2024_GRID",
+                                source_model="GEBCO_2023_GRID",
                                 source_file=target_file,
                                 data_status="OPERATIONAL REAL-TIME",
                                 source_organization="GEBCO",
-                                product_id="GEBCO_2024_GRID",
+                                product_id="GEBCO_2023_GRID",
                                 retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
                             ))
                 if records:
@@ -470,19 +473,52 @@ class ArgoGliderAdapter:
         platform_type = "argo" if source in ("argo_gdac", "argovis") else "glider"
 
         if platform_type == "argo":
-            # 1. First load local real GDAC Argovis dataset (139 real floats, instant <0.1s startup)
+            # 1. Check for local NetCDF profile files (*.nc) in backend/data/argo_cache or backend/data
+            netcdf_records = self._parse_local_netcdf_cache()
+            if netcdf_records:
+                logger.info(f"Loaded {len(netcdf_records)} real Argo NetCDF observation records from local .nc cache.")
+                return netcdf_records
+
+            # 2. Load local real GDAC Argovis dataset (139 real floats, instant <0.1s startup)
             cached_records = self._parse_argovis_cached()
             if cached_records:
                 return cached_records
 
-            # 2. Live Argovis API Query fallback if cache missing
+            # 3. Live Argovis GDAC API Query fallback if cache missing
             api_key = os.getenv("ARGOVIS_API_KEY", "").strip()
             records = self._fetch_and_parse_argovis_live(api_key)
             if records:
                 return records
 
-        # 3. Demonstration Tracker Dataset Fallback
-        return self._parse_demonstration_dataset(source, platform_type)
+        # 4. Optional Demonstration Fallback (Only if explicitly enabled via environment)
+        if os.getenv("ENABLE_SYNTHETIC_ARGO_FALLBACK", "").lower() in ("true", "1", "yes"):
+            return self._parse_demonstration_dataset(source, platform_type)
+
+        return self._parse_argovis_cached()
+
+    def _parse_local_netcdf_cache(self) -> list[StandardRecord]:
+        """Search for and parse any local Argo profile NetCDF files (.nc) in backend/data or argo_cache."""
+        from .argo_netcdf_parser import parse_argo_netcdf_file
+        records: list[StandardRecord] = []
+        search_dirs = [
+            os.path.join(os.path.dirname(__file__), "..", "data", "argo_cache"),
+            os.path.join(os.path.dirname(__file__), "..", "data"),
+            "backend/data/argo_cache",
+            "backend/data",
+            "data"
+        ]
+        seen_files = set()
+        for d in search_dirs:
+            if os.path.exists(d):
+                for fname in os.listdir(d):
+                    if fname.endswith(".nc") and ("argo" in fname.lower() or "prof" in fname.lower() or fname.startswith("D") or fname.startswith("R") or fname.startswith("590") or fname.startswith("290")):
+                        fpath = os.path.join(d, fname)
+                        if fpath not in seen_files:
+                            seen_files.add(fpath)
+                            parsed = parse_argo_netcdf_file(fpath, data_status="CACHED REAL DATA")
+                            if parsed:
+                                records.extend(parsed)
+        return records
 
     def _fetch_and_parse_argovis_live(self, api_key: str) -> list[StandardRecord]:
         polygon_env = os.getenv("ARGOVIS_POLYGON", "").strip()
@@ -683,7 +719,7 @@ class ArgoGliderAdapter:
                             platform_type=platform_type,
                             quality_flag="good" if rng.random() > 0.05 else "suspect",
                             source_file=f"{platform_id}_prof{s_idx}.nc" if platform_type == "argo" else f"{platform_id}_prof{s_idx}.asc",
-                            data_status="CACHED REAL DATA",
+                            data_status="DEMONSTRATION DATA",
                             source_organization="Argo GDAC / INCOIS" if platform_type == "argo" else "IOOS Glider DAC",
                             product_id="ARGO-GDAC-IND" if platform_type == "argo" else "GLIDER-DAC-IND",
                             retrieval_timestamp=datetime.now(timezone.utc).isoformat(),

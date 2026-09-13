@@ -24,9 +24,8 @@ class TestRealDataIntegration(unittest.TestCase):
 
     def test_incois_netcdf_ingestion(self):
         """Verify real NetCDF sample ingestion and coordinate normalization."""
-        sample_path = "sample_incois_model.nc"
-        if not os.path.exists(sample_path) and os.path.exists("backend/sample_incois_model.nc"):
-            sample_path = "backend/sample_incois_model.nc"
+        from app.adapters import find_data_file
+        sample_path = find_data_file("sample_incois_model.nc") or "backend/data/sample_incois_model.nc"
 
         records = parse_netcdf_records(sample_path, "incois_las_model", "CACHED REAL DATA", "INCOIS", "INCOIS-ROMS-IND-01")
         self.assertGreater(len(records), 0)
