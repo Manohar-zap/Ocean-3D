@@ -20,7 +20,6 @@ from .schemas import (
     FisherPredictionResponse
 )
 from .storage import store
-from .services import query_service
 
 logger = logging.getLogger(__name__)
 
@@ -100,8 +99,9 @@ SPECIES_PROFILES: dict[str, dict[str, Any]] = {
 class FeatureVectorGenerator:
     """Extracts raw ocean variables and computes derived oceanographic features."""
 
+    @staticmethod
     def extract_feature_vector(
-        self, latitude: float, longitude: float, depth: float = 0.0, time: Optional[str] = None
+        latitude: float, longitude: float, depth: float = 0.0, time: Optional[str] = None
     ) -> FisherFeatureVector:
         ts = time or datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00Z")
 

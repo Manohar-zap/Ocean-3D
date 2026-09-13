@@ -206,7 +206,7 @@ def query_observations(
     latest_update = ""
 
     for pid, p_rows in records_by_platform.items():
-        p_rows_sorted = sorted(p_rows, key=lambda r: (r.time, -r.depth), reverse=True)
+        p_rows_sorted = sorted(p_rows, key=lambda row: (row.time, -row.depth), reverse=True)
         latest_r = p_rows_sorted[0]
 
         ds = getattr(latest_r, "data_status", "OPERATIONAL REAL-TIME")
@@ -215,6 +215,8 @@ def query_observations(
             latest_update = time_str
 
         status = "ACTIVE"
+        if recency and recency == "recent" and time_str < "2026-01-01T00:00:00Z":
+            status = "RECENT"
         summary_counts["active"] += 1
 
         ptype = latest_r.platform_type.lower() if latest_r.platform_type else "argo"
