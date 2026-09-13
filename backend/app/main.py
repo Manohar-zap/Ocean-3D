@@ -25,6 +25,13 @@ from .prediction_engine import prediction_engine
 from .collocation import collocation_engine
 from .error_analysis import error_analysis_engine
 from .uncertainty_model import uncertainty_engine
+from .adaptive.gap_detector import gap_detector
+from .adaptive.instrument_registry import instrument_registry
+from .adaptive.energy_model import energy_engine
+from .adaptive.current_router import current_router
+from .adaptive.information_gain import information_gain_engine
+from .adaptive.mission_optimizer import mission_optimizer
+from .adaptive.mission_simulator import mission_simulator
 
 app = FastAPI(
     title="OCEAN 3D API",
@@ -551,6 +558,55 @@ def get_error_analysis_summary_api(
         return summary.model_dump()
     except Exception as e:
         raise HTTPException(500, str(e))
+
+
+# ---------------------------------------------------------------------------
+# Closed-Loop Adaptive Mission Planner API Layer
+# ---------------------------------------------------------------------------
+
+@app.get("/api/adaptive/gaps")
+def get_adaptive_information_gaps(
+    min_lat: float = Query(-10.0), max_lat: float = Query(30.0),
+    min_lon: float = Query(50.0), max_lon: float = Query(100.0),
+    depth: float = Query(100.0), variable: str = Query("temperature")
+):
+    """Detect 3D ocean information gaps across spatial grid locations."""
+    targets = [
+        {"lat": 15.4, "lon": 88.7, "depth": depth},
+        {"lat": 9.8, "lon": 75.8, "depth": depth},
+        {"lat": 20.8, "lon": 70.2, "depth": depth}
+    ]
+    gaps = [gap_detector.detect_information_gap(t["lat"], t["lon"], t["depth"], variable) for t in targets]
+    return {"count": len(gaps), "variable": variable, "depth_m": depth, "gaps": gaps}
+
+
+@app.get("/api/adaptive/instruments")
+def get_adaptive_instruments(
+    lat: float = Query(15.4), lon: float = Query(88.7),
+    depth: float = Query(500.0), sensor: str = Query("temperature")
+):
+    """Query mobile research fleet candidates and explicit rejection reasons."""
+    return instrument_registry.discover_candidate_instruments(lat, lon, depth, sensor)
+
+
+@app.get("/api/adaptive/plan")
+def get_adaptive_mission_plan(
+    lat: float = Query(15.4), lon: float = Query(88.7),
+    depth: float = Query(500.0), variable: str = Query("temperature"),
+    platform: str = Query("glider")
+):
+    """Current-aware trajectory planning, energy evaluation, and multi-criteria candidate ranking."""
+    return mission_optimizer.plan_optimal_mission(lat, lon, depth, variable, platform)
+
+
+@app.get("/api/adaptive/simulate")
+def get_adaptive_mission_simulation(
+    lat: float = Query(15.4), lon: float = Query(88.7),
+    depth: float = Query(500.0), variable: str = Query("temperature"),
+    platform: str = Query("glider")
+):
+    """Executes closed-loop step-by-step mission simulation with BEFORE vs AFTER Bayesian uncertainty reduction."""
+    return mission_simulator.simulate_mission(lat, lon, depth, variable, platform)
 
 
 

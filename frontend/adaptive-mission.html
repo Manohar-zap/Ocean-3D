@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OCEAN 3D — Adaptive Mission Planner Workspace</title>
+  <link rel="stylesheet" href="adaptive-mission.css">
+  <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css">
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
+  <script src="config.js"></script>
+</head>
+<body>
+
+<div id="missionApp">
+  <header>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div class="wordmark">OCEAN <span class="unit">3D</span></div>
+      <span style="color:var(--line);">|</span>
+      <span style="font-size:12px; font-weight:700; color:var(--accent); letter-spacing:0.8px;">🚀 ADAPTIVE MISSION PLANNER WORKSPACE</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <span class="badge green">DECISION SUPPORT SIMULATOR</span>
+      <a href="index.html" style="color:var(--cyan); text-decoration:none; font-size:12px; font-weight:600;">← Back to Ocean Digital Twin</a>
+    </div>
+  </header>
+
+  <div class="mission-grid">
+    <!-- LEFT PANEL: GAP DETECTION, CANDIDATE PLATFORMS & FEASIBILITY -->
+    <aside class="left-panel">
+      <!-- CARD 1: DETECTED INFORMATION GAP -->
+      <div class="mission-card">
+        <div class="card-hdr">
+          <span>1. Information Gap Target</span>
+          <span id="gapBadge" class="badge amber">PRIORITY 91 / 100</span>
+        </div>
+        <div style="font-size:10px; color:var(--text-dim);">Selected Ocean Target for Adaptive Sampling</div>
+
+        <div class="metric-row">
+          <span style="color:var(--text-dim);">Target Location</span>
+          <span id="gapCoords" class="metric-val">15.40° N, 88.70° E (Bay of Bengal)</span>
+        </div>
+        <div class="metric-row">
+          <span style="color:var(--text-dim);">Target Depth</span>
+          <span id="gapDepth" class="metric-val" style="color:var(--cyan);">500 m</span>
+        </div>
+        <div class="metric-row">
+          <span style="color:var(--text-dim);">Temperature Residual</span>
+          <span id="gapTempRes" class="metric-val" style="color:#ef4444;">+2.31 °C</span>
+        </div>
+        <div class="metric-row">
+          <span style="color:var(--text-dim);">Salinity Residual</span>
+          <span id="gapSalRes" class="metric-val" style="color:#ef4444;">+0.74 PSU</span>
+        </div>
+        <div class="metric-row">
+          <span style="color:var(--text-dim);">Observation Staleness</span>
+          <span id="gapAge" class="metric-val">8.4 days (201 hrs)</span>
+        </div>
+        <div class="metric-row">
+          <span style="color:var(--text-dim);">Nearest Float Distance</span>
+          <span id="gapDist" class="metric-val">186 km</span>
+        </div>
+      </div>
+
+      <!-- CARD 2: CANDIDATE PLATFORMS DISCOVERY & REJECTION REASONS -->
+      <div class="mission-card">
+        <div class="card-hdr">
+          <span>2. Candidate Platforms</span>
+          <span class="badge blue">DISCOVERY</span>
+        </div>
+        <div style="font-size:10px; color:var(--text-dim);">Controllable Mobile Research Fleet vs Non-Steerable Floats</div>
+
+        <div id="candidateList" style="display:flex; flex-direction:column; gap:6px;">
+          <!-- Candidate 1 -->
+          <div style="background:var(--panel-3); padding:8px; border-radius:4px; border:1px solid var(--line);">
+            <div style="display:flex; justify-content:space-between; font-weight:700; font-size:11px;">
+              <span>GLIDER-07 (SeaExplorer)</span>
+              <span class="badge green">FEASIBLE</span>
+            </div>
+            <div style="font-size:10px; color:var(--text-dim); margin-top:2px;">Range: 400km | Max Depth: 1000m | Batt: 82%</div>
+          </div>
+          <!-- Candidate 2 -->
+          <div style="background:var(--panel-3); padding:8px; border-radius:4px; border:1px solid var(--line); opacity:0.65;">
+            <div style="display:flex; justify-content:space-between; font-weight:700; font-size:11px;">
+              <span>AUV-03 (Deep Survey)</span>
+              <span class="badge red">REJECTED</span>
+            </div>
+            <div style="font-size:10px; color:#ef4444; margin-top:2px;">Reason: Insufficient range (120km max < 186km)</div>
+          </div>
+          <!-- Candidate 3 -->
+          <div style="background:var(--panel-3); padding:8px; border-radius:4px; border:1px solid var(--line); opacity:0.65;">
+            <div style="display:flex; justify-content:space-between; font-weight:700; font-size:11px;">
+              <span>ARGO-5906203 (Profiling Float)</span>
+              <span class="badge amber">NON-STEERABLE</span>
+            </div>
+            <div style="font-size:10px; color:#f59e0b; margin-top:2px;">Reason: Passive drift platform (Cannot navigate to waypoint)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CARD 3: FEASIBILITY, BATTERY & ROUTING ANALYSIS -->
+      <div class="mission-card">
+        <div class="card-hdr">
+          <span>3. Feasibility & Energy</span>
+          <span id="feasBadge" class="badge green">FEASIBLE (88%)</span>
+        </div>
+
+        <div class="metric-row">
+          <span style="color:var(--text-dim);">Selected Platform</span>
+          <span class="metric-val" style="color:var(--accent);">GLIDER-07</span>
+        </div>
+        <div class="metric-row">
+          <span style="color:var(--text-dim);">Transit Distance</span>
+          <span id="mDist" class="metric-val">137.8 km</span>
+        </div>
+        <div class="metric-row">
+          <span style="color:var(--text-dim);">Current Drag Penalty</span>
+          <span id="mCurrent" class="metric-val" style="color:var(--teal);">0.45 m/s (Current-Adjusted)</span>
+        </div>
+        <div class="metric-row">
+          <span style="color:var(--text-dim);">Estimated Mission Duration</span>
+          <span id="mDuration" class="metric-val">31.4 Hours</span>
+        </div>
+        <div class="metric-row">
+          <span style="color:var(--text-dim);">Energy Expenditure</span>
+          <span id="mEnergy" class="metric-val">47.0%</span>
+        </div>
+        <div class="metric-row">
+          <span style="color:var(--text-dim);">Safety Reserve Margin</span>
+          <span class="metric-val" style="color:var(--green);">35.0% (> 15% Required)</span>
+        </div>
+
+        <button id="btnPlayMission" class="btn-action primary" style="margin-top:6px;">
+          <span>▶</span>
+          <span>PLAY MISSION SIMULATION</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- CENTER VIEWPORT: CESIUM 3D GLOBE / MISSION MAP -->
+    <main class="center-viewport">
+      <div id="cesiumContainer"></div>
+    </main>
+
+    <!-- RIGHT PANEL: SIMULATION TELEMETRY & SCIENTIFIC PAYOFF -->
+    <aside class="right-panel">
+      <!-- CARD 1: REAL-TIME SIMULATION TELEMETRY -->
+      <div class="mission-card">
+        <div class="card-hdr">
+          <span>Real-Time Telemetry</span>
+          <span id="simStatusBadge" class="badge amber">PLANNED</span>
+        </div>
+
+        <div class="metric-row">
+          <span style="color:var(--text-dim);">Elapsed Mission Time</span>
+          <span id="simTime" class="metric-val" style="color:var(--cyan);">T + 00:00:00</span>
+        </div>
+        <div class="metric-row">
+          <span style="color:var(--text-dim);">Distance to Target</span>
+          <span id="simDistRem" class="metric-val">137.8 km</span>
+        </div>
+
+        <div style="margin-top:4px;">
+          <div class="metric-row">
+            <span style="color:var(--text-dim);">Battery Level</span>
+            <span id="simBattVal" class="metric-val" style="color:var(--green);">82.0%</span>
+          </div>
+          <div class="gauge-bar">
+            <div id="simBattFill" class="gauge-fill" style="width: 82%;"></div>
+          </div>
+        </div>
+
+        <div class="metric-row" style="margin-top:4px;">
+          <span style="color:var(--text-dim);">Current Velocity Drag</span>
+          <span id="simDragVal" class="metric-val" style="color:var(--teal);">0.42 m/s → 215°</span>
+        </div>
+      </div>
+
+      <!-- CARD 2: TARGET SENSOR SAMPLING SEQUENCE -->
+      <div class="mission-card">
+        <div class="card-hdr">
+          <span>Target Depth Sampling</span>
+          <span class="badge blue">0m – 1000m</span>
+        </div>
+        <div style="font-size:10px; color:var(--text-dim);">Vertical Water-Column Dive Sequence</div>
+
+        <div id="diveSequence" style="display:flex; flex-direction:column; gap:4px; font-size:10.5px;">
+          <div class="metric-row"><span>Surface (0 m)</span><span id="s0" style="color:var(--text-dim);">⏳ Pending</span></div>
+          <div class="metric-row"><span>Thermocline (100 m)</span><span id="s100" style="color:var(--text-dim);">⏳ Pending</span></div>
+          <div class="metric-row"><span>Mid-Depth (250 m)</span><span id="s250" style="color:var(--text-dim);">⏳ Pending</span></div>
+          <div class="metric-row"><span>Target Depth (500 m)</span><span id="s500" style="color:var(--text-dim);">⏳ Pending</span></div>
+          <div class="metric-row"><span>Deep Profile (1000 m)</span><span id="s1000" style="color:var(--text-dim);">⏳ Pending</span></div>
+        </div>
+      </div>
+
+      <!-- CARD 3: SCIENTIFIC PAYOFF & INFORMATION GAIN -->
+      <div class="mission-card" style="border-color:var(--accent);">
+        <div class="card-hdr">
+          <span>Scientific Payoff</span>
+          <span class="badge green">UNCERTAINTY REDUCTION</span>
+        </div>
+
+        <div class="metric-row">
+          <span style="color:var(--text-dim);">BEFORE Information Gap</span>
+          <span id="gapBefore" class="metric-val" style="color:#ef4444;">82.0%</span>
+        </div>
+        <div class="metric-row">
+          <span style="color:var(--text-dim);">AFTER Virtual Measurement</span>
+          <span id="gapAfter" class="metric-val" style="color:#34d399;">44.0%</span>
+        </div>
+        <div class="metric-row">
+          <span style="color:var(--text-dim);">Expected Information Gain</span>
+          <span id="gainVal" class="metric-val" style="color:#34d399; font-size:13px; font-weight:700;">+38.0%</span>
+        </div>
+
+        <div style="font-size:9.5px; color:var(--text-dim); border-top:1px solid var(--line); padding-top:6px; margin-top:4px;">
+          Provenances: <span class="badge blue">SIMULATED / WHAT-IF</span><br>
+          Post-mission Bayesian posterior variance update.
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script src="adaptive-mission.js"></script>
+</body>
+</html>
