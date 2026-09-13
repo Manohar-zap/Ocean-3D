@@ -38,11 +38,14 @@ def find_data_file(filename: str) -> str | None:
     backend_dir = os.path.dirname(app_dir)
     root_dir = os.path.dirname(backend_dir)
     candidates = [
+        os.path.join(backend_dir, "data", filename),
+        os.path.join(root_dir, "backend", "data", filename),
         os.path.join(backend_dir, filename),
         os.path.join(root_dir, filename),
         os.path.join(root_dir, "backend", filename),
+        os.path.join(os.getcwd(), "data", filename),
+        os.path.join(os.getcwd(), "backend", "data", filename),
         os.path.join(os.getcwd(), filename),
-        os.path.join(os.getcwd(), "backend", filename),
         filename,
     ]
     for c in candidates:
