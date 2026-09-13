@@ -1,9 +1,9 @@
 """
-AI Ocean-State Prediction & Uncertainty Engine (Phase 1).
+AI Ocean-State Prediction & Uncertainty Engine (Phase 1 Correction).
 
 Time-Aware Multi-Variable Prediction Pipeline for Ocean Environmental Conditions (Temperature & Salinity).
-Derives scientifically defensible prediction intervals and 1-sigma uncertainty magnitude directly
-from trained model validation error statistics and spatiotemporal feature variance.
+Loads dedicated variable-specific (+24h, +48h) ML model binaries, extracts shared time-aware lag features,
+and derives approximate 95% Prediction Intervals from held-out validation error statistics.
 """
 from __future__ import annotations
 import os
@@ -15,9 +15,15 @@ from datetime import datetime, timezone
 from typing import Optional, Any
 
 from .schemas import FisherPredictionResponse
-from .fisher_engine import fisher_engine
+from .feature_builder import extract_time_aware_features_at
 
 logger = logging.getLogger(__name__)
+
+# Configurable Physical Bounds
+PHYSICAL_BOUNDS = {
+    "temperature": (-2.0, 38.0),
+    "salinity": (5.0, 45.0)
+}
 
 
 class FisherPredictionEngine:
@@ -25,10 +31,24 @@ class FisherPredictionEngine:
 
     def __init__(self):
         self.model_dir = os.path.join(os.path.dirname(__file__), "..", "models")
-        self.model_file = os.path.join(self.model_dir, "incois_fisher_ml_v1.bin")
 
-    def is_model_available(self) -> bool:
-        return os.path.exists(self.model_file) or os.path.exists("backend/models/incois_fisher_ml_v1.bin")
+    def _resolve_model_path(self, variable: str, forecast_horizon_hours: int) -> Optional[str]:
+        var_clean = "salinity" if "sal" in variable.lower() else "temperature"
+        horizon = 48 if forecast_horizon_hours >= 36 else 24
+        
+        candidates = [
+            os.path.join(self.model_dir, f"{var_clean}_{horizon}h_ml_v1.bin"),
+            os.path.join("backend/models", f"{var_clean}_{horizon}h_ml_v1.bin"),
+            os.path.join(self.model_dir, "incois_fisher_ml_v1.bin"),
+            os.path.join("backend/models", "incois_fisher_ml_v1.bin")
+        ]
+        for c in candidates:
+            if os.path.exists(c):
+                return c
+        return None
+
+    def is_model_available(self, variable: str = "temperature", forecast_horizon_hours: int = 24) -> bool:
+        return self._resolve_model_path(variable, forecast_horizon_hours) is not None
 
     def predict_environment(
         self,
@@ -40,92 +60,122 @@ class FisherPredictionEngine:
         time: Optional[str] = None
     ) -> FisherPredictionResponse:
         ts = time or datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00Z")
-        var_clean = variable.lower().strip()
-        unit = "degC" if "temp" in var_clean else ("psu" if "sal" in var_clean else ("m/s" if "curr" in var_clean else "mg/m3"))
+        var_clean = "salinity" if "sal" in variable.lower() else "temperature"
+        unit = "psu" if var_clean == "salinity" else "degC"
 
-        # Check if trained ML weights file exists on disk
-        if not self.is_model_available():
-            logger.info(f"Prediction model weights file not found on disk. Returning explicit UNAVAILABLE state for ({latitude}, {longitude}).")
+        model_path = self._resolve_model_path(var_clean, forecast_horizon_hours)
+
+        # 1. Check Model File Availability
+        if not model_path:
+            logger.info(f"No trained ML model weights file found for {var_clean} +{forecast_horizon_hours}h.")
             return FisherPredictionResponse(
                 latitude=latitude,
                 longitude=longitude,
                 depth=depth,
-                variable=variable,
+                variable=var_clean,
                 forecast_horizon_hours=forecast_horizon_hours,
                 prediction_value=None,
                 unit=unit,
                 confidence=0.0,
                 uncertainty_range=None,
                 provenance="PREDICTED",
-                model_version="INCOIS-ML-v1.0-OFFLINE",
+                model_version="INCOIS-data-derived baseline ML model v1.0 (OFFLINE)",
                 training_data_period="2018-02 to 2026-03",
                 timestamp=ts,
                 status="UNAVAILABLE",
-                message="Prediction model not connected (ML Inference Engine Offline)"
+                message=f"No trained prediction model found for {var_clean} +{forecast_horizon_hours}h."
             )
 
-        # Load trained weights & model metrics from incois_fisher_ml_v1.bin
+        # 2. Extract Shared Time-Aware Features (t0, t-1, t-2)
+        feat_res = extract_time_aware_features_at(latitude, longitude, depth, var_clean, time)
+        if not feat_res:
+            logger.info(f"Insufficient historical time-series lag records for {var_clean} at ({latitude}, {longitude}, {depth}m).")
+            return FisherPredictionResponse(
+                latitude=latitude,
+                longitude=longitude,
+                depth=depth,
+                variable=var_clean,
+                forecast_horizon_hours=forecast_horizon_hours,
+                prediction_value=None,
+                unit=unit,
+                confidence=0.0,
+                uncertainty_range=None,
+                provenance="PREDICTED",
+                model_version="INCOIS-data-derived baseline ML model v1.0",
+                training_data_period="2018-02 to 2026-03",
+                timestamp=ts,
+                status="INSUFFICIENT_DATA",
+                message="Insufficient historical time-series lag records to construct prediction feature vector."
+            )
+
+        feature_vec, feature_dict = feat_res
+
+        # 3. Load Trained Model Weights & Validation Error Statistics
         try:
-            target_path = self.model_file if os.path.exists(self.model_file) else "backend/models/incois_fisher_ml_v1.bin"
-            with open(target_path, "rb") as f:
+            with open(model_path, "rb") as f:
                 payload = pickle.load(f)
 
             weights = payload.get("weights", [])
-            base_rmse = float(payload.get("rmse", 0.38))
-            r2_score = float(payload.get("r2", 0.85))
+            val_rmse = float(payload.get("rmse", 0.38))
+            val_mae = float(payload.get("mae", 0.28))
+            val_r2 = float(payload.get("r2", 0.85))
+            val_std = float(payload.get("residual_std", val_rmse))
+            model_ver = payload.get("model_version", "INCOIS-data-derived baseline ML model v1.0")
 
-            fv = fisher_engine.feature_gen.extract_feature_vector(latitude, longitude, depth, time)
+            if not weights or len(weights) != len(feature_vec):
+                return FisherPredictionResponse(
+                    latitude=latitude, longitude=longitude, depth=depth, variable=var_clean,
+                    forecast_horizon_hours=forecast_horizon_hours, prediction_value=None,
+                    unit=unit, confidence=0.0, timestamp=ts, status="ERROR",
+                    message="Model weight vector dimension mismatch with feature vector."
+                )
+
+            # 4. Predict
+            raw_pred = float(np.dot(feature_vec, weights))
+            min_p, max_p = PHYSICAL_BOUNDS.get(var_clean, (-2.0, 42.0))
             
-            if "sal" in var_clean:
-                val0 = fv.salinity or 35.2
+            is_adjusted = False
+            if raw_pred < min_p:
+                pred_val = min_p
+                is_adjusted = True
+            elif raw_pred > max_p:
+                pred_val = max_p
+                is_adjusted = True
             else:
-                val0 = fv.temperature or 28.4
+                pred_val = raw_pred
 
-            # Autoregressive Prediction
-            if weights and len(weights) >= 7:
-                x_vec = np.array([latitude, longitude, depth, val0, val0 - 0.15, val0 - 0.30, 1.0])
-                pred_val = float(np.dot(x_vec, weights))
-            else:
-                pred_val = val0 + 0.12 * (forecast_horizon_hours / 24.0)
+            # 5. Model-Derived Uncertainty & 95% Prediction Interval (approximate 95% PI: +/- 1.96 * sigma)
+            depth_unc_penalty = 0.02 * (depth / 500.0)
+            horizon_unc_penalty = 0.04 * (forecast_horizon_hours / 24.0)
+            sigma_pred = math.sqrt(val_std ** 2 + depth_unc_penalty ** 2 + horizon_unc_penalty ** 2)
 
-            # Enforce physical bounds
-            if "sal" in var_clean:
-                pred_val = max(10.0, min(42.0, pred_val))
-            else:
-                pred_val = max(-2.0, min(35.0, pred_val))
-
-            # Model-derived dynamic uncertainty estimation: sigma(depth, horizon)
-            depth_unc_penalty = 0.05 * (depth / 500.0)
-            horizon_unc_penalty = 0.08 * (forecast_horizon_hours / 24.0)
-            sigma_model = math.sqrt(base_rmse ** 2 + depth_unc_penalty ** 2 + horizon_unc_penalty ** 2)
-
-            # 95% Prediction Interval bounds (1.96 * sigma)
-            z_95 = 1.96 * sigma_model
+            z_95 = 1.96 * sigma_pred
             lower_bound = round(pred_val - z_95, 2)
             upper_bound = round(pred_val + z_95, 2)
-            confidence_coverage = round(min(0.98, max(0.50, r2_score)), 2)
+
+            status_str = "PHYSICAL_BOUND_ADJUSTED" if is_adjusted else "OK"
 
             return FisherPredictionResponse(
                 latitude=latitude,
                 longitude=longitude,
                 depth=depth,
-                variable=variable,
+                variable=var_clean,
                 forecast_horizon_hours=forecast_horizon_hours,
                 prediction_value=round(pred_val, 2),
                 unit=unit,
-                confidence=confidence_coverage,
+                confidence=0.95,  # 95% Prediction Interval Coverage Level
                 uncertainty_range=[lower_bound, upper_bound],
                 provenance="PREDICTED",
-                model_version=payload.get("model_version", "INCOIS-ML-v1.0-ONLINE"),
-                training_data_period="2018-02 to 2026-03",
+                model_version=model_ver,
+                training_data_period=payload.get("training_data_period", "2018-02 to 2026-03"),
                 timestamp=ts,
-                status="OK",
-                message=f"Time-aware prediction generated from {target_path} (95% PI: [{lower_bound}, {upper_bound}] {unit})"
+                status=status_str,
+                message=f"Time-aware autoregressive prediction generated (95% PI: [{lower_bound}, {upper_bound}] {unit}, Val R2: {val_r2:.3f})"
             )
         except Exception as e:
-            logger.warning(f"Error loading prediction model: {e}")
+            logger.warning(f"Error executing prediction model: {e}")
             return FisherPredictionResponse(
-                latitude=latitude, longitude=longitude, depth=depth, variable=variable,
+                latitude=latitude, longitude=longitude, depth=depth, variable=var_clean,
                 forecast_horizon_hours=forecast_horizon_hours, prediction_value=None,
                 unit=unit, confidence=0.0, timestamp=ts, status="ERROR", message=str(e)
             )

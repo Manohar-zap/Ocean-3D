@@ -205,7 +205,7 @@ class FisherPredictionResponse(BaseModel):
     model_version: str = "INCOIS-ML-v1.0-OFFLINE"
     training_data_period: str = "2018-02 to 2026-03"
     timestamp: str
-    status: Literal["UNAVAILABLE", "OK", "ERROR"] = "UNAVAILABLE"
+    status: Literal["UNAVAILABLE", "OK", "ERROR", "INSUFFICIENT_DATA", "PHYSICAL_BOUND_ADJUSTED"] = "UNAVAILABLE"
     message: str = "Prediction model not connected (ML Inference Engine Offline)"
 
 
