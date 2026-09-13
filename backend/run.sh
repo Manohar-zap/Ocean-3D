@@ -5,4 +5,5 @@ cd "$(dirname "$0")"
 python3 -m venv .venv 2>/dev/null || true
 source .venv/bin/activate
 pip install -q -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# adaptive_app extends the existing OCEAN 3D API with /api/adaptive/*
+uvicorn app.adaptive_app:app --reload --host 0.0.0.0 --port 8000
