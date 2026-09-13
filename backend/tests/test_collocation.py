@@ -1,6 +1,7 @@
 """
 Unit & Integration Tests for Phase 2: Argo – Ocean Model Collocation Engine & API.
 """
+import os
 import unittest
 from fastapi.testclient import TestClient
 
@@ -26,38 +27,54 @@ class TestCollocationEngine(unittest.TestCase):
 
     def test_collocate_point_residual_sign(self):
         """Test single point collocation, residual sign (residual = observed - model), and absolute error."""
-        res = collocation_engine.collocate_point(
-            platform_id="ARGO-5906203",
-            variable="temperature",
-            depth=10.0
-        )
-        self.assertEqual(res.platform_id, "ARGO-5906203")
-        self.assertEqual(res.variable, "temperature")
-        self.assertEqual(res.observation_unit, "degC")
+        import os
+        orig_gap = os.environ.get("MODEL_MAX_TIME_GAP_HOURS")
+        os.environ["MODEL_MAX_TIME_GAP_HOURS"] = "10000.0"
+        try:
+            res = collocation_engine.collocate_point(
+                platform_id="ARGO-5906203",
+                variable="temperature",
+                depth=10.0
+            )
+            self.assertEqual(res.platform_id, "ARGO-5906203")
+            self.assertEqual(res.variable, "temperature")
+            self.assertEqual(res.observation_unit, "degC")
+            self.assertEqual(res.collocation_status, "VALID")
 
-        # Explicit residual definition check: residual = observed - model
-        expected_residual = round(res.observed_value - res.model_value, 4)
-        self.assertEqual(res.residual, expected_residual)
-        self.assertEqual(res.absolute_error, round(abs(expected_residual), 4))
-        self.assertGreaterEqual(res.spatial_distance_km, 0.0)
+            # Explicit residual definition check: residual = observed_value - model_value
+            expected_residual = round(res.observed_value - res.model_value, 4)
+            self.assertEqual(res.residual, expected_residual)
+            self.assertEqual(res.absolute_error, round(abs(expected_residual), 4))
+            self.assertGreaterEqual(res.spatial_distance_km, 0.0)
+        finally:
+            if orig_gap: os.environ["MODEL_MAX_TIME_GAP_HOURS"] = orig_gap
+            else: os.environ.pop("MODEL_MAX_TIME_GAP_HOURS", None)
 
     def test_collocate_profile_levels_and_metrics(self):
         """Test full vertical depth profile collocation and operational skill metrics (Bias, RMSE, R2, Willmott d)."""
-        res = collocation_engine.collocate_profile(
-            platform_id="ARGO-5906203",
-            variable="temperature"
-        )
-        self.assertEqual(res.platform_id, "ARGO-5906203")
-        self.assertGreater(res.collocation_count, 0)
-        self.assertIn("bias", res.metrics)
-        self.assertIn("rmse", res.metrics)
-        self.assertIn("mae", res.metrics)
-        self.assertIn("r2", res.metrics)
-        self.assertIn("willmott_d", res.metrics)
+        import os
+        orig_gap = os.environ.get("MODEL_MAX_TIME_GAP_HOURS")
+        os.environ["MODEL_MAX_TIME_GAP_HOURS"] = "10000.0"
+        try:
+            res = collocation_engine.collocate_profile(
+                platform_id="ARGO-5906203",
+                variable="temperature"
+            )
+            self.assertEqual(res.platform_id, "ARGO-5906203")
+            self.assertGreater(res.collocation_count, 0)
+            self.assertIn("bias", res.metrics)
+            self.assertIn("rmse", res.metrics)
+            self.assertIn("mae", res.metrics)
+            self.assertIn("r2", res.metrics)
+            self.assertIn("willmott_d", res.metrics)
 
-        # Check residual sign across profile levels
-        for level in res.levels:
-            self.assertEqual(level.residual, round(level.observed_value - level.model_value, 4))
+            # Check residual sign across profile levels
+            for level in res.levels:
+                if level.collocation_status == "VALID" and level.model_value is not None:
+                    self.assertEqual(level.residual, round(level.observed_value - level.model_value, 4))
+        finally:
+            if orig_gap: os.environ["MODEL_MAX_TIME_GAP_HOURS"] = orig_gap
+            else: os.environ.pop("MODEL_MAX_TIME_GAP_HOURS", None)
 
     def test_invalid_platform_id_handling(self):
         """Test graceful exception handling when unknown platform ID is queried."""

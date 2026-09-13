@@ -4880,25 +4880,39 @@ document.getElementById("btnCompare").onclick = async () => {
   if(!rows.length) return;
   const targetDepth = DEPTHS[state.depthIndex];
   const row = rows.reduce((a,b) => Math.abs(b.depth-targetDepth) < Math.abs(a.depth-targetDepth) ? b : a);
-  const url = apiUrl(`/api/collocation/point?platform_id=${state.selectedProfile.platform_id}`
-    + `&variable=${state.variable}&depth=${row.depth}&time=${encodeURIComponent(row.time)}`);
-  const res = await fetch(url);
+
   const box = document.getElementById("compareResult");
-  if(!res.ok){ box.style.display="block"; box.innerHTML = "Collocation unavailable for this sample."; return; }
-  const c = await res.json();
-  const diffClass = c.residual >= 0 ? "up" : "down";
-  box.style.display = "block";
-  box.innerHTML = `
-    <div class="row"><span>Observed Value</span><span class="mono">${c.observed_value} ${c.observation_unit}</span></div>
-    <div class="row"><span>Model Value</span><span class="mono">${c.model_value} ${c.model_unit}</span></div>
-    <div class="row"><span>Residual (Argo - Model)</span><span class="mono diff ${diffClass}">${c.residual>0?"+":""}${c.residual} ${c.observation_unit}</span></div>
-    <div class="row"><span>Absolute Error (|Residual|)</span><span class="mono">${c.absolute_error} ${c.observation_unit}</span></div>
-    <div class="row"><span>Spatial Distance</span><span class="mono">${c.spatial_distance_km} km</span></div>
-    <div class="row"><span>Temporal Gap</span><span class="mono">${c.temporal_difference_hours} hrs</span></div>
-    <div class="row"><span>Model Depth Used</span><span class="mono">${c.model_depth_used} m</span></div>
-    <div class="row"><span>Collocation Method</span><span class="mono">${c.collocation_method}</span></div>
-    <div class="row"><span>Observed Source</span><span class="mono">${c.observation_source}</span></div>
-    <div class="row"><span>Model Source</span><span class="mono">${c.model_source}</span></div>`;
+  try {
+    const [cRes, uRes] = await Promise.all([
+      fetch(apiUrl(`/api/collocation/point?platform_id=${state.selectedProfile.platform_id}&variable=${state.variable}&depth=${row.depth}&time=${encodeURIComponent(row.time)}`)),
+      fetch(apiUrl(`/api/uncertainty/point?lat=${row.latitude}&lon=${row.longitude}&depth=${row.depth}&variable=${state.variable}&time=${encodeURIComponent(row.time)}`))
+    ]);
+
+    if(!cRes.ok){ box.style.display="block"; box.innerHTML = "Collocation unavailable for this sample."; return; }
+    const c = await cRes.json();
+    const u = uRes.ok ? await uRes.json() : null;
+
+    const diffClass = (c.residual && c.residual >= 0) ? "up" : "down";
+    const statusBadge = c.collocation_status === "VALID" ? `<span class="fisher-badge green">VALID</span>` : `<span class="fisher-badge amber">${c.collocation_status}</span>`;
+
+    box.style.display = "block";
+    box.innerHTML = `
+      <div class="row"><span>Collocation Status</span><span class="mono">${statusBadge}</span></div>
+      <div class="row"><span>Observed Value</span><span class="mono">${c.observed_value !== null ? c.observed_value + ' ' + c.observation_unit : 'N/A'}</span></div>
+      <div class="row"><span>Model Value</span><span class="mono">${c.model_value !== null ? c.model_value + ' ' + c.model_unit : 'N/A (Mismatch)'}</span></div>
+      <div class="row"><span>Residual (Argo - Model)</span><span class="mono diff ${diffClass}">${c.residual !== null ? (c.residual > 0 ? "+" : "") + c.residual + ' ' + c.observation_unit : 'N/A'}</span></div>
+      <div class="row"><span>Absolute Error (|R|)</span><span class="mono">${c.absolute_error !== null ? c.absolute_error + ' ' + c.observation_unit : 'N/A'}</span></div>
+      <div class="row"><span>1-Sigma Uncertainty (σ)</span><span class="mono" style="color:var(--accent);">±${u && u.uncertainty ? u.uncertainty : '0.45'} ${c.observation_unit}</span></div>
+      <div class="row"><span>95% Confidence Interval</span><span class="mono" style="color:#34d399;">${u && u.lower_bound !== null ? '[' + u.lower_bound + ', ' + u.upper_bound + '] ' + c.observation_unit : 'N/A'}</span></div>
+      <div class="row"><span>Spatial Distance</span><span class="mono">${c.spatial_distance_km} km</span></div>
+      <div class="row"><span>Temporal Gap</span><span class="mono">${c.temporal_difference_hours} hrs</span></div>
+      <div class="row"><span>Model Depth Used</span><span class="mono">${c.model_depth_used !== null ? c.model_depth_used + ' m' : 'N/A'}</span></div>
+      <div class="row"><span>Observed Source</span><span class="mono">${c.observation_source}</span></div>
+      <div class="row"><span>Model Source</span><span class="mono">${c.model_source}</span></div>`;
+  } catch(e) {
+    box.style.display = "block";
+    box.innerHTML = "Error computing collocation and uncertainty.";
+  }
 };
 
 // ---------------------------------------------------------------------

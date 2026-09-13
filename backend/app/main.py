@@ -23,6 +23,8 @@ from .adapters import is_land
 from .fisher_engine import fisher_engine
 from .prediction_engine import prediction_engine
 from .collocation import collocation_engine
+from .error_analysis import error_analysis_engine
+from .uncertainty_model import uncertainty_engine
 
 app = FastAPI(
     title="OCEAN 3D API",
@@ -499,6 +501,56 @@ def collocate_profile_api(
         return res.model_dump()
     except ValueError as e:
         raise HTTPException(404, str(e))
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: Uncertainty & Model Error Engine API Endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/api/uncertainty/point")
+def get_uncertainty_point_api(
+    lat: float = Query(9.8, description="Latitude"),
+    lon: float = Query(75.8, description="Longitude"),
+    depth: float = Query(10.0, description="Depth in meters"),
+    variable: str = Query("temperature", description="temperature | salinity"),
+    time: Optional[str] = Query(None, description="Observation ISO timestamp"),
+    model_dataset_id: Optional[str] = Query(None, description="e.g. incois_las_model, copernicus_cmems")
+):
+    """Estimate point model error, 1-sigma uncertainty, and 95% confidence interval."""
+    try:
+        return uncertainty_engine.predict_point_uncertainty(
+            latitude=lat, longitude=lon, depth=depth, variable=variable, time=time, model_dataset_id=model_dataset_id
+        ).model_dump()
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.get("/api/uncertainty/profile")
+def get_uncertainty_profile_api(
+    platform_id: str = Query(..., description="e.g. ARGO-5906203"),
+    variable: str = Query("temperature", description="temperature | salinity"),
+    model_dataset_id: Optional[str] = Query(None)
+):
+    """Compute profile-wide depth vs uncertainty and depth-bin error profiles for an Argo float."""
+    try:
+        return uncertainty_engine.predict_profile_uncertainty(
+            platform_id=platform_id, variable=variable, model_dataset_id=model_dataset_id
+        ).model_dump()
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@app.get("/api/error-analysis/summary")
+def get_error_analysis_summary_api(
+    variable: str = Query("temperature", description="temperature | salinity"),
+    model_dataset_id: Optional[str] = Query(None)
+):
+    """Returns valid collocation count, rejection counts, depth-bin error profiles, and global RMSE/bias."""
+    try:
+        recs, summary = error_analysis_engine.build_clean_error_dataset(variable, model_dataset_id)
+        return summary.model_dump()
+    except Exception as e:
+        raise HTTPException(500, str(e))
 
 
 

@@ -229,6 +229,18 @@ class FisherIntelligenceSummary(BaseModel):
 # Phase 2: Argo – Ocean Model Collocation Schemas
 # ---------------------------------------------------------------------------
 
+CollocationStatus = Literal[
+    "VALID",
+    "TIME_MISMATCH",
+    "SPACE_MISMATCH",
+    "DEPTH_MISMATCH",
+    "MISSING_MODEL",
+    "INVALID_OBSERVATION",
+    "OUT_OF_MODEL_DOMAIN",
+    "INSUFFICIENT_DATA"
+]
+
+
 class CollocationRecord(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 
@@ -239,21 +251,23 @@ class CollocationRecord(BaseModel):
     longitude: float
     observation_depth: float
     variable: str
-    observed_value: float
-    model_value: float
-    residual: float                       # Explicit: residual = observed_value - model_value
-    absolute_error: float                 # abs(residual)
-    model_time_used: str
-    model_depth_used: float
-    spatial_distance_km: float            # Horizontal distance in km
-    temporal_difference_hours: float      # Time difference in hours
+    observed_value: Optional[float] = None
+    model_value: Optional[float] = None
+    residual: Optional[float] = None             # Explicit: residual = observed_value - model_value
+    absolute_error: Optional[float] = None       # abs(residual)
+    model_time_used: Optional[str] = None
+    model_depth_used: Optional[float] = None
+    spatial_distance_km: float                   # Horizontal distance in km
+    temporal_difference_hours: float             # Time difference in hours
     observation_unit: str
     model_unit: str
     quality_flag: str
     observation_source: str
     model_source: str
     data_status: str
-    collocation_method: str               # "horizontal_interpolation" or "nearest_neighbor"
+    collocation_method: str
+    collocation_status: CollocationStatus = "VALID"
+    rejection_reason: Optional[str] = None
 
 
 class CollocatedProfileResponse(BaseModel):
@@ -270,5 +284,95 @@ class CollocatedProfileResponse(BaseModel):
     model_source_name: str
     matched_grid_cell: dict[str, Any]
     collocation_count: int
+    valid_collocation_count: int = 0
     levels: list[CollocationRecord]
     metrics: dict[str, float]
+
+
+class DepthBinStats(BaseModel):
+    bin_name: str                               # e.g. "0-10 m"
+    depth_min: float
+    depth_max: float
+    sample_count: int
+    bias: float
+    rmse: float
+    mae: float
+    median_absolute_error: float
+    standard_deviation: float
+
+
+class ErrorDatasetSummary(BaseModel):
+    total_observations: int
+    valid_collocations: int
+    time_rejected: int
+    space_rejected: int
+    depth_rejected: int
+    missing_model_rejected: int
+    overall_bias: float
+    overall_rmse: float
+    overall_mae: float
+    median_absolute_error: float
+    standard_deviation: float
+    depth_bins: list[DepthBinStats]
+
+
+class UncertaintyPointResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
+    latitude: float
+    longitude: float
+    depth: float
+    variable: str
+    time: str
+    observed_value: Optional[float] = None
+    model_value: Optional[float] = None
+    residual: Optional[float] = None
+    predicted_residual: Optional[float] = None
+    uncertainty: float                          # Standard deviation / 1-sigma uncertainty
+    lower_bound: Optional[float] = None         # 95% confidence lower bound
+    upper_bound: Optional[float] = None         # 95% confidence upper bound
+    confidence_level: float = 0.95
+    sample_count: int
+    collocation_status: CollocationStatus
+    status: Literal["VALID", "INSUFFICIENT_DATA", "ERROR"] = "VALID"
+    observation_source: str
+    model_source: str
+    training_sample_count: int
+    training_data_status: str
+    model_training_version: str = "INCOIS-UNCERTAINTY-v1.0"
+    message: Optional[str] = None
+
+
+class UncertaintyProfileLevel(BaseModel):
+    depth: float
+    observed: Optional[float] = None
+    model: Optional[float] = None
+    residual: Optional[float] = None
+    predicted_residual: Optional[float] = None
+    uncertainty: float
+    lower_bound: Optional[float] = None
+    upper_bound: Optional[float] = None
+    collocation_status: CollocationStatus = "VALID"
+
+
+class UncertaintyProfileResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
+    platform_id: str
+    platform_type: str
+    variable: str
+    unit: str
+    latitude: float
+    longitude: float
+    time: str
+    model_dataset_id: str
+    sample_count: int
+    overall_rmse: float
+    overall_bias: float
+    confidence_level: float = 0.95
+    levels: list[UncertaintyProfileLevel]
+    depth_bin_profiles: list[DepthBinStats]
+    status: Literal["VALID", "INSUFFICIENT_DATA", "ERROR"] = "VALID"
+    observation_source: str
+    model_source: str
+    model_training_version: str = "INCOIS-UNCERTAINTY-v1.0"
