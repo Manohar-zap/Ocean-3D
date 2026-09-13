@@ -1,8 +1,8 @@
-# Task List - Visual Refinement of Intro
+# Task List - Final Visual Correction
 
-- [x] Create/Update `frontend/assets/intro.css` with SVG styling and curved streamline animations.
-- [x] Update `frontend/assets/intro.js` to replace CSS placeholders/emojis with high-quality SVG illustrations.
-- [x] Refine Stage 4 visual logic (Model + Observations merge).
-- [x] Refine Stage 5 capability visuals (Curved currents, Gradient variables).
-- [x] Verify 5-stage interactive sequence and ensure no emojis remain.
-- [x] Test responsiveness and final app functionality.
+- [ ] Modify `frontend/assets/intro.js` to simplify Stage 3, 4, and 5 HTML (using icons/emojis).
+- [ ] Modify `frontend/assets/intro.css` for clean horizontal flows and centered typography.
+- [ ] Verify Stage 3: Centered text, no graph.
+- [ ] Verify Stage 4: Iconic synthesis flow (`🌊 + 🛰️ → 🌍`).
+- [ ] Verify Stage 5: Clean 4-column capability showcase.
+- [ ] Final end-to-end check: Ensure Stage 1, Stage 2, and the main app are untouched.

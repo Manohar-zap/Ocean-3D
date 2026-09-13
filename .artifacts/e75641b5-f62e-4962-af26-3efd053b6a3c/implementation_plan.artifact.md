@@ -1,61 +1,35 @@
-# Implementation Plan - Professional Visual Refinement of Ocean 3D Intro
+# Implementation Plan - Final Visual Correction (Stages 3-5)
 
-This plan outlines a high-level visual and animation refinement pass for the introductory overlay, focusing on scientific accuracy, removing placeholders, and enhancing visual storytelling without changing the approved structure.
+This plan outlines the final visual refinements for Stages 3, 4, and 5 of the introductory overlay. The focus is on extreme simplification, cinematic atmosphere, and intuitive iconography (emojis) to clearly communicate the project's value proposition.
 
-## Visual Refinement Strategy
+## Strict Scope Rules
+- **ONLY** Stage 3, 4, and 5 visuals will be changed.
+- Stage 1 and 2 (Identity and Instrument illustrations) remain **UNTOUCHED**.
+- No changes to main app, backend, or logic.
 
-### 1. Recognition: Real Instrument Models (Stage 2)
-- **Problem**: Current placeholders (dots/rectangles) lack scientific credibility.
-- **Solution**: Replace CSS shapes with high-quality SVG illustrations that mirror the "Digital Twin" Three.js models used in the main application.
-- **Instruments**:
-    - **ARGO FLOAT**: Yellow pressure hull with top satellite antenna.
-    - **MOORED BUOY**: Toroidal surface float with a scientific mast and subsurface mooring line.
-    - **AUTONOMOUS GLIDER**: Hydrodynamic fuselage with swept-back wings.
-    - **SHIPBOARD CTD**: Multi-bottle Niskin carousel within a titanium frame.
-    - **BGC-ARGO**: Argo float with optical biogeochemical sensor clusters.
+## Proposed Visual Changes
 
-### 2. Scientific Data Flow (Stage 4)
-- **Problem**: Emoji-based symbols (cube, satellite, globe) feel generic and non-scientific.
-- **Solution**: Replace with technical visualizations:
-    - **OCEAN MODEL**: A translucent 3D isometric grid with gradient layers.
-    - **OBSERVATIONS**: Animated trajectory curves and profile Sounding lines.
-    - **OCEAN 3D**: A stylized 3D volumetric ocean segment showing integrated data layers.
+### Stage 3: Ocean Observations (Atmospheric)
+- **Action**: Remove the large graph/grid completely.
+- **Visual**: Center "OCEAN OBSERVATIONS" and its subtitle. Keep the real globe visible with subtle atmospheric particles. No technical diagrams.
 
-### 3. Capability Demonstrations (Stage 5)
-- **CURRENTS**: Replace straight arrows with curved, flowing streamlines using SVG paths and animated particles.
-- **VARIABLES**: Replace thermometer emoji with a multi-band thermal gradient field showing spatial variation.
-- **3D VISUALIZATION**: Replace globe emoji with a layered "Water Column" isometric view showing depth-dependent data.
+### Stage 4: Ocean Model + Observations (Iconic Synthesis)
+- **Action**: Remove technical 3D grids/boxes.
+- **Visual Story**: `🌊 (Ocean Model) + 🛰️ (Observations) → 🌍 (Ocean 3D)`.
+- **Layout**: Centered horizontal flow with labels and short descriptions underneath each icon.
+- **Animation**: Subtle fade-in and gentle floating.
 
-### 4. Animation & Interaction
-- **Curved Motion**: Use SVG motion paths for gliders and currents.
-- **Data Convergence**: Animate "data particles" from model and observation sources into the final platform visual.
-- **Consistency**: Use the cyan/teal/dark-navy palette consistent with the main app's CSS variables.
+### Stage 5: Explore the Ocean (Capability Showcase)
+- **Action**: Replace technical placeholders with attractive icons/emojis.
+- **Capability Grid**: 4 columns (CURRENTS `🌊`, VARIABLES `🌡️`, DEPTH `⬇️`, 3D `🌍`) with descriptions.
+- **Consistency**: Uniform spacing, scale, and visual weight.
 
-## User Review Required
-
-> [!IMPORTANT]
-> The refinement uses custom SVG illustrations to avoid heavy 3D assets while achieving a "professional scientific product" look.
-> Emojis will be completely removed from the scientific stages.
-
-## Proposed Changes
-
-### [Component Name] Intro Overlay Refinement
-
-#### [MODIFY] [intro.js](file:///C:/Users/Asus/Documents/ocean3d/frontend/assets/intro.js)
-- Update DOM structures to use SVGs for all instruments and capability visuals.
-- Enhance Stage 4 animation logic for data flow.
-
-#### [MODIFY] [intro.css](file:///C:/Users/Asus/Documents/ocean3d/frontend/assets/intro.css)
-- Add styles for SVG components.
-- Implement flowing current streamline animations.
-- Refine Stage 4 layout for the scientific data-flow diagram.
-- Ensure 5-column layout remains responsive.
+## Technical Execution
+- **intro.js**: Simplify Stage 3-5 HTML templates to use the new icon/emoji structures.
+- **intro.css**: Refine stage-specific classes to handle the horizontal flows and centered typography without affecting Stage 1 or 2.
 
 ## Verification Plan
-
-### Manual Verification
-- [ ] **Stage 2**: Confirm instruments are recognizable and match scientific descriptions.
-- [ ] **Stage 4**: Verify transition from model/observations to Ocean 3D looks like data integration, not a slide change.
-- [ ] **Stage 5**: Verify currents are wavy/curved and variables show a gradient field.
-- [ ] **No Emojis**: Audit all 5 stages for any remaining emojis.
-- [ ] **App Integrity**: Verify the main app's depth slider and globe interactions work post-intro.
+- [ ] Stage 3: Verify graph is gone and text is centered over the globe.
+- [ ] Stage 4: Verify the `🌊 + 🛰️ → 🌍` visual flow and correct labels.
+- [ ] Stage 5: Verify the 4-column capability showcase with clean icons.
+- [ ] Audit: Confirm Stage 1, Stage 2, and the main app are unchanged.

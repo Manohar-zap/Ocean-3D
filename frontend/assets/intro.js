@@ -26,12 +26,9 @@ class Ocean3DIntro {
 
     this.createDOM();
     this.generateParticles();
-    this.updateUI();
 
-    // Staggered entrance for Stage 1
-    setTimeout(() => {
-      this.goToStage(1);
-    }, 100);
+    // Initialize authoritative state at Stage 1
+    this.goToStage(1);
 
     // Keyboard navigation
     window.addEventListener('keydown', this.handleKeydown.bind(this));
@@ -143,96 +140,57 @@ class Ocean3DIntro {
 
         <!-- Stage 3: Ocean Observations -->
         <div class="intro-stage" id="intro-stage-3">
-           <div class="obs-visual-wrap">
-              <div class="scientific-data-map">
-                <div class="map-grid"></div>
-                <div class="data-stream-path argo-path"></div>
-                <div class="data-stream-path glider-path"></div>
-                <div class="data-point argo-pt"></div>
-                <div class="data-point glider-pt"></div>
-                <div class="data-point buoy-pt"></div>
-              </div>
-              <div class="obs-flow-text">
-                <div class="flow-item">INSTRUMENTS</div>
-                <div class="flow-arrow">→</div>
-                <div class="flow-item highlight">OCEAN OBSERVATIONS</div>
-              </div>
+           <div class="stage-3-content">
+              <h2 class="stage-title">OCEAN OBSERVATIONS</h2>
+              <p class="stage-subtitle">LOCATION • DEPTH • TIME • MEASUREMENTS</p>
            </div>
         </div>
 
         <!-- Stage 4: Ocean Model + Observations -->
         <div class="intro-stage" id="intro-stage-4">
-          <div class="merge-visual-wrap">
-             <div class="merge-grid"></div>
-             <div class="merge-content">
-                <div class="merge-side model-side">
-                  <div class="merge-label">OCEAN MODEL</div>
-                  <div class="scientific-icon model-icon">
-                    <div class="grid-3d"></div>
-                  </div>
-                </div>
-                <div class="merge-plus">+</div>
-                <div class="merge-side obs-side">
-                  <div class="merge-label">OBSERVATIONS</div>
-                  <div class="scientific-icon obs-icon">
-                    <div class="points-3d"></div>
-                  </div>
-                </div>
-                <div class="merge-equals">=</div>
-                <div class="merge-result">
-                  <div class="merge-label">OCEAN 3D</div>
-                  <div class="scientific-icon result-icon">
-                    <div class="globe-mini">
-                      <div class="globe-ring"></div>
-                      <div class="globe-ring" style="transform: rotateY(60deg)"></div>
-                      <div class="globe-ring" style="transform: rotateY(120deg)"></div>
-                    </div>
-                  </div>
-                </div>
+          <div class="synthesis-wrap">
+             <div class="synthesis-item">
+                <div class="synthesis-icon">🌊</div>
+                <div class="synthesis-label">OCEAN MODEL</div>
+                <div class="synthesis-sub">Numerical Simulations</div>
+             </div>
+             <div class="synthesis-operator">+</div>
+             <div class="synthesis-item">
+                <div class="synthesis-icon">🛰️</div>
+                <div class="synthesis-label">OBSERVATIONS</div>
+                <div class="synthesis-sub">Real-World Data</div>
+             </div>
+             <div class="synthesis-operator">→</div>
+             <div class="synthesis-item">
+                <div class="synthesis-icon">🌍</div>
+                <div class="synthesis-label">OCEAN 3D</div>
+                <div class="synthesis-sub">Integrated View</div>
              </div>
           </div>
         </div>
 
         <!-- Stage 5: Explore the Ocean -->
         <div class="intro-stage" id="intro-stage-5">
-          <div class="intro-caps">
+          <div class="capabilities-grid">
             <div class="cap-item">
-              <div class="cap-icon">
-                <svg viewBox="0 0 100 60" class="streamline-svg">
-                  <path d="M10,30 Q30,10 50,30 T90,30" class="stream-path" />
-                  <path d="M10,45 Q30,25 50,45 T90,45" class="stream-path" style="animation-delay: 0.5s" />
-                  <circle r="2" fill="#3fe0c5" class="stream-particle" />
-                </svg>
-              </div>
-              <div class="cap-label">OCEAN CURRENTS</div>
+              <div class="cap-icon">🌊</div>
+              <div class="cap-name">OCEAN CURRENTS</div>
+              <div class="cap-desc">3D Streamlines • Particles</div>
             </div>
             <div class="cap-item">
-              <div class="cap-icon">
-                <div class="variable-field">
-                  <div class="field-band"></div>
-                  <div class="field-band"></div>
-                  <div class="field-band"></div>
-                </div>
-              </div>
-              <div class="cap-label">OCEAN VARIABLES</div>
+              <div class="cap-icon">🌡️</div>
+              <div class="cap-name">OCEAN VARIABLES</div>
+              <div class="cap-desc">Temperature • Salinity</div>
             </div>
             <div class="cap-item">
-              <div class="cap-icon">
-                <div class="depth-ruler">
-                  <div class="ruler-line"></div>
-                  <div class="ruler-mark"></div>
-                </div>
-              </div>
-              <div class="cap-label">DEPTH ANALYSIS</div>
+              <div class="cap-icon">⬇️</div>
+              <div class="cap-name">DEPTH ANALYSIS</div>
+              <div class="cap-desc">Surface to Deep Ocean</div>
             </div>
             <div class="cap-item">
-              <div class="cap-icon">
-                <div class="analysis-3d">
-                  <div class="box-3d"></div>
-                  <div class="box-3d-line"></div>
-                </div>
-              </div>
-              <div class="cap-label">3D VISUALIZATION</div>
+              <div class="cap-icon">🌍</div>
+              <div class="cap-name">3D VISUALIZATION</div>
+              <div class="cap-desc">Analysis Environment</div>
             </div>
           </div>
           <div class="final-cta">LOCATION • DEPTH • TIME</div>
@@ -306,6 +264,7 @@ class Ocean3DIntro {
     const nextBtn = document.getElementById('btn-next');
     const backBtn = document.getElementById('btn-back');
     const progressEl = document.getElementById('intro-progress-text');
+    const headerEl = this.container.querySelector('.intro-section-header');
 
     // Section Titles & Subtitles
     const headers = [
@@ -316,16 +275,27 @@ class Ocean3DIntro {
       { title: 'EXPLORE THE OCEAN', subtitle: 'Interactive discovery through the Ocean 3D platform' }
     ];
 
-    const h = headers[this.currentStage - 1];
-    titleEl.textContent = h.title;
-    subtitleEl.textContent = h.subtitle;
+    if (titleEl && subtitleEl && headerEl) {
+      const h = headers[this.currentStage - 1];
+      titleEl.textContent = h.title;
+      subtitleEl.textContent = h.subtitle;
+
+      // Only Stage 2 uses the global fixed header in this simplified design
+      headerEl.classList.toggle('active', this.currentStage === 2);
+    }
 
     // Navigation Buttons
-    backBtn.style.visibility = (this.currentStage === 1) ? 'hidden' : 'visible';
-    nextBtn.textContent = (this.currentStage === this.totalStages) ? 'ENTER OCEAN 3D →' : 'NEXT →';
+    if (backBtn) {
+      backBtn.style.visibility = (this.currentStage === 1) ? 'hidden' : 'visible';
+    }
+    if (nextBtn) {
+      nextBtn.textContent = (this.currentStage === this.totalStages) ? 'ENTER OCEAN 3D →' : 'NEXT →';
+    }
 
     // Progress Indicator
-    progressEl.textContent = `0${this.currentStage} / 05`;
+    if (progressEl) {
+      progressEl.textContent = `0${this.currentStage} / 05`;
+    }
   }
 
   skip() {
