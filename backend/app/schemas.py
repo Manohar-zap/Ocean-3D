@@ -223,3 +223,52 @@ class FisherIntelligenceSummary(BaseModel):
     events: list[FisherEvent]
     confidence_overall: float
     why_this_area: list[str]
+
+
+# ---------------------------------------------------------------------------
+# Phase 2: Argo – Ocean Model Collocation Schemas
+# ---------------------------------------------------------------------------
+
+class CollocationRecord(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
+    platform_id: str
+    platform_type: str
+    observation_time: str
+    latitude: float
+    longitude: float
+    observation_depth: float
+    variable: str
+    observed_value: float
+    model_value: float
+    residual: float                       # Explicit: residual = observed_value - model_value
+    absolute_error: float                 # abs(residual)
+    model_time_used: str
+    model_depth_used: float
+    spatial_distance_km: float            # Horizontal distance in km
+    temporal_difference_hours: float      # Time difference in hours
+    observation_unit: str
+    model_unit: str
+    quality_flag: str
+    observation_source: str
+    model_source: str
+    data_status: str
+    collocation_method: str               # "horizontal_interpolation" or "nearest_neighbor"
+
+
+class CollocatedProfileResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
+    platform_id: str
+    platform_type: str
+    variable: str
+    unit: str
+    latitude: float
+    longitude: float
+    observation_time: str
+    model_dataset_id: str
+    model_source_name: str
+    matched_grid_cell: dict[str, Any]
+    collocation_count: int
+    levels: list[CollocationRecord]
+    metrics: dict[str, float]

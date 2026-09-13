@@ -22,6 +22,7 @@ from .services import query_service, comparison_service, export_service
 from .adapters import is_land
 from .fisher_engine import fisher_engine
 from .prediction_engine import prediction_engine
+from .collocation import collocation_engine
 
 app = FastAPI(
     title="OCEAN 3D API",
@@ -452,6 +453,50 @@ def observation_validation(platform_id: str, variable: str = "temperature", data
     interpolating along depth and returning operational forecasting skill metrics (Bias, RMSE, R², Willmott)."""
     try:
         return comparison_service.validate_profile(platform_id, variable, dataset_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+# ---------------------------------------------------------------------------
+# Collocation Service (Phase 2: Argo – Ocean Model Collocation)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/collocation/point")
+def collocate_point_api(
+    platform_id: str = Query(..., description="e.g. ARGO-5906203"),
+    variable: str = Query("temperature", description="e.g. temperature, salinity"),
+    depth: float = Query(10.0, description="Observation depth in meters"),
+    time: Optional[str] = Query(None, description="Observation ISO timestamp"),
+    model_dataset_id: Optional[str] = Query(None, description="e.g. incois_las_model, copernicus_cmems")
+):
+    """Collocate a single Argo observation record with nearest ocean model prediction (residual = observed - model)."""
+    try:
+        res = collocation_engine.collocate_point(
+            platform_id=platform_id,
+            variable=variable,
+            depth=depth,
+            time=time,
+            model_dataset_id=model_dataset_id
+        )
+        return res.model_dump()
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@app.get("/api/collocation/profile")
+def collocate_profile_api(
+    platform_id: str = Query(..., description="e.g. ARGO-5906203"),
+    variable: str = Query("temperature", description="temperature | salinity"),
+    model_dataset_id: Optional[str] = Query(None, description="e.g. incois_las_model, copernicus_cmems")
+):
+    """Collocate full vertical depth profile for an Argo float with ocean model predictions and skill metrics."""
+    try:
+        res = collocation_engine.collocate_profile(
+            platform_id=platform_id,
+            variable=variable,
+            model_dataset_id=model_dataset_id
+        )
+        return res.model_dump()
     except ValueError as e:
         raise HTTPException(404, str(e))
 

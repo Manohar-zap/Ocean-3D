@@ -65,3 +65,61 @@ INCOIS can use the platform for outreach events, exhibitions, and e-learning ini
 
 
 Dataset Link	The following dataset links are missing and should be included: a. Numerical Ocean Model Outputs: https://las.incois.gov.in/ & https://data.marine.copernicus.eu/product/GLOBAL_MULTIYEAR_PHY_001_030/description b. Argo Global Data: ftp://ftp.ifremer.fr/ifremer/argo c. Glider Data: ftp://ftp.ifremer.fr/ifremer/glider/v2/ d. Collection of In-situ Data:
+
+---
+
+## Architecture & Data Flow Pipelines
+
+### Phase 1: Real Argo GDAC NetCDF Ingestion Pipeline
+```text
+Argo GDAC NetCDF Profile (*.nc) / Local NetCDF Cache (backend/data/argo_cache/*.nc)
+      │
+      ▼
+   [app/argo_netcdf_parser.py]
+   - Extracts PLATFORM_NUMBER, JULD, LATITUDE, LONGITUDE, PRES, TEMP, PSAL
+   - Filters bad QC flags ('3', '4', '9') and fill values (99999.0)
+   - Converts PRES (dbar) -> Depth (m) via UNESCO 1983 hydrostatic formula
+   - Converts JULD (days since 1950) -> ISO 8601 UTC timestamp
+      │
+      ▼
+   [app/adapters.py] ArgoGliderAdapter
+   - Ingests real local NetCDF files and cached Argovis GDAC payloads
+   - Opt-in synthetic fallback (ENABLE_SYNTHETIC_ARGO_FALLBACK=true)
+      │
+      ▼
+   StandardRecord[] (Canonical Schema) ──► GET /api/observations
+```
+
+### Phase 2: Argo – Ocean Model Collocation Pipeline
+```text
+REAL ARGO PROFILE (StandardRecord)
+      │
+      ├───────────────────────────────┐
+      │                               │
+      ▼                               ▼
+Argo Observation                Ocean Model Grid
+(lat, lon, time, depth,          (lat, lon, time, depth,
+ temp, salinity)                 temperature, salinity)
+      │                               │
+      └───────────────┬───────────────┘
+                      ▼
+        COLLOCATION ENGINE [app/collocation.py]
+        - Spatial: Haversine distance & grid cell matching (spatial_distance_km)
+        - Temporal: Nearest valid model timestep (temporal_difference_hours)
+        - Vertical: Depth level linear interpolation (model_depth_used)
+                      │
+                      ▼
+        COLLOCATION RESULT (CollocationRecord)
+        - Observed Value vs Model Value
+        - Residual R = Observed_Value - Model_Value
+        - Absolute Error |R| = |Observed_Value - Model_Value|
+                      │
+                      ▼
+        GET /api/collocation/point & GET /api/collocation/profile
+```
+
+### Residual Definition
+* **Temperature Residual**: $R_{\text{Temp}} = T_{\text{Argo}} - T_{\text{Model}}$ ($^\circ\text{C}$)
+* **Salinity Residual**: $R_{\text{Sal}} = S_{\text{Argo}} - S_{\text{Model}}$ ($\text{PSU}$)
+* **Absolute Error**: $|R| = |\text{Observed} - \text{Model}|$
+
