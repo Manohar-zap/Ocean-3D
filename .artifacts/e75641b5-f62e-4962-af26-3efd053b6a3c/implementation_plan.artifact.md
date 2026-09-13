@@ -1,47 +1,61 @@
-# Implementation Plan - Refined Interactive Ocean 3D Intro
+# Implementation Plan - Professional Visual Refinement of Ocean 3D Intro
 
-This plan details the refinement of the introductory overlay into a polished, interactive scientific onboarding experience. The goal is to improve information clarity and give users control over the progression while preserving existing animations.
+This plan outlines a high-level visual and animation refinement pass for the introductory overlay, focusing on scientific accuracy, removing placeholders, and enhancing visual storytelling without changing the approved structure.
+
+## Visual Refinement Strategy
+
+### 1. Recognition: Real Instrument Models (Stage 2)
+- **Problem**: Current placeholders (dots/rectangles) lack scientific credibility.
+- **Solution**: Replace CSS shapes with high-quality SVG illustrations that mirror the "Digital Twin" Three.js models used in the main application.
+- **Instruments**:
+    - **ARGO FLOAT**: Yellow pressure hull with top satellite antenna.
+    - **MOORED BUOY**: Toroidal surface float with a scientific mast and subsurface mooring line.
+    - **AUTONOMOUS GLIDER**: Hydrodynamic fuselage with swept-back wings.
+    - **SHIPBOARD CTD**: Multi-bottle Niskin carousel within a titanium frame.
+    - **BGC-ARGO**: Argo float with optical biogeochemical sensor clusters.
+
+### 2. Scientific Data Flow (Stage 4)
+- **Problem**: Emoji-based symbols (cube, satellite, globe) feel generic and non-scientific.
+- **Solution**: Replace with technical visualizations:
+    - **OCEAN MODEL**: A translucent 3D isometric grid with gradient layers.
+    - **OBSERVATIONS**: Animated trajectory curves and profile Sounding lines.
+    - **OCEAN 3D**: A stylized 3D volumetric ocean segment showing integrated data layers.
+
+### 3. Capability Demonstrations (Stage 5)
+- **CURRENTS**: Replace straight arrows with curved, flowing streamlines using SVG paths and animated particles.
+- **VARIABLES**: Replace thermometer emoji with a multi-band thermal gradient field showing spatial variation.
+- **3D VISUALIZATION**: Replace globe emoji with a layered "Water Column" isometric view showing depth-dependent data.
+
+### 4. Animation & Interaction
+- **Curved Motion**: Use SVG motion paths for gliders and currents.
+- **Data Convergence**: Animate "data particles" from model and observation sources into the final platform visual.
+- **Consistency**: Use the cyan/teal/dark-navy palette consistent with the main app's CSS variables.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **1. Interactive Progression:** The intro will move from a pure "video-style" animation to an "interactive story" with BACK and NEXT controls.
-> **2. Section Titles:** Each stage will now have a clear, high-level scientific section title.
-> **3. Instrument Details:** The five observation platforms will include concise 2-line descriptions of their scientific purpose.
-> **4. Visual Logic:** Stage 3 and 4 will be enhanced to visually "sum" instruments and models into the final platform.
+> The refinement uses custom SVG illustrations to avoid heavy 3D assets while achieving a "professional scientific product" look.
+> Emojis will be completely removed from the scientific stages.
 
 ## Proposed Changes
 
 ### [Component Name] Intro Overlay Refinement
 
 #### [MODIFY] [intro.js](file:///C:/Users/Asus/Documents/ocean3d/frontend/assets/intro.js)
-- **Navigation Engine:** Add `next()`, `prev()`, and `goToStage(n)` methods.
-- **Dynamic Content:** Update `createDOM` to include navigation buttons (`← BACK`, `NEXT →`) and a progress indicator.
-- **Stage Management:** Update `setStage` to update button labels (e.g., "ENTER OCEAN 3D" on the last stage).
-- **Descriptions:** Inject instrument descriptions for Stage 2.
-- **Keyboard Support:** Add listener for `Enter` (Next), `Backspace` (Back), and `Escape` (Skip).
+- Update DOM structures to use SVGs for all instruments and capability visuals.
+- Enhance Stage 4 animation logic for data flow.
 
 #### [MODIFY] [intro.css](file:///C:/Users/Asus/Documents/ocean3d/frontend/assets/intro.css)
-- **Navigation UI:** Style the bottom navigation bar and progress indicator.
-- **Stage 2 Layout:** Implement a clean 5-column horizontal layout for instruments on desktop.
-- **Typography:** Refine font sizes and weights for titles and scientific descriptions (using IBM Plex Mono for data-heavy text).
-- **Transitions:** Smoother cross-fades between stages to maintain cinematic continuity.
-- **Interactive States:** Hover effects for navigation buttons.
-
-### Intro Sequence Structure (Revised)
-
-1.  **Stage 1: Identity** (OCEAN 3D Wordmark + Subtitle)
-2.  **Stage 2: Observation Instruments** (5 Instruments with 2-line descriptions)
-3.  **Stage 3: Ocean Observations** (Visualizing instruments generating data points/trajectories)
-4.  **Stage 4: Ocean Model + Observations** (Visualizing the merge of model grids and in-situ data)
-5.  **Stage 5: Explore the Ocean** (Showcasing real app capabilities: Currents, Variables, Depth, 3D)
+- Add styles for SVG components.
+- Implement flowing current streamline animations.
+- Refine Stage 4 layout for the scientific data-flow diagram.
+- Ensure 5-column layout remains responsive.
 
 ## Verification Plan
 
 ### Manual Verification
-- [ ] **Navigation:** Verify BACK and NEXT buttons work through all 5 stages.
-- [ ] **Content:** Check descriptions for all 5 instruments (Argo, Buoy, Glider, CTD, BGC-Argo).
-- [ ] **Visual Continuity:** Ensure stage transitions feel "cinematic" and not like abrupt slide changes.
-- [ ] **Skip Intro:** Verify immediate exit at any point.
-- [ ] **Final Transition:** Verify "ENTER OCEAN 3D" correctly removes overlay and enables app.
-- [ ] **Responsiveness:** Test on narrow windows to ensure the 5 columns stack or scale gracefully.
+- [ ] **Stage 2**: Confirm instruments are recognizable and match scientific descriptions.
+- [ ] **Stage 4**: Verify transition from model/observations to Ocean 3D looks like data integration, not a slide change.
+- [ ] **Stage 5**: Verify currents are wavy/curved and variables show a gradient field.
+- [ ] **No Emojis**: Audit all 5 stages for any remaining emojis.
+- [ ] **App Integrity**: Verify the main app's depth slider and globe interactions work post-intro.

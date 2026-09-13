@@ -51,6 +51,47 @@ class Ocean3DIntro {
   createDOM() {
     this.container = document.createElement('div');
     this.container.id = 'ocean3d-intro';
+
+    // Define SVG Illustrations
+    const svgIcons = {
+      argo: `<svg viewBox="0 0 40 100" class="svg-instrument">
+        <rect x="15" y="20" width="10" height="60" rx="5" fill="#f2a65a" />
+        <line x1="20" y1="20" x2="20" y2="5" stroke="#7c93a0" stroke-width="1.5" />
+        <circle cx="20" y="5" r="2" fill="#fff" />
+        <rect x="14" y="30" width="12" height="2" fill="rgba(0,0,0,0.2)" />
+        <rect x="14" y="70" width="12" height="2" fill="rgba(0,0,0,0.2)" />
+      </svg>`,
+      buoy: `<svg viewBox="0 0 60 100" class="svg-instrument">
+        <ellipse cx="30" y="30" rx="20" ry="8" fill="#38bdf8" />
+        <rect x="28" y="5" width="4" height="25" fill="#7c93a0" />
+        <circle cx="30" y="5" r="3" fill="#e8654f" />
+        <line x1="30" y1="38" x2="30" y2="95" stroke="#38bdf8" stroke-width="1" stroke-dasharray="4 2" />
+      </svg>`,
+      glider: `<svg viewBox="0 0 80 60" class="svg-instrument glider-svg">
+        <path d="M10,30 Q10,20 40,20 L70,30 L40,40 Q10,40 10,30" fill="#8ec9e0" />
+        <path d="M40,20 L30,5 L50,5 L45,20" fill="#1a2f3c" />
+        <path d="M40,40 L30,55 L50,55 L45,40" fill="#1a2f3c" />
+        <circle cx="65" cy="30" r="2" fill="#fff" opacity="0.5" />
+      </svg>`,
+      ctd: `<svg viewBox="0 0 60 100" class="svg-instrument">
+        <rect x="15" y="10" width="30" height="2" fill="#c58ee0" />
+        <rect x="15" y="80" width="30" height="2" fill="#c58ee0" />
+        <line x1="20" y1="10" x2="20" y2="80" stroke="#c58ee0" stroke-width="1" />
+        <line x1="40" y1="10" x2="40" y2="80" stroke="#c58ee0" stroke-width="1" />
+        <rect x="22" y="15" width="4" height="60" rx="1" fill="#dceaf0" opacity="0.8" />
+        <rect x="28" y="15" width="4" height="60" rx="1" fill="#dceaf0" opacity="0.8" />
+        <rect x="34" y="15" width="4" height="60" rx="1" fill="#dceaf0" opacity="0.8" />
+      </svg>`,
+      bgc: `<svg viewBox="0 0 40 100" class="svg-instrument">
+        <rect x="15" y="25" width="10" height="60" rx="5" fill="#8ee0a4" />
+        <line x1="20" y1="25" x2="20" y2="5" stroke="#7c93a0" stroke-width="1.5" />
+        <circle cx="25" cy="45" r="3" fill="#3fe0c5" opacity="0.6">
+          <animate attributeName="r" values="3;5;3" dur="2s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="15" cy="65" r="2" fill="#3fe0c5" opacity="0.4" />
+      </svg>`
+    };
+
     this.container.innerHTML = `
       <div class="intro-particles"></div>
 
@@ -73,27 +114,27 @@ class Ocean3DIntro {
         <div class="intro-stage" id="intro-stage-2">
           <div class="intro-platforms">
             <div class="platform-box">
-              <div class="platform-icon-anim"><div class="argo-trace"></div><div class="argo-dot"></div></div>
+              <div class="platform-icon-anim argo-anim">${svgIcons.argo}</div>
               <div class="platform-name">ARGO FLOAT</div>
               <div class="platform-desc">Autonomous floats that profile the ocean vertically.<br>Measures temperature, salinity and pressure.</div>
             </div>
             <div class="platform-box">
-              <div class="platform-icon-anim"><div class="mooring-line"></div><div class="buoy-base"></div><div class="pulse"></div></div>
+              <div class="platform-icon-anim buoy-anim">${svgIcons.buoy}</div>
               <div class="platform-name">MOORED BUOY</div>
               <div class="platform-desc">Fixed ocean stations for continuous monitoring.<br>Measures ocean conditions from a stable location.</div>
             </div>
             <div class="platform-box">
-              <div class="platform-icon-anim"><div class="glider-dot"></div></div>
+              <div class="platform-icon-anim glider-anim">${svgIcons.glider}</div>
               <div class="platform-name">AUTONOMOUS GLIDER</div>
               <div class="platform-desc">Moves through the ocean while collecting observations.<br>Builds a spatial profile along its trajectory.</div>
             </div>
             <div class="platform-box">
-              <div class="platform-icon-anim"><div class="ship-icon"></div><div class="ctd-probe"></div></div>
+              <div class="platform-icon-anim ctd-anim">${svgIcons.ctd}</div>
               <div class="platform-name">SHIPBOARD CTD</div>
               <div class="platform-desc">Lowered from research vessels to sample the water column.<br>Measures conductivity, temperature and depth.</div>
             </div>
             <div class="platform-box">
-              <div class="platform-icon-anim"><div class="bgc-dot"></div><div class="bgc-bubble" style="left:20px;bottom:20px;"></div><div class="bgc-bubble" style="left:40px;bottom:40px;animation-delay:1s;"></div></div>
+              <div class="platform-icon-anim bgc-anim">${svgIcons.bgc}</div>
               <div class="platform-name">BGC-ARGO</div>
               <div class="platform-desc">Argo floats focused on biogeochemical conditions.<br>Measures variables such as oxygen and chlorophyll.</div>
             </div>
@@ -103,12 +144,13 @@ class Ocean3DIntro {
         <!-- Stage 3: Ocean Observations -->
         <div class="intro-stage" id="intro-stage-3">
            <div class="obs-visual-wrap">
-             <div class="arch-visual">
-                <div class="data-particle" style="top:20%; left:10%; animation-delay:0s;"></div>
-                <div class="data-particle" style="top:50%; left:20%; animation-delay:0.5s;"></div>
-                <div class="data-particle" style="top:80%; left:15%; animation-delay:1s;"></div>
-                <div class="data-particle" style="top:30%; left:80%; animation-delay:0.2s;"></div>
-                <div class="data-particle" style="top:60%; left:70%; animation-delay:0.7s;"></div>
+              <div class="scientific-data-map">
+                <div class="map-grid"></div>
+                <div class="data-stream-path argo-path"></div>
+                <div class="data-stream-path glider-path"></div>
+                <div class="data-point argo-pt"></div>
+                <div class="data-point glider-pt"></div>
+                <div class="data-point buoy-pt"></div>
               </div>
               <div class="obs-flow-text">
                 <div class="flow-item">INSTRUMENTS</div>
@@ -123,19 +165,29 @@ class Ocean3DIntro {
           <div class="merge-visual-wrap">
              <div class="merge-grid"></div>
              <div class="merge-content">
-                <div class="merge-side">
+                <div class="merge-side model-side">
                   <div class="merge-label">OCEAN MODEL</div>
-                  <div class="merge-icon">🧊</div>
+                  <div class="scientific-icon model-icon">
+                    <div class="grid-3d"></div>
+                  </div>
                 </div>
                 <div class="merge-plus">+</div>
-                <div class="merge-side">
+                <div class="merge-side obs-side">
                   <div class="merge-label">OBSERVATIONS</div>
-                  <div class="merge-icon">📡</div>
+                  <div class="scientific-icon obs-icon">
+                    <div class="points-3d"></div>
+                  </div>
                 </div>
                 <div class="merge-equals">=</div>
                 <div class="merge-result">
                   <div class="merge-label">OCEAN 3D</div>
-                  <div class="merge-icon large">🌍</div>
+                  <div class="scientific-icon result-icon">
+                    <div class="globe-mini">
+                      <div class="globe-ring"></div>
+                      <div class="globe-ring" style="transform: rotateY(60deg)"></div>
+                      <div class="globe-ring" style="transform: rotateY(120deg)"></div>
+                    </div>
+                  </div>
                 </div>
              </div>
           </div>
@@ -145,19 +197,41 @@ class Ocean3DIntro {
         <div class="intro-stage" id="intro-stage-5">
           <div class="intro-caps">
             <div class="cap-item">
-              <div class="cap-icon"><div class="flow-lines"><div class="flow-line" style="top:5px;"></div><div class="flow-line" style="top:15px;animation-delay:0.5s;"></div></div></div>
+              <div class="cap-icon">
+                <svg viewBox="0 0 100 60" class="streamline-svg">
+                  <path d="M10,30 Q30,10 50,30 T90,30" class="stream-path" />
+                  <path d="M10,45 Q30,25 50,45 T90,45" class="stream-path" style="animation-delay: 0.5s" />
+                  <circle r="2" fill="#3fe0c5" class="stream-particle" />
+                </svg>
+              </div>
               <div class="cap-label">OCEAN CURRENTS</div>
             </div>
             <div class="cap-item">
-              <div class="cap-icon">🌡️</div>
+              <div class="cap-icon">
+                <div class="variable-field">
+                  <div class="field-band"></div>
+                  <div class="field-band"></div>
+                  <div class="field-band"></div>
+                </div>
+              </div>
               <div class="cap-label">OCEAN VARIABLES</div>
             </div>
             <div class="cap-item">
-              <div class="cap-icon"><div class="depth-gauge"><div class="depth-marker"></div></div></div>
+              <div class="cap-icon">
+                <div class="depth-ruler">
+                  <div class="ruler-line"></div>
+                  <div class="ruler-mark"></div>
+                </div>
+              </div>
               <div class="cap-label">DEPTH ANALYSIS</div>
             </div>
             <div class="cap-item">
-              <div class="cap-icon">🌍</div>
+              <div class="cap-icon">
+                <div class="analysis-3d">
+                  <div class="box-3d"></div>
+                  <div class="box-3d-line"></div>
+                </div>
+              </div>
               <div class="cap-label">3D VISUALIZATION</div>
             </div>
           </div>

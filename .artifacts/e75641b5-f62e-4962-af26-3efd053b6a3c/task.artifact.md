@@ -1,7 +1,8 @@
-# Task List - Refined Interactive Ocean 3D Intro
+# Task List - Visual Refinement of Intro
 
-- [x] Update `frontend/assets/intro.js` with navigation logic and content enhancements.
-- [x] Update `frontend/assets/intro.css` with layout improvements and navigation styling.
-- [x] Verify 5-stage interactive sequence.
-- [x] Verify responsiveness of the 5-column instrument layout.
-- [x] Final end-to-end verification of app functionality.
+- [x] Create/Update `frontend/assets/intro.css` with SVG styling and curved streamline animations.
+- [x] Update `frontend/assets/intro.js` to replace CSS placeholders/emojis with high-quality SVG illustrations.
+- [x] Refine Stage 4 visual logic (Model + Observations merge).
+- [x] Refine Stage 5 capability visuals (Curved currents, Gradient variables).
+- [x] Verify 5-stage interactive sequence and ensure no emojis remain.
+- [x] Test responsiveness and final app functionality.
