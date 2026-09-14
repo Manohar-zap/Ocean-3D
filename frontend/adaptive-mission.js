@@ -925,6 +925,72 @@ function hideWaterColumn() {
   document.getElementById('waterColumnOverlay').classList.add('hidden');
 }
 
+// ─── Cinematic Story Narration Banner & Final Summary Modal ───────────────
+
+function updateCinematicBanner(phaseTag, title, subText) {
+  const banner = document.getElementById('cinematicBanner');
+  if (!banner) return;
+  if (!phaseTag) {
+    banner.classList.add('hidden');
+    return;
+  }
+  const tagEl = document.getElementById('cbPhaseTag');
+  if (tagEl) tagEl.textContent = phaseTag;
+  const titleEl = document.getElementById('cbTitle');
+  if (titleEl) titleEl.textContent = title;
+  const subEl = document.getElementById('cbSubText');
+  if (subEl) subEl.textContent = subText || '';
+  banner.classList.remove('hidden');
+}
+
+function showFinalSummaryModal(sim) {
+  const modal = document.getElementById('finalSummaryModal');
+  if (!modal) return;
+
+  const winner = sim.selected_platform || {};
+  const target = sim.target || {};
+  const route = winner.route_details || {};
+  const energy = winner.energy_details || {};
+  const eig = sim.scientific_payoff || {};
+  const before = sim.before_simulation?.information_gap_percent || 82;
+  const after = sim.after_simulation?.information_gap_percent || 44;
+  const gain = eig.expected_information_gain_percent || (before - after);
+
+  const platformEl = document.getElementById('smPlatform');
+  if (platformEl) platformEl.textContent = winner.name || 'GLIDER-07';
+
+  const posEl = document.getElementById('smTargetPos');
+  if (posEl) posEl.textContent = `${target.latitude?.toFixed(2) || '15.40'}°N ${target.longitude?.toFixed(2) || '88.70'}°E`;
+
+  const depthEl = document.getElementById('smTargetDepth');
+  if (depthEl) depthEl.textContent = `${target.depth_m || 500} m`;
+
+  const distEl = document.getElementById('smDistance');
+  if (distEl) distEl.textContent = `${route.direct_distance_km || route.distance_km || 137.8} km`;
+
+  const durEl = document.getElementById('smDuration');
+  if (durEl) durEl.textContent = `${route.estimated_duration_hours || 31.4} h`;
+
+  const energyEl = document.getElementById('smEnergy');
+  if (energyEl) energyEl.textContent = `${energy.energy_required_percent || 47.0}% (${energy.transit_energy_wh || 1504} Wh)`;
+
+  const reserveEl = document.getElementById('smReserve');
+  if (reserveEl) reserveEl.textContent = `${energy.safety_reserve_percent || 15.0}% (${energy.energy_remaining_percent || 35.0}% REMAINING)`;
+
+  const gainEl = document.getElementById('smGapGain');
+  if (gainEl) gainEl.textContent = `${before}% → ${after}% (+${gain}% EXPECTED INFORMATION GAIN)`;
+
+  modal.classList.remove('hidden');
+
+  if (viewer) {
+    viewer.camera.flyTo({
+      destination: positionFromLatLonDepth(target.latitude || 15.4, target.longitude || 88.7, 1200000),
+      orientation: { heading: 0, pitch: Cesium.Math.toRadians(-50), roll: 0 },
+      duration: 2.0
+    });
+  }
+}
+
 // ─── Mission Playback Engine ─────────────────────────────────────────────────
 
 class MissionPlayback {
@@ -958,6 +1024,8 @@ class MissionPlayback {
     resetProfileChart();
     hideWaterColumn();
     document.getElementById('gapHeatmapOverlay').classList.add('hidden');
+    const summaryModal = document.getElementById('finalSummaryModal');
+    if (summaryModal) summaryModal.classList.add('hidden');
     clearMissionGlobe();
 
     const gap = this.sim.target_gap || {};
@@ -976,7 +1044,8 @@ class MissionPlayback {
   async runPreAnimation(gap, winner) {
     setActivePhase(0);
     document.getElementById('simPhase').textContent = '01 GAP DETECTED';
-    await this.wait(800 / this.speed);
+    updateCinematicBanner('PHASE 01 — GAP DETECTED', 'HIGH-VALUE OBSERVATION GAP DETECTED', `Location: ${gap.latitude || 15.4}°N ${gap.longitude || 88.7}°E | Priority: ${gap.priority_score || 91}% | Target Depth: ${gap.depth_m || 500}m`);
+    await this.wait(1000 / this.speed);
 
     // Scanner ring animation
     let scanRadius = 50000;
@@ -995,6 +1064,7 @@ class MissionPlayback {
       scanRadius += 80000;
       setActivePhase(1);
       document.getElementById('simPhase').textContent = '02 FLEET SEARCH';
+      updateCinematicBanner('PHASE 02 — FLEET SEARCH', 'DISCOVERING CONTROLLABLE RESEARCH FLEET', 'Searching active ocean vehicle fleet in Bay of Bengal sector...');
       await this.wait(200 / this.speed);
     }
     viewer.entities.remove(this.scannerEnt);
@@ -1002,8 +1072,9 @@ class MissionPlayback {
     // Show all candidates
     setActivePhase(2);
     document.getElementById('simPhase').textContent = '03 FEASIBILITY CHECK';
+    updateCinematicBanner('PHASE 03 — FEASIBILITY FILTERING', 'EVALUATING VEHICLE CONSTRAINTS & REJECTIONS', 'Filtering candidates by range, depth capability, battery, and steerability...');
     renderFleetInstruments(this.sim.all_candidates || [], null, gap);
-    await this.wait(1200 / this.speed);
+    await this.wait(1400 / this.speed);
 
     // Highlight rejections then selection
     const selId = winner.instrument_id;
@@ -1018,31 +1089,31 @@ class MissionPlayback {
         }
       }
     });
-    await this.wait(800 / this.speed);
+    await this.wait(1000 / this.speed);
 
     setActivePhase(3);
     document.getElementById('simPhase').textContent = '04 INSTRUMENT SELECTED';
+    updateCinematicBanner('PHASE 04 — INSTRUMENT SELECTED', `${winner.name || 'GLIDER-07'} SELECTED FOR MISSION`, `Max Depth: ${winner.maximum_depth_m || 1000}m | Target Depth: ${gap.depth_m || 500}m | Range: ${winner.max_range_km || 400}km | Battery: ${winner.battery_percent || 82}%`);
     renderFleetInstruments(this.sim.all_candidates || [], selId, gap);
-    await this.wait(600 / this.speed);
+    await this.wait(1000 / this.speed);
 
     // Route planning animation
     setActivePhase(4);
-    document.getElementById('simPhase').textContent = '05 ROUTE ANALYSIS — DIRECT BASELINE';
+    document.getElementById('simPhase').textContent = '05 ROUTE OPTIMIZATION';
+    updateCinematicBanner('PHASE 05/06 — ROUTE OPTIMIZATION', 'GRID A* MULTI-CANDIDATE ROUTE SELECTION', 'Querying INCOIS 3D current model data & evaluating Direct baseline vs Candidates A/B/C...');
     const routing = this.sim.routing || {};
     if (routing.direct_route) renderRoutePolyline(routing.direct_route.waypoints, '#64748b', 2, false, 'direct');
-    await this.wait(800 / this.speed);
+    await this.wait(900 / this.speed);
 
-    document.getElementById('simPhase').textContent = '05 ROUTE ANALYSIS — EVALUATING CANDIDATES (A, B, C)';
     (routing.candidate_routes || []).forEach((r, i) => {
       renderRoutePolyline(r.waypoints, ['#818cf8', '#a78bfa', '#c084fc'][i] || '#818cf8', 3, false, `cand_${i}`);
     });
-    await this.wait(1000 / this.speed);
+    await this.wait(1100 / this.speed);
 
-    document.getElementById('simPhase').textContent = '05 ROUTE ANALYSIS — OPTIMAL LOW-COST PATH MINIMIZED';
     if (routing.selected_route) {
       renderRoutePolyline(routing.selected_route.waypoints, '#3fe0c5', 5, true, 'optimal');
     }
-    await this.wait(800 / this.speed);
+    await this.wait(900 / this.speed);
 
     // Create vehicle at start
     const startWp = (routing.selected_route || {}).waypoints?.[0] || this.frames[0];
@@ -1294,21 +1365,28 @@ class MissionPlayback {
     document.getElementById('simPhase').textContent = '14 INFORMATION GAP REASSESSED';
     document.getElementById('simStatusBadge').textContent = 'DATA ACQUIRED';
     document.getElementById('simStatusBadge').className = 'badge green';
-    const before = this.sim.before_simulation.information_gap_percent;
-    const after = this.sim.after_simulation.information_gap_percent;
+
+    const before = this.sim.before_simulation?.information_gap_percent || 82;
+    const after = this.sim.after_simulation?.information_gap_percent || 44;
+    const gain = this.sim.scientific_payoff?.expected_information_gain_percent || 38;
+
+    updateCinematicBanner('PHASE 14 — INFORMATION GAP REASSESSED', 'BAYESIAN UNCERTAINTY REDUCTION UPDATE', `Before: ${before}% → After: ${after}% | Expected Information Gain: +${gain}% (Simulated What-If)`);
+
     document.getElementById('gapBefore').textContent = `${before}%`;
     document.getElementById('gapAfter').textContent = `${after}%`;
-    document.getElementById('gainVal').textContent = `+${this.sim.scientific_payoff.expected_information_gain_percent}%`;
+    document.getElementById('gainVal').textContent = `+${gain}%`;
 
     const overlay = document.getElementById('gapHeatmapOverlay');
-    overlay.classList.remove('hidden');
-    document.getElementById('gapHeatBefore').querySelector('span').textContent = `${before}%`;
-    document.getElementById('gapHeatAfter').querySelector('span').textContent = `${after}%`;
+    if (overlay) overlay.classList.remove('hidden');
+    const heatBefore = document.getElementById('gapHeatBefore');
+    if (heatBefore) heatBefore.querySelector('span').textContent = `${before}%`;
+    const heatAfter = document.getElementById('gapHeatAfter');
+    if (heatAfter) heatAfter.querySelector('span').textContent = `${after}%`;
 
     // Visual gap region color shift
-    const gap = this.sim.target_gap;
+    const gap = this.sim.target_gap || {};
     const heatEnt = viewer.entities.add({
-      position: positionFromLatLonDepth(gap.latitude, gap.longitude, 0),
+      position: positionFromLatLonDepth(gap.latitude || 15.4, gap.longitude || 88.7, 0),
       ellipse: {
         semiMajorAxis: 100000, semiMinorAxis: 100000, height: 0,
         material: Cesium.Color.fromCssColorString('#34d399').withAlpha(0.25),
@@ -1318,7 +1396,7 @@ class MissionPlayback {
     missionEntities.push(heatEnt);
 
     viewer.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(gap.longitude, gap.latitude, 600000),
+      destination: Cesium.Cartesian3.fromDegrees(gap.longitude || 88.7, gap.latitude || 15.4, 600000),
       orientation: { heading: 0, pitch: Cesium.Math.toRadians(-45), roll: 0 },
       duration: 1.5
     });
@@ -1330,6 +1408,8 @@ class MissionPlayback {
     document.getElementById('simStatusBadge').className = 'badge green';
     document.getElementById('btnPlayPause').textContent = '▶';
     setActivePhase(13);
+    updateCinematicBanner('PHASE 14 — MISSION COMPLETE', 'OCEAN ADAPTIVE MISSION EXECUTED & DATA ACQUIRED', 'All CTD sampling sequences completed. Bayesian posterior uncertainty updated.');
+    showFinalSummaryModal(this.sim);
   }
 
   pause() { this.paused = true; document.getElementById('btnPlayPause').textContent = '▶'; }
@@ -1391,6 +1471,18 @@ async function startMissionSimulation() {
 
 document.addEventListener('DOMContentLoaded', () => {
   initMissionGlobe();
+
+  const smCloseBtn = document.getElementById('smCloseBtn');
+  if (smCloseBtn) smCloseBtn.onclick = () => document.getElementById('finalSummaryModal').classList.add('hidden');
+
+  const smRestartBtn = document.getElementById('smRestartBtn');
+  if (smRestartBtn) {
+    smRestartBtn.onclick = () => {
+      document.getElementById('finalSummaryModal').classList.add('hidden');
+      if (playback) playback.restart();
+      else startMissionSimulation();
+    };
+  }
 
   document.getElementById('btnPlayMission').onclick = startMissionSimulation;
 

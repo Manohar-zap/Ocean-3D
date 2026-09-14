@@ -265,6 +265,56 @@ main.center-viewport { position: relative; background: #020710; }
 .candidate-item { cursor: pointer; transition: all 0.2s ease; }
 .candidate-item:hover { border-color: var(--cyan); box-shadow: 0 0 8px rgba(56, 189, 248, 0.25); }
 
+/* Cinematic Story Narration Banner */
+.cinematic-banner {
+  position: absolute;
+  top: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(7, 20, 34, 0.94);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 8px 18px;
+  text-align: center;
+  z-index: 70;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6), 0 0 12px rgba(245, 158, 11, 0.25);
+  animation: fadeIn 0.3s ease;
+  pointer-events: none;
+}
+.cinematic-banner.hidden { display: none; }
+.cb-phase { font-size: 9px; font-family: var(--font-mono); color: var(--accent); font-weight: 700; letter-spacing: 1px; }
+.cb-title { font-size: 13px; font-weight: 800; color: var(--text); margin: 2px 0; letter-spacing: 0.5px; }
+.cb-sub { font-size: 10px; font-family: var(--font-mono); color: var(--text-dim); }
+
+/* Final Mission Complete Summary Overlay */
+.summary-modal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 440px;
+  background: rgba(7, 20, 34, 0.96);
+  border: 1px solid var(--teal);
+  border-radius: 10px;
+  padding: 18px;
+  z-index: 90;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.85), 0 0 24px rgba(63, 224, 197, 0.35);
+  animation: fadeIn 0.4s ease;
+}
+.summary-modal.hidden { display: none; }
+.sm-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.sm-badge { font-size: 10px; font-family: var(--font-mono); font-weight: 700; padding: 3px 8px; border-radius: 3px; }
+.sm-badge.green { background: rgba(52,211,153,0.2); color: #34d399; border: 1px solid #34d399; }
+.sm-title { font-size: 14px; font-weight: 800; color: var(--text); border-bottom: 1px solid var(--line); padding-bottom: 6px; margin-bottom: 12px; letter-spacing: 0.8px; }
+.sm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; font-size: 11px; }
+.sm-item { display: flex; flex-direction: column; gap: 2px; }
+.sm-item.full-width { grid-column: span 2; }
+.sm-label { font-size: 9px; color: var(--text-dim); font-weight: 700; letter-spacing: 0.5px; }
+.sm-val { font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--text); }
+.sm-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+
 /* Route Comparison Table & Legend Items */
 .route-table { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
 .route-row {

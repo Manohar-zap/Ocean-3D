@@ -126,6 +126,13 @@
         <div class="gap-label">SIMULATED WHAT-IF RESULT</div>
       </div>
 
+      <!-- Cinematic Story / Narration Banner -->
+      <div id="cinematicBanner" class="cinematic-banner hidden">
+        <div class="cb-phase" id="cbPhaseTag">PHASE 01 — GAP DETECTED</div>
+        <div class="cb-title" id="cbTitle">HIGH-VALUE OBSERVATION GAP DETECTED</div>
+        <div class="cb-sub" id="cbSubText">Target: 15.40°N 88.70°E | Depth: 500m | Priority: 82%</div>
+      </div>
+
       <!-- Instrument details popup modal -->
       <div id="instrumentInfoModal" class="instrument-modal hidden">
         <div class="modal-header">
@@ -148,6 +155,30 @@
             <div class="m-item"><span class="m-label">STEERABLE</span><span id="mValCtrl" class="m-val">—</span></div>
             <div class="m-item full-width"><span class="m-label">STATUS & FEASIBILITY</span><span id="mValStatus" class="m-val">—</span></div>
           </div>
+        </div>
+      </div>
+
+      <!-- Final Mission Complete Summary Overlay -->
+      <div id="finalSummaryModal" class="summary-modal hidden">
+        <div class="sm-header">
+          <span class="sm-badge green">✓ MISSION COMPLETE</span>
+          <button id="smCloseBtn" class="modal-close-btn">&times;</button>
+        </div>
+        <div class="sm-title">OCEAN ADAPTIVE MISSION SUMMARY</div>
+        <div class="sm-grid">
+          <div class="sm-item"><span class="sm-label">SELECTED VEHICLE</span><span id="smPlatform" class="sm-val">GLIDER-07</span></div>
+          <div class="sm-item"><span class="sm-label">TARGET LOCATION</span><span id="smTargetPos" class="sm-val">15.40°N 88.70°E</span></div>
+          <div class="sm-item"><span class="sm-label">TARGET DEPTH</span><span id="smTargetDepth" class="sm-val">500 m</span></div>
+          <div class="sm-item"><span class="sm-label">TRANSIT DISTANCE</span><span id="smDistance" class="sm-val">137.8 km</span></div>
+          <div class="sm-item"><span class="sm-label">MISSION DURATION</span><span id="smDuration" class="sm-val">31.4 h</span></div>
+          <div class="sm-item"><span class="sm-label">ENERGY EXPENDITURE</span><span id="smEnergy" class="sm-val">47.0%</span></div>
+          <div class="sm-item"><span class="sm-label">SAFETY RESERVE</span><span id="smReserve" class="sm-val">35.0% (> 15% req)</span></div>
+          <div class="sm-item"><span class="sm-label">VARIABLES SAMPLED</span><span class="sm-val">Temp, Salinity, Pressure</span></div>
+          <div class="sm-item full-width"><span class="sm-label">INFORMATION GAP REDUCTION</span><span id="smGapGain" class="sm-val" style="color:#34d399;">82% → 44% (+38% EXPECTED GAIN)</span></div>
+        </div>
+        <div class="sm-footer">
+          <span class="badge blue">SIMULATED WHAT-IF RESULT</span>
+          <button id="smRestartBtn" class="btn-action primary">↻ REPLAY MISSION</button>
         </div>
       </div>
     </main>
