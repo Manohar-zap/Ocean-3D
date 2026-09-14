@@ -1070,10 +1070,10 @@ class MissionPlayback {
   }
 
   updateTransitFrame(frame) {
-    const winner = this.sim.selected_platform;
+    const winner = this.sim.selected_platform || {};
     const phaseMap = {
-      TRANSIT: 6, CURRENT_ADJUSTMENT: 7, DESCENT: 8,
-      TARGET_APPROACH: 9, TARGET_REACHED: 10
+      DEPLOYMENT: 5, TRANSIT: 6, CURRENT_ADJUSTMENT: 7, DESCENT: 8,
+      TARGET_APPROACH: 9, TARGET_REACHED: 10, DEEP_SAMPLING: 11
     };
     const pIdx = phaseMap[frame.phase] || 6;
     setActivePhase(pIdx);
@@ -1082,12 +1082,18 @@ class MissionPlayback {
       updateInstrumentParts(this.vehicleParts, frame.latitude, frame.longitude, frame.depth_m, frame.heading_deg, frame.pitch_deg);
     }
 
+    const posEl = document.getElementById('simPos');
+    if (posEl) posEl.textContent = `${frame.latitude.toFixed(2)}°N ${frame.longitude.toFixed(2)}°E`;
+
     document.getElementById('simPhase').textContent = this.phases[pIdx]?.label || frame.phase;
-    document.getElementById('simTime').textContent = `T + ${frame.elapsed_hours} h`;
+    document.getElementById('simTime').textContent = `T + ${frame.elapsed_hours.toFixed(1)} h`;
     document.getElementById('simDepth').textContent = `${frame.depth_m.toFixed(0)} m`;
     document.getElementById('simHeading').textContent = `${frame.heading_deg.toFixed(0)}°`;
     document.getElementById('simGroundTrack').textContent = `${frame.ground_track_deg.toFixed(0)}°`;
-    document.getElementById('simDragVal').textContent = `${frame.current_speed_mps.toFixed(2)} m/s → ${frame.current_direction_deg.toFixed(0)}°`;
+    document.getElementById('simDragVal').textContent = `${(frame.current_speed_mps || 0).toFixed(2)} m/s → ${(frame.current_direction_deg || 0).toFixed(0)}°`;
+
+    const effSpeedEl = document.getElementById('simEffSpeed');
+    if (effSpeedEl) effSpeedEl.textContent = `${(frame.effective_speed_mps || 0.35).toFixed(2)} m/s`;
 
     // Compute current assist / drag along vehicle heading
     const radH = Cesium.Math.toRadians(frame.heading_deg || 0);
@@ -1101,14 +1107,50 @@ class MissionPlayback {
         assistEl.innerHTML = `<span style="color:#ef4444; font-weight:700;">CURRENT DRAG: ${along.toFixed(2)} m/s</span>`;
       }
     }
-    document.getElementById('simBattVal').textContent = `${frame.battery_percent.toFixed(1)}%`;
-    document.getElementById('simBattFill').style.width = `${frame.battery_percent}%`;
-    document.getElementById('simStatusBadge').textContent = frame.phase;
-    document.getElementById('simStatusBadge').className = 'badge blue';
 
-    const route = winner.route_details?.selected_route || winner.route_details || {};
-    const remDist = Math.max(0, (route.distance_km || 0) * (1 - this.frameIdx / Math.max(1, this.frames.length)));
+    const remDist = frame.distance_remaining_km != null ? frame.distance_remaining_km : Math.max(0, ((winner.route_details?.distance_km || 0) * (1 - this.frameIdx / Math.max(1, this.frames.length))));
     document.getElementById('simDistRem').textContent = `${remDist.toFixed(1)} km`;
+
+    // Energy & Battery State Readouts
+    const curBatt = frame.battery_percent != null ? frame.battery_percent : 82.0;
+    const usedPct = frame.energy_used_percent != null ? frame.energy_used_percent : (frame.initial_battery_percent - curBatt);
+    const usedWh = frame.energy_used_wh != null ? frame.energy_used_wh : 0.0;
+    const remWh = frame.energy_remaining_wh != null ? frame.energy_remaining_wh : 2624.0;
+    const reservePct = frame.safety_reserve_percent != null ? frame.safety_reserve_percent : 15.0;
+    const battState = frame.battery_state || (curBatt >= reservePct + 15 ? 'NORMAL' : (curBatt >= reservePct ? 'WARNING' : 'CRITICAL'));
+
+    document.getElementById('simBattVal').textContent = `${curBatt.toFixed(1)}%`;
+    const fillEl = document.getElementById('simBattFill');
+    if (fillEl) fillEl.style.width = `${Math.max(0, Math.min(100, curBatt))}%`;
+
+    const energyUsedEl = document.getElementById('simEnergyUsed');
+    if (energyUsedEl) energyUsedEl.textContent = `${usedPct.toFixed(1)}% (${usedWh.toFixed(0)} Wh)`;
+
+    const battRemEl = document.getElementById('simBattRem');
+    if (battRemEl) battRemEl.textContent = `${curBatt.toFixed(1)}% (${remWh.toFixed(0)} Wh)`;
+
+    const reserveEl = document.getElementById('simSafetyReserve');
+    if (reserveEl) reserveEl.textContent = `${reservePct.toFixed(1)}%`;
+
+    const stateEl = document.getElementById('simEnergyState');
+    if (stateEl) {
+      if (battState === 'CRITICAL' || curBatt < reservePct) {
+        stateEl.textContent = 'CRITICAL — RESERVE BREACHED';
+        stateEl.className = 'badge red';
+        if (fillEl) fillEl.style.background = 'var(--red)';
+      } else if (battState === 'WARNING' || curBatt < reservePct + 15.0) {
+        stateEl.textContent = 'WARNING — APPROACHING RESERVE';
+        stateEl.className = 'badge amber';
+        if (fillEl) fillEl.style.background = 'var(--accent)';
+      } else {
+        stateEl.textContent = 'HEALTHY';
+        stateEl.className = 'badge green';
+        if (fillEl) fillEl.style.background = 'var(--green)';
+      }
+    }
+
+    document.getElementById('simStatusBadge').textContent = frame.phase;
+    document.getElementById('simStatusBadge').className = battState === 'CRITICAL' ? 'badge red' : 'badge blue';
 
     // Water Column Overlay & Camera Director
     const targetDepthM = this.sim.target?.depth_m || 500;

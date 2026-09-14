@@ -118,125 +118,221 @@ class MissionSimulatorEngine:
 
     def _build_trajectory_frames(
         self,
+        platform_type: str,
         waypoints: list[dict[str, Any]],
         start_battery: float,
-        energy_required: float,
         cruise_speed: float,
         target_depth: float,
         target_lat: float,
         target_lon: float,
         duration_hours: float,
+        safety_reserve_percent: float = 15.0,
     ) -> list[dict[str, Any]]:
-        """Dense trajectory with depth, heading, ground track, battery per frame."""
+        """Dense trajectory with state-based energy consumption, depth, heading, ground track per frame."""
         frames: list[dict[str, Any]] = []
         if not waypoints:
             return frames
 
-        # Interpolate transit at surface (depth=0), then descent at target
-        transit_wps = [w for w in waypoints if w.get("depth_m", 0) < target_depth * 0.5]
-        if not transit_wps:
-            transit_wps = waypoints[:-1] if len(waypoints) > 1 else waypoints
+        ptype = (platform_type or "glider").lower().strip()
+        if ptype == "auv":
+            p_prop = 120.0
+            p_sensor = 25.0
+            p_pump = 35.0
+            capacity_wh = 4800.0
+        elif ptype == "vessel":
+            p_prop = 500000.0
+            p_sensor = 1500.0
+            p_pump = 0.0
+            capacity_wh = 10000000.0
+        else:  # glider
+            p_prop = 8.5
+            p_sensor = 3.2
+            p_pump = 15.0
+            capacity_wh = 3200.0
 
-        total_dist = 0.0
-        for i in range(1, len(transit_wps)):
-            total_dist += self._haversine_km(
-                transit_wps[i - 1]["latitude"],
-                transit_wps[i - 1]["longitude"],
-                transit_wps[i]["latitude"],
-                transit_wps[i]["longitude"],
+        total_dist_km = 0.0
+        for i in range(1, len(waypoints)):
+            total_dist_km += self._haversine_km(
+                waypoints[i - 1]["latitude"], waypoints[i - 1]["longitude"],
+                waypoints[i]["latitude"], waypoints[i]["longitude"]
             )
+        total_dist_km = max(0.1, total_dist_km)
 
-        frame_idx = 0
+        cum_energy_wh = 0.0
+        cum_distance_km = 0.0
         elapsed_h = 0.0
-        dist_travelled = 0.0
-        prev = transit_wps[0]
+        frame_idx = 0
 
-        for i in range(1, len(transit_wps)):
-            curr = transit_wps[i]
+        # 1. Initial Deployment Frame
+        dep_energy_wh = (p_sensor * 0.5) * 0.1
+        cum_energy_wh += dep_energy_wh
+        elapsed_h += 0.1
+        used_pct = (cum_energy_wh / capacity_wh) * 100.0
+        cur_batt = start_battery - used_pct
+        rem_wh = max(0.0, (cur_batt / 100.0) * capacity_wh)
+
+        frames.append({
+            "frame": frame_idx,
+            "latitude": round(waypoints[0]["latitude"], 5),
+            "longitude": round(waypoints[0]["longitude"], 5),
+            "depth_m": 0.0,
+            "heading_deg": round(waypoints[0].get("heading_deg", 0.0), 1),
+            "ground_track_deg": round(waypoints[0].get("ground_track_deg", 0.0), 1),
+            "pitch_deg": 0.0,
+            "current_u": round(waypoints[0].get("current_u", 0.0), 4),
+            "current_v": round(waypoints[0].get("current_v", 0.0), 4),
+            "current_speed_mps": round(waypoints[0].get("current_speed_mps", 0.0), 3),
+            "current_direction_deg": round(waypoints[0].get("current_direction_deg", 0.0), 1),
+            "effective_speed_mps": round(cruise_speed, 2),
+            "distance_travelled_km": 0.0,
+            "distance_remaining_km": round(total_dist_km, 2),
+            "elapsed_hours": round(elapsed_h, 2),
+            "initial_battery_percent": round(start_battery, 1),
+            "battery_percent": round(max(0.0, cur_batt), 1),
+            "energy_used_percent": round(used_pct, 1),
+            "energy_used_wh": round(cum_energy_wh, 1),
+            "energy_remaining_wh": round(rem_wh, 1),
+            "safety_reserve_percent": round(safety_reserve_percent, 1),
+            "battery_state": "NORMAL" if cur_batt >= safety_reserve_percent + 15 else ("WARNING" if cur_batt >= safety_reserve_percent else "CRITICAL"),
+            "phase": "DEPLOYMENT"
+        })
+        frame_idx += 1
+
+        # 2. Transit Waypoint Frames
+        prev = waypoints[0]
+        for i in range(1, len(waypoints)):
+            curr = waypoints[i]
             seg_km = self._haversine_km(prev["latitude"], prev["longitude"], curr["latitude"], curr["longitude"])
             steps = max(3, int(seg_km / 5.0))
+
+            heading = self._bearing(prev["latitude"], prev["longitude"], curr["latitude"], curr["longitude"])
+            u, v = curr.get("current_u", 0.0), curr.get("current_v", 0.0)
+            rad_h = math.radians(heading)
+            along = u * math.cos(rad_h) + v * math.sin(rad_h)
+            v_eff = max(0.05, cruise_speed + along)
+            rad_c = math.radians(heading)
+            gu = cruise_speed * math.cos(rad_c) + u
+            gv = cruise_speed * math.sin(rad_c) + v
+            ground_track = (math.degrees(math.atan2(gv, gu)) + 360.0) % 360.0
+
+            # Power calculation with current drag penalty
+            power_w = p_prop * (1.0 + max(0.0, -along) * 1.5) + p_sensor
+
             for s in range(1, steps + 1):
+                step_km = seg_km / steps
+                step_hours = (step_km * 1000.0) / (v_eff * 3600.0)
+                step_energy_wh = power_w * step_hours
+
+                cum_distance_km += step_km
+                elapsed_h += step_hours
+                cum_energy_wh += step_energy_wh
+                used_pct = (cum_energy_wh / capacity_wh) * 100.0
+                cur_batt = start_battery - used_pct
+                rem_wh = max(0.0, (cur_batt / 100.0) * capacity_wh)
+
                 ratio = s / steps
                 lat = prev["latitude"] + ratio * (curr["latitude"] - prev["latitude"])
                 lon = prev["longitude"] + ratio * (curr["longitude"] - prev["longitude"])
-                heading = self._bearing(prev["latitude"], prev["longitude"], curr["latitude"], curr["longitude"])
-                u, v = curr.get("current_u", 0.0), curr.get("current_v", 0.0)
-                cr = math.radians(heading)
-                gu = cruise_speed * math.cos(cr) + u
-                gv = cruise_speed * math.sin(cr) + v
-                ground_track = (math.degrees(math.atan2(gv, gu)) + 360.0) % 360.0
-                seg_dist = seg_km * ratio
-                dist_travelled += seg_km / steps
-                elapsed_h += (duration_hours * 0.85) * (seg_km / steps) / max(0.1, total_dist)
-                energy_ratio = dist_travelled / max(0.1, total_dist)
-                battery = start_battery - energy_required * energy_ratio * 0.85
-                phase = "TRANSIT" if energy_ratio < 0.7 else "CURRENT_ADJUSTMENT"
-                frames.append(
-                    {
-                        "frame": frame_idx,
-                        "latitude": round(lat, 5),
-                        "longitude": round(lon, 5),
-                        "depth_m": 0.0,
-                        "heading_deg": round(heading, 1),
-                        "ground_track_deg": round(ground_track, 1),
-                        "pitch_deg": 0.0,
-                        "current_u": u,
-                        "current_v": v,
-                        "current_speed_mps": curr.get("current_speed_mps", 0.0),
-                        "current_direction_deg": curr.get("current_direction_deg", 0.0),
-                        "battery_percent": round(max(15.0, battery), 1),
-                        "phase": phase,
-                        "elapsed_hours": round(elapsed_h, 2),
-                    }
-                )
+
+                batt_state = "NORMAL"
+                if cur_batt < safety_reserve_percent:
+                    batt_state = "CRITICAL"
+                elif cur_batt < safety_reserve_percent + 15.0:
+                    batt_state = "WARNING"
+
+                phase = "TRANSIT" if i < len(waypoints) - 1 else "CURRENT_ADJUSTMENT"
+
+                frames.append({
+                    "frame": frame_idx,
+                    "latitude": round(lat, 5),
+                    "longitude": round(lon, 5),
+                    "depth_m": 0.0,
+                    "heading_deg": round(heading, 1),
+                    "ground_track_deg": round(ground_track, 1),
+                    "pitch_deg": -2.0,
+                    "current_u": round(u, 4),
+                    "current_v": round(v, 4),
+                    "current_speed_mps": round(curr.get("current_speed_mps", 0.0), 3),
+                    "current_direction_deg": round(curr.get("current_direction_deg", 0.0), 1),
+                    "effective_speed_mps": round(v_eff, 2),
+                    "distance_travelled_km": round(cum_distance_km, 2),
+                    "distance_remaining_km": round(max(0.0, total_dist_km - cum_distance_km), 2),
+                    "elapsed_hours": round(elapsed_h, 2),
+                    "initial_battery_percent": round(start_battery, 1),
+                    "battery_percent": round(max(0.0, cur_batt), 1),
+                    "energy_used_percent": round(used_pct, 1),
+                    "energy_used_wh": round(cum_energy_wh, 1),
+                    "energy_remaining_wh": round(rem_wh, 1),
+                    "safety_reserve_percent": round(safety_reserve_percent, 1),
+                    "battery_state": batt_state,
+                    "phase": phase,
+                })
                 frame_idx += 1
             prev = curr
 
-        # Descent at target with realistic pitch and depth profile
-        descent_depths = [0, 50, 100, 200, 350, 500]
-        if target_depth not in descent_depths:
-            descent_depths.append(int(target_depth))
-        descent_depths = sorted(set(d for d in descent_depths if d <= max(target_depth, 500)))
+        # 3. Descent & Deep Sampling Frames
+        descent_depths = [0, 50, 100, 200, 350, int(target_depth)]
         if target_depth > 500:
             descent_depths.extend([750, 1000])
         descent_depths = sorted(set(d for d in descent_depths if d <= 1000))
 
-        for d_idx, depth in enumerate(descent_depths):
-            ratio = (d_idx + 1) / len(descent_depths)
-            energy_ratio = 0.85 + ratio * 0.15
-            battery = start_battery - energy_required * energy_ratio
+        last_wp = waypoints[-1]
+        for d_idx in range(1, len(descent_depths)):
+            d_curr = descent_depths[d_idx]
+            d_prev = descent_depths[d_idx - 1]
+            delta_d = d_curr - d_prev
 
-            if depth == 0:
-                phase = "TRANSIT"
-                pitch = 0.0
-            elif depth < target_depth:
+            descent_h = delta_d / (0.15 * 3600.0)
+            descent_power_w = p_prop + p_pump + p_sensor
+            descent_energy_wh = descent_power_w * descent_h
+
+            elapsed_h += descent_h
+            cum_energy_wh += descent_energy_wh
+            used_pct = (cum_energy_wh / capacity_wh) * 100.0
+            cur_batt = start_battery - used_pct
+            rem_wh = max(0.0, (cur_batt / 100.0) * capacity_wh)
+
+            if d_curr < target_depth:
                 phase = "DESCENT"
-                pitch = -20.0  # Steeping downward dive pitch
-            elif depth == target_depth:
+                pitch = -20.0
+            elif d_curr == target_depth:
                 phase = "TARGET_REACHED"
-                pitch = 0.0    # Level flight at target depth
+                pitch = 0.0
             else:
                 phase = "DEEP_SAMPLING"
                 pitch = -12.0
 
-            frames.append(
-                {
-                    "frame": frame_idx,
-                    "latitude": round(target_lat, 5),
-                    "longitude": round(target_lon, 5),
-                    "depth_m": float(depth),
-                    "heading_deg": frames[-1]["heading_deg"] if frames else 0.0,
-                    "ground_track_deg": frames[-1]["ground_track_deg"] if frames else 0.0,
-                    "pitch_deg": pitch,
-                    "current_u": waypoints[-1].get("current_u", 0.0),
-                    "current_v": waypoints[-1].get("current_v", 0.0),
-                    "current_speed_mps": waypoints[-1].get("current_speed_mps", 0.0),
-                    "current_direction_deg": waypoints[-1].get("current_direction_deg", 0.0),
-                    "battery_percent": round(max(15.0, battery), 1),
-                    "phase": phase,
-                    "elapsed_hours": round(duration_hours * (0.85 + ratio * 0.15), 2),
-                }
-            )
+            batt_state = "NORMAL"
+            if cur_batt < safety_reserve_percent:
+                batt_state = "CRITICAL"
+            elif cur_batt < safety_reserve_percent + 15.0:
+                batt_state = "WARNING"
+
+            frames.append({
+                "frame": frame_idx,
+                "latitude": round(target_lat, 5),
+                "longitude": round(target_lon, 5),
+                "depth_m": float(d_curr),
+                "heading_deg": frames[-1]["heading_deg"] if frames else 0.0,
+                "ground_track_deg": frames[-1]["ground_track_deg"] if frames else 0.0,
+                "pitch_deg": pitch,
+                "current_u": round(last_wp.get("current_u", 0.0), 4),
+                "current_v": round(last_wp.get("current_v", 0.0), 4),
+                "current_speed_mps": round(last_wp.get("current_speed_mps", 0.0), 3),
+                "current_direction_deg": round(last_wp.get("current_direction_deg", 0.0), 1),
+                "effective_speed_mps": round(cruise_speed, 2),
+                "distance_travelled_km": round(cum_distance_km, 2),
+                "distance_remaining_km": 0.0,
+                "elapsed_hours": round(elapsed_h, 2),
+                "initial_battery_percent": round(start_battery, 1),
+                "battery_percent": round(max(0.0, cur_batt), 1),
+                "energy_used_percent": round(used_pct, 1),
+                "energy_used_wh": round(cum_energy_wh, 1),
+                "energy_remaining_wh": round(rem_wh, 1),
+                "safety_reserve_percent": round(safety_reserve_percent, 1),
+                "battery_state": batt_state,
+                "phase": phase,
+            })
             frame_idx += 1
 
         return frames
@@ -273,14 +369,15 @@ class MissionSimulatorEngine:
 
         waypoints = route.get("waypoints", [])
         frames = self._build_trajectory_frames(
+            ptype,
             waypoints,
             winner.get("energy_details", {}).get("initial_battery_percent", 82.0),
-            energy["energy_required_percent"],
             route.get("effective_speed_mps", 0.35),
             depth_m,
             latitude,
             longitude,
             route.get("estimated_duration_hours", 24.0),
+            winner.get("energy_details", {}).get("safety_reserve_percent", 15.0),
         )
 
         base_temp = target_gap.get("model_value")

@@ -153,25 +153,29 @@
     </main>
 
     <aside class="right-panel">
-      <div class="mission-card">
+      <div class="mission-card" id="telemetryCard">
         <div class="card-hdr">
           <span>Mission Telemetry</span>
           <span id="simStatusBadge" class="badge amber">PLANNED</span>
         </div>
         <div class="metric-row"><span style="color:var(--text-dim);">Active Phase</span><span id="simPhase" class="metric-val" style="color:var(--cyan);">—</span></div>
+        <div class="metric-row"><span style="color:var(--text-dim);">Position</span><span id="simPos" class="metric-val">—</span></div>
         <div class="metric-row"><span style="color:var(--text-dim);">Elapsed Time</span><span id="simTime" class="metric-val">T + 0.0 h</span></div>
         <div class="metric-row"><span style="color:var(--text-dim);">Depth</span><span id="simDepth" class="metric-val" style="color:var(--cyan);">0 m</span></div>
-        <div class="metric-row"><span style="color:var(--text-dim);">Distance Remaining</span><span id="simDistRem" class="metric-val">—</span></div>
         <div class="metric-row"><span style="color:var(--text-dim);">Vehicle Heading</span><span id="simHeading" class="metric-val">0°</span></div>
         <div class="metric-row"><span style="color:var(--text-dim);">Ground Track</span><span id="simGroundTrack" class="metric-val">0°</span></div>
         <div class="metric-row"><span style="color:var(--text-dim);">Current Velocity</span><span id="simDragVal" class="metric-val" style="color:var(--teal);">—</span></div>
-        <div class="metric-row"><span style="color:var(--text-dim);">Current Assist / Drag</span><span id="simAssistDrag" class="metric-val">—</span></div>
-        <div style="margin-top:4px;">
-          <div class="metric-row"><span style="color:var(--text-dim);">Battery</span><span id="simBattVal" class="metric-val" style="color:var(--green);">—</span></div>
-          <div class="gauge-bar"><div id="simBattFill" class="gauge-fill" style="width:0%;"></div></div>
-          <div class="metric-row" style="margin-top:2px; font-size:10px;">
-            <span style="color:var(--text-dim);">Safety Reserve</span><span id="simSafetyReserve" class="metric-val">15%</span>
-          </div>
+        <div class="metric-row"><span style="color:var(--text-dim);">Effective Speed</span><span id="simEffSpeed" class="metric-val">0.35 m/s</span></div>
+        <div class="metric-row"><span style="color:var(--text-dim);">Current Flow</span><span id="simAssistDrag" class="metric-val">—</span></div>
+        <div class="metric-row"><span style="color:var(--text-dim);">Distance Remaining</span><span id="simDistRem" class="metric-val">—</span></div>
+
+        <div style="margin-top:6px; border-top:1px solid var(--line); padding-top:6px;">
+          <div class="metric-row"><span style="color:var(--text-dim);">Battery Level</span><span id="simBattVal" class="metric-val" style="color:var(--green);">82.0%</span></div>
+          <div class="gauge-bar"><div id="simBattFill" class="gauge-fill" style="width:82%;"></div></div>
+          <div class="metric-row" style="margin-top:4px;"><span style="color:var(--text-dim);">Energy Used</span><span id="simEnergyUsed" class="metric-val">0.0% (0 Wh)</span></div>
+          <div class="metric-row"><span style="color:var(--text-dim);">Remaining Battery</span><span id="simBattRem" class="metric-val">82.0% (2624 Wh)</span></div>
+          <div class="metric-row"><span style="color:var(--text-dim);">Safety Reserve Margin</span><span id="simSafetyReserve" class="metric-val">15.0%</span></div>
+          <div class="metric-row" style="margin-top:3px;"><span style="color:var(--text-dim);">Battery State</span><span id="simEnergyState" class="badge green">HEALTHY</span></div>
         </div>
       </div>
 
