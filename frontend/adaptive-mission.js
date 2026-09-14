@@ -28,68 +28,294 @@ function apiUrl(path) {
   return `${base.replace(/\/$/, '')}${path}`;
 }
 
-// ─── Instrument procedural 3D builders ───────────────────────────────────────
+// ─── Canvas Badge Billboard Generator (Overview Scale Visibility) ─────────
 
-function createInstrumentModel(viewer, id, type, lat, lon, depthM, headingDeg, label, status) {
+function generateInstrumentBadgeCanvas(id, ptype, name, battPct, rangeKm, isSelected, isRejected, isPassive) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 160;
+  canvas.height = 72;
+  const ctx = canvas.getContext('2d');
+
+  let borderColor = '#38bdf8'; // cyan
+  let bgColor = 'rgba(7, 20, 34, 0.92)';
+  let tagText = 'CANDIDATE';
+  let tagColor = '#38bdf8';
+
+  if (isSelected) {
+    borderColor = '#f59e0b'; // gold
+    bgColor = 'rgba(245, 158, 11, 0.25)';
+    tagText = 'SELECTED';
+    tagColor = '#f59e0b';
+  } else if (isRejected) {
+    borderColor = '#ef4444'; // red
+    bgColor = 'rgba(239, 68, 68, 0.2)';
+    tagText = 'REJECTED';
+    tagColor = '#ef4444';
+  } else if (isPassive) {
+    borderColor = '#34d399'; // green
+    tagText = 'PASSIVE';
+    tagColor = '#34d399';
+  }
+
+  // Card background
+  ctx.fillStyle = bgColor;
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(4, 4, 152, 64, 8);
+  } else {
+    ctx.rect(4, 4, 152, 64);
+  }
+  ctx.fill();
+  ctx.stroke();
+
+  // Status tag badge
+  ctx.fillStyle = tagColor;
+  ctx.font = 'bold 10px "IBM Plex Mono", monospace';
+  ctx.fillText(tagText, 12, 18);
+
+  // Instrument ID
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 13px "IBM Plex Mono", monospace';
+  ctx.fillText(id, 12, 36);
+
+  // Metrics subtext
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '10px "IBM Plex Mono", monospace';
+  if (isPassive) {
+    ctx.fillText('PASSIVE DRIFT FLOAT', 12, 54);
+  } else if (ptype === 'vessel') {
+    ctx.fillText('RESEARCH SHIP', 12, 54);
+  } else {
+    ctx.fillText(`${battPct || 80}% BATT • ${rangeKm || 400}km`, 12, 54);
+  }
+
+  return canvas.toDataURL();
+}
+
+// ─── Instrument 3D Procedural Models & Two-Scale Entities ─────────────────
+
+function createInstrumentModel(viewer, cData, isSelected, isRejected, targetGap) {
+  const id = cData.instrument_id || 'inst';
+  const ptype = cData.platform_type || 'glider';
+  const lat = cData.latitude || 0;
+  const lon = cData.longitude || 0;
+  const depthM = ptype === 'vessel' ? 0 : (cData.depth_m || 10);
+  const headingDeg = cData.heading_deg || 45;
   const pos = positionFromLatLonDepth(lat, lon, depthM);
   const orient = headingToQuaternion(headingDeg, 0);
   const parts = [];
-  const colorMap = {
-    glider: '#38bdf8', auv: '#a78bfa', vessel: '#f59e0b', argo: '#34d399'
-  };
-  const col = Cesium.Color.fromCssColorString(colorMap[type] || '#38bdf8');
 
-  if (type === 'glider') {
-    // Elongated body + wings + tail
-    parts.push(viewer.entities.add({
-      id: `${id}_body`,
-      position: pos, orientation: orient,
-      box: { dimensions: new Cesium.Cartesian3(3.5, 0.6, 0.5), material: col.withAlpha(0.95), outline: true, outlineColor: Cesium.Color.WHITE.withAlpha(0.5) }
-    }));
-    parts.push(viewer.entities.add({
-      id: `${id}_wing_l`, position: pos, orientation: orient,
-      box: { dimensions: new Cesium.Cartesian3(0.8, 2.0, 0.08), material: col.withAlpha(0.7) }
-    }));
-    parts.push(viewer.entities.add({
-      id: `${id}_tail`, position: pos, orientation: orient,
-      box: { dimensions: new Cesium.Cartesian3(0.5, 0.02, 0.8), material: col.withAlpha(0.8) }
-    }));
-  } else if (type === 'auv') {
-    parts.push(viewer.entities.add({
+  const isPassive = ptype === 'argo' || !cData.controllable;
+
+  let mainColorHex = '#38bdf8'; // glider cyan
+  if (ptype === 'auv') mainColorHex = '#a78bfa'; // auv violet
+  else if (ptype === 'vessel') mainColorHex = '#f59e0b'; // vessel amber
+  else if (ptype === 'argo') mainColorHex = '#34d399'; // float green
+
+  if (isSelected) mainColorHex = '#f59e0b';
+  else if (isRejected) mainColorHex = '#ef4444';
+
+  const col = Cesium.Color.fromCssColorString(mainColorHex);
+
+  // 1. High-contrast Overview Badge Billboard (Unmissable at overview scale)
+  const badgeUrl = generateInstrumentBadgeCanvas(
+    id, ptype, cData.name, cData.battery_percent, cData.max_range_km, isSelected, isRejected, isPassive
+  );
+
+  const anchorEnt = viewer.entities.add({
+    id: `${id}_anchor`,
+    position: pos,
+    orientation: orient,
+    billboard: {
+      image: badgeUrl,
+      scale: 0.9,
+      verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      scaleByDistance: new Cesium.NearFarScalar(1e3, 0.8, 5e6, 1.1)
+    }
+  });
+  anchorEnt.candidateData = cData;
+  parts.push(anchorEnt);
+
+  // 2. Readable Label
+  let labelTag = isSelected ? '★ SELECTED VEHICLE' : (isRejected ? `✕ REJECTED: ${cData.rejection_reason || 'Out of spec'}` : `✓ CANDIDATE (${cData.distance_to_target_km || 0} km)`);
+  if (isPassive) labelTag = 'PASSIVE • NON-STEERABLE DRIFT FLOAT';
+
+  let subText = `${ptype.toUpperCase()} • ${cData.battery_percent || 80}% BATT • ${cData.max_range_km || 400}km RANGE`;
+  if (isPassive) subText = 'PROFILING ARGO FLOAT';
+  else if (ptype === 'vessel') subText = 'ORV RESEARCH SHIP';
+
+  const lblText = `${id}\n${subText}\n${labelTag}`;
+
+  const lblEnt = viewer.entities.add({
+    id: `${id}_label`,
+    position: pos,
+    label: {
+      text: lblText,
+      font: 'bold 11px "IBM Plex Mono", monospace',
+      style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+      pixelOffset: new Cesium.Cartesian2(0, ptype === 'vessel' ? -55 : -45),
+      fillColor: Cesium.Color.WHITE,
+      outlineColor: Cesium.Color.BLACK,
+      outlineWidth: 4,
+      showBackground: true,
+      backgroundColor: Cesium.Color.fromCssColorString('rgba(7, 20, 34, 0.88)'),
+      backgroundPadding: new Cesium.Cartesian2(8, 4),
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      scaleByDistance: new Cesium.NearFarScalar(1e3, 0.9, 5e6, 1.05)
+    }
+  });
+  lblEnt.candidateData = cData;
+  parts.push(lblEnt);
+
+  // 3. Zoomed 3D Procedural Geometry
+  if (ptype === 'glider') {
+    // Fuselage Body
+    const bodyEnt = viewer.entities.add({
       id: `${id}_body`, position: pos, orientation: orient,
-      cylinder: { length: 4.0, topRadius: 0.35, bottomRadius: 0.45, material: col.withAlpha(0.95), outline: true, outlineColor: Cesium.Color.WHITE.withAlpha(0.4) }
-    }));
-    parts.push(viewer.entities.add({
-      id: `${id}_fin`, position: pos, orientation: orient,
-      box: { dimensions: new Cesium.Cartesian3(0.3, 1.2, 0.06), material: col.withAlpha(0.7) }
-    }));
-  } else if (type === 'vessel') {
-    parts.push(viewer.entities.add({
+      cylinder: { length: 200, topRadius: 15, bottomRadius: 15, material: col.withAlpha(0.9), outline: true, outlineColor: Cesium.Color.WHITE.withAlpha(0.6) }
+    });
+    bodyEnt.candidateData = cData; parts.push(bodyEnt);
+
+    // Nose Cone
+    const noseEnt = viewer.entities.add({
+      id: `${id}_nose`, position: pos, orientation: orient,
+      cylinder: { length: 50, topRadius: 0, bottomRadius: 15, material: col.withAlpha(0.95) }
+    });
+    noseEnt.candidateData = cData; parts.push(noseEnt);
+
+    // Swept Wings
+    const wingsEnt = viewer.entities.add({
+      id: `${id}_wings`, position: pos, orientation: orient,
+      box: { dimensions: new Cesium.Cartesian3(40, 220, 5), material: col.withAlpha(0.85) }
+    });
+    wingsEnt.candidateData = cData; parts.push(wingsEnt);
+
+    // Vertical Tail Fin
+    const tailEnt = viewer.entities.add({
+      id: `${id}_tail`, position: pos, orientation: orient,
+      box: { dimensions: new Cesium.Cartesian3(30, 6, 60), material: col.withAlpha(0.85) }
+    });
+    tailEnt.candidateData = cData; parts.push(tailEnt);
+
+    // CTD Sensor Pod
+    const sensorEnt = viewer.entities.add({
+      id: `${id}_sensor`, position: pos, orientation: orient,
+      ellipsoid: { radii: new Cesium.Cartesian3(12, 12, 12), material: Cesium.Color.WHITE.withAlpha(0.9) }
+    });
+    sensorEnt.candidateData = cData; parts.push(sensorEnt);
+  } else if (ptype === 'auv') {
+    // Torpedo Body
+    const bodyEnt = viewer.entities.add({
+      id: `${id}_body`, position: pos, orientation: orient,
+      cylinder: { length: 250, topRadius: 20, bottomRadius: 20, material: col.withAlpha(0.9), outline: true, outlineColor: Cesium.Color.WHITE.withAlpha(0.6) }
+    });
+    bodyEnt.candidateData = cData; parts.push(bodyEnt);
+
+    // Nose Cone
+    const noseEnt = viewer.entities.add({
+      id: `${id}_nose`, position: pos, orientation: orient,
+      cylinder: { length: 60, topRadius: 0, bottomRadius: 20, material: col.withAlpha(0.95) }
+    });
+    noseEnt.candidateData = cData; parts.push(noseEnt);
+
+    // Stern Fins
+    const finV = viewer.entities.add({
+      id: `${id}_fin_v`, position: pos, orientation: orient,
+      box: { dimensions: new Cesium.Cartesian3(30, 8, 100), material: col.withAlpha(0.8) }
+    });
+    finV.candidateData = cData; parts.push(finV);
+
+    const finH = viewer.entities.add({
+      id: `${id}_fin_h`, position: pos, orientation: orient,
+      box: { dimensions: new Cesium.Cartesian3(30, 100, 8), material: col.withAlpha(0.8) }
+    });
+    finH.candidateData = cData; parts.push(finH);
+
+    // Ventral Sensor Section
+    const sensorEnt = viewer.entities.add({
+      id: `${id}_sensor`, position: pos, orientation: orient,
+      box: { dimensions: new Cesium.Cartesian3(80, 30, 15), material: Cesium.Color.fromCssColorString('#a78bfa').withAlpha(0.85) }
+    });
+    sensorEnt.candidateData = cData; parts.push(sensorEnt);
+  } else if (ptype === 'vessel') {
+    // Hull
+    const hullEnt = viewer.entities.add({
       id: `${id}_hull`, position: pos, orientation: orient,
-      box: { dimensions: new Cesium.Cartesian3(12, 3, 2), material: col.withAlpha(0.95), outline: true, outlineColor: Cesium.Color.WHITE.withAlpha(0.4) }
-    }));
-    parts.push(viewer.entities.add({
-      id: `${id}_super`, position: pos, orientation: orient,
-      box: { dimensions: new Cesium.Cartesian3(4, 2.5, 3), material: Cesium.Color.fromCssColorString('#94a3b8').withAlpha(0.9) }
-    }));
-  } else if (type === 'argo') {
-    parts.push(viewer.entities.add({
+      box: { dimensions: new Cesium.Cartesian3(500, 100, 50), material: col.withAlpha(0.95), outline: true, outlineColor: Cesium.Color.WHITE.withAlpha(0.6) }
+    });
+    hullEnt.candidateData = cData; parts.push(hullEnt);
+
+    // Superstructure / Bridge
+    const bridgeEnt = viewer.entities.add({
+      id: `${id}_bridge`, position: pos, orientation: orient,
+      box: { dimensions: new Cesium.Cartesian3(150, 80, 80), material: Cesium.Color.fromCssColorString('#cbd5e1').withAlpha(0.9) }
+    });
+    bridgeEnt.candidateData = cData; parts.push(bridgeEnt);
+
+    // Mast
+    const mastEnt = viewer.entities.add({
+      id: `${id}_mast`, position: pos, orientation: orient,
+      cylinder: { length: 120, topRadius: 4, bottomRadius: 5, material: Cesium.Color.WHITE.withAlpha(0.9) }
+    });
+    mastEnt.candidateData = cData; parts.push(mastEnt);
+  } else if (ptype === 'argo') {
+    // Float Body
+    const floatEnt = viewer.entities.add({
       id: `${id}_float`, position: pos, orientation: orient,
-      cylinder: { length: 2.0, topRadius: 0.25, bottomRadius: 0.25, material: col.withAlpha(0.9), outline: true, outlineColor: Cesium.Color.WHITE.withAlpha(0.4) }
-    }));
+      cylinder: { length: 200, topRadius: 15, bottomRadius: 15, material: col.withAlpha(0.9), outline: true, outlineColor: Cesium.Color.WHITE.withAlpha(0.6) }
+    });
+    floatEnt.candidateData = cData; parts.push(floatEnt);
+
+    // Damping Disc
+    const discEnt = viewer.entities.add({
+      id: `${id}_disc`, position: pos, orientation: orient,
+      cylinder: { length: 8, topRadius: 60, bottomRadius: 60, material: col.withAlpha(0.7) }
+    });
+    discEnt.candidateData = cData; parts.push(discEnt);
+
+    // Antenna
+    const antEnt = viewer.entities.add({
+      id: `${id}_antenna`, position: pos, orientation: orient,
+      cylinder: { length: 120, topRadius: 3, bottomRadius: 3, material: Cesium.Color.WHITE.withAlpha(0.9) }
+    });
+    antEnt.candidateData = cData; parts.push(antEnt);
   }
 
-  const lblText = type === 'argo' ? `${label}\nPASSIVE / NON-STEERABLE` : `${label}\n${status || ''}`;
-  parts.push(viewer.entities.add({
-    id: `${id}_label`, position: pos,
-    label: {
-      text: lblText, font: 'bold 10px IBM Plex Mono',
-      style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-      pixelOffset: new Cesium.Cartesian2(0, type === 'vessel' ? -30 : -22),
-      fillColor: Cesium.Color.WHITE, outlineColor: Cesium.Color.BLACK, outlineWidth: 3,
-      scale: 0.9, disableDepthTestDistance: Number.POSITIVE_INFINITY
-    }
-  }));
+  // 4. Selected Vehicle Emphasis: Glowing Target Polyline & Ring Halo
+  if (isSelected && targetGap && targetGap.latitude) {
+    const targetPos = positionFromLatLonDepth(targetGap.latitude, targetGap.longitude, 0);
+
+    const targetLineEnt = viewer.entities.add({
+      id: `${id}_target_line`,
+      polyline: {
+        positions: [pos, targetPos],
+        width: 4,
+        material: new Cesium.PolylineGlowMaterialProperty({
+          glowPower: 0.4,
+          color: Cesium.Color.fromCssColorString('#f59e0b')
+        })
+      }
+    });
+    targetLineEnt.candidateData = cData; parts.push(targetLineEnt);
+
+    const haloEnt = viewer.entities.add({
+      id: `${id}_halo`,
+      position: pos,
+      ellipse: {
+        semiMajorAxis: 35000,
+        semiMinorAxis: 35000,
+        height: 0,
+        material: Cesium.Color.fromCssColorString('#f59e0b').withAlpha(0.2),
+        outline: true,
+        outlineColor: Cesium.Color.fromCssColorString('#f59e0b'),
+        outlineWidth: 3
+      }
+    });
+    haloEnt.candidateData = cData; parts.push(haloEnt);
+  }
 
   return parts;
 }
@@ -107,7 +333,61 @@ function removeEntityGroup(parts) {
   parts.forEach(p => { try { viewer.entities.remove(p); } catch (_) {} });
 }
 
-// ─── Globe init ──────────────────────────────────────────────────────────────
+// ─── Instrument Info Modal ────────────────────────────────────────────────
+
+function openInstrumentModal(c) {
+  const modal = document.getElementById('instrumentInfoModal');
+  if (!modal) return;
+
+  const winnerId = currentMissionData?.selected_winner?.instrument_id;
+  const isSelected = c.instrument_id === winnerId;
+  const isRejected = !c.feasible;
+  const isPassive = c.platform_type === 'argo' || !c.controllable;
+
+  document.getElementById('modalTitle').textContent = `${c.instrument_id} (${c.name || ''})`;
+
+  const badgeEl = document.getElementById('modalStatusBadge');
+  if (isSelected) {
+    badgeEl.textContent = 'RECOMMENDED WINNER';
+    badgeEl.className = 'badge green';
+  } else if (isRejected) {
+    badgeEl.textContent = 'REJECTED';
+    badgeEl.className = 'badge red';
+  } else if (isPassive) {
+    badgeEl.textContent = 'PASSIVE DRIFT';
+    badgeEl.className = 'badge amber';
+  } else {
+    badgeEl.textContent = 'CANDIDATE';
+    badgeEl.className = 'badge blue';
+  }
+
+  document.getElementById('mValId').textContent = c.instrument_id;
+  document.getElementById('mValType').textContent = (c.platform_type || '').toUpperCase();
+  document.getElementById('mValPos').textContent = `${c.latitude.toFixed(2)}° N, ${c.longitude.toFixed(2)}° E`;
+  document.getElementById('mValDepthCap').textContent = `${c.maximum_depth_m || 1000} m`;
+  document.getElementById('mValRange').textContent = isPassive ? 'N/A (Passive Drift)' : `${c.max_range_km || 400} km`;
+  document.getElementById('mValBatt').textContent = `${c.battery_percent}%`;
+  document.getElementById('mValSensors').textContent = c.sensors ? c.sensors.join(', ') : 'CTD (Conductivity, Temp, Depth), Dissolved Oxygen';
+  document.getElementById('mValCtrl').textContent = c.controllable ? 'YES (Steerable Autonav)' : 'NO (Passive Float)';
+
+  const statusText = isRejected
+    ? `REJECTED: ${c.rejection_reason || 'Constraint limit exceeded'}`
+    : (isSelected ? 'FEASIBLE & OPTIMAL — Selected for Mission Execution' : 'FEASIBLE CANDIDATE');
+  document.getElementById('mValStatus').textContent = statusText;
+
+  modal.classList.remove('hidden');
+
+  // Highlight candidate card in sidebar
+  document.querySelectorAll('.candidate-item').forEach(el => {
+    if (el.dataset.instrumentId === c.instrument_id) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      el.style.outline = '2px solid var(--accent)';
+      setTimeout(() => { el.style.outline = 'none'; }, 2000);
+    }
+  });
+}
+
+// ─── Globe Init ─────────────────────────────────────────────────────────────
 
 async function initMissionGlobe() {
   const token = (typeof window !== 'undefined' && window.CESIUM_ION_TOKEN) || '';
@@ -121,22 +401,39 @@ async function initMissionGlobe() {
   });
   viewer.scene.globe.depthTestAgainstTerrain = true;
 
-  viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(88.7, 15.4, 1800000),
-    orientation: { heading: 0, pitch: Cesium.Math.toRadians(-55), roll: 0 },
-    duration: 1.5
-  });
-
+  // Globe picking handler for instrument modal popups
   const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-  handler.setInputAction(async (click) => {
+  handler.setInputAction((click) => {
+    const picked = viewer.scene.pick(click.position);
+    if (Cesium.defined(picked) && picked.id) {
+      let candidate = picked.id.candidateData;
+      if (!candidate && typeof picked.id.id === 'string') {
+        const parentId = picked.id.id.split('_')[0];
+        candidate = (currentMissionData?.all_candidates || []).find(c => c.instrument_id === parentId);
+      }
+      if (candidate) {
+        openInstrumentModal(candidate);
+        return;
+      }
+    }
+
     const cartesian = viewer.camera.pickEllipsoid(click.position, viewer.scene.globe.ellipsoid);
     if (cartesian) {
       const c = Cesium.Cartographic.fromCartesian(cartesian);
-      await loadAdaptiveMissionForLocation(Cesium.Math.toDegrees(c.latitude), Cesium.Math.toDegrees(c.longitude));
+      loadAdaptiveMissionForLocation(Cesium.Math.toDegrees(c.latitude), Cesium.Math.toDegrees(c.longitude));
     }
   }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
   buildPhaseTimeline();
+
+  const closeBtn = document.getElementById('modalCloseBtn');
+  if (closeBtn) {
+    closeBtn.onclick = () => {
+      const m = document.getElementById('instrumentInfoModal');
+      if (m) m.classList.add('hidden');
+    };
+  }
+
   await loadAdaptiveMissionForLocation(15.4, 88.7);
 }
 
@@ -149,7 +446,7 @@ function clearMissionGlobe() {
   });
 }
 
-// ─── Current field arrows ────────────────────────────────────────────────────
+// ─── Current Field Arrows ───────────────────────────────────────────────────
 
 function renderCurrentField(field) {
   if (!field || !field.length) return;
@@ -174,7 +471,7 @@ function renderCurrentField(field) {
   });
 }
 
-// ─── Gap target ──────────────────────────────────────────────────────────────
+// ─── Gap Target ─────────────────────────────────────────────────────────────
 
 function renderGapTarget(gap) {
   const ent = viewer.entities.add({
@@ -186,16 +483,17 @@ function renderGapTarget(gap) {
     },
     label: {
       text: `GAP TARGET\n${gap.latitude}°N ${gap.longitude}°E\nDepth ${gap.depth_m}m | Priority ${gap.priority_score}%`,
-      font: 'bold 11px IBM Plex Mono', style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+      font: 'bold 11px "IBM Plex Mono", monospace', style: Cesium.LabelStyle.FILL_AND_OUTLINE,
       pixelOffset: new Cesium.Cartesian2(0, -40),
       fillColor: Cesium.Color.fromCssColorString('#f59e0b'),
-      outlineColor: Cesium.Color.BLACK, outlineWidth: 3
+      outlineColor: Cesium.Color.BLACK, outlineWidth: 3,
+      disableDepthTestDistance: Number.POSITIVE_INFINITY
     }
   });
   missionEntities.push(ent);
 }
 
-// ─── Route polylines ─────────────────────────────────────────────────────────
+// ─── Route Polylines ────────────────────────────────────────────────────────
 
 function renderRoutePolyline(waypoints, color, width, glow, id) {
   if (!waypoints || waypoints.length < 2) return null;
@@ -215,30 +513,20 @@ function renderRoutePolyline(waypoints, color, width, glow, id) {
   return ent;
 }
 
-// ─── Render all fleet instruments ────────────────────────────────────────────
+// ─── Render All Fleet Instruments ───────────────────────────────────────────
 
-function renderFleetInstruments(candidates, selectedId) {
+function renderFleetInstruments(candidates, selectedId, targetGap) {
   candidates.forEach(c => {
     const id = c.instrument_id;
     const isRejected = !c.feasible;
     const isSelected = id === selectedId;
-    const parts = createInstrumentModel(
-      viewer, id, c.platform_type,
-      c.latitude, c.longitude, c.platform_type === 'vessel' ? 0 : 5,
-      45, c.name,
-      isRejected ? 'REJECTED' : (isSelected ? 'SELECTED' : `${c.distance_to_target_km} km`)
-    );
-    if (isRejected) {
-      parts.forEach(p => {
-        if (p.box) p.box.material = Cesium.Color.fromCssColorString('#ef4444').withAlpha(0.4);
-        if (p.cylinder) p.cylinder.material = Cesium.Color.fromCssColorString('#ef4444').withAlpha(0.4);
-      });
-    }
+
+    const parts = createInstrumentModel(viewer, c, isSelected, isRejected, targetGap);
     instrumentEntities[id] = parts;
   });
 }
 
-// ─── UI rendering ────────────────────────────────────────────────────────────
+// ─── UI Rendering ───────────────────────────────────────────────────────────
 
 function renderMissionPlanUI(plan) {
   const gap = plan.target_gap || {};
@@ -261,13 +549,30 @@ function renderMissionPlanUI(plan) {
     const cls = !c.feasible ? 'rejected' : (winner.instrument_id === c.instrument_id ? 'selected' : '');
     const badge = !c.feasible ? '<span class="badge red">REJECTED</span>'
       : (winner.instrument_id === c.instrument_id ? '<span class="badge green">SELECTED</span>' : '<span class="badge blue">CANDIDATE</span>');
-    return `<div class="candidate-item ${cls}">
+    return `<div class="candidate-item ${cls}" data-instrument-id="${c.instrument_id}">
       <div class="c-name"><span>${c.name}</span>${badge}</div>
       <div style="font-size:10px;color:var(--text-dim);">${c.platform_type.toUpperCase()} | ${c.distance_to_target_km} km | Max ${c.maximum_depth_m}m | Batt ${c.battery_percent}%</div>
       <div class="candidate-checks">${checkHtml}</div>
       ${c.rejection_reason ? `<div style="color:#ef4444;font-size:9px;margin-top:3px;">${c.rejection_reason}</div>` : ''}
     </div>`;
   }).join('');
+
+  document.querySelectorAll('.candidate-item').forEach(el => {
+    el.onclick = () => {
+      const instId = el.dataset.instrumentId;
+      const candidate = (allCandidates || []).find(c => c.instrument_id === instId);
+      if (candidate) {
+        openInstrumentModal(candidate);
+        if (viewer) {
+          viewer.camera.flyTo({
+            destination: positionFromLatLonDepth(candidate.latitude, candidate.longitude, 80000),
+            orientation: { heading: 0, pitch: Cesium.Math.toRadians(-45), roll: 0 },
+            duration: 1.2
+          });
+        }
+      }
+    };
+  });
 
   if (winner && winner.route_details) {
     const route = winner.route_details;
@@ -321,7 +626,7 @@ function setActivePhase(index) {
   });
 }
 
-// ─── Globe overlay (pre-play) ────────────────────────────────────────────────
+// ─── Globe Overlay (pre-play) ────────────────────────────────────────────────
 
 function renderMissionGlobeOverlay(plan) {
   if (!viewer) return;
@@ -330,15 +635,33 @@ function renderMissionGlobeOverlay(plan) {
   const gap = plan.target_gap || {};
   const winner = plan.selected_winner || {};
   const route = winner.route_details || {};
+  const candidates = plan.all_candidates || [];
 
   renderGapTarget(gap);
-  renderFleetInstruments(plan.all_candidates || [], winner.instrument_id);
+  renderFleetInstruments(candidates, winner.instrument_id, gap);
   renderCurrentField(plan.current_field || route.current_field || []);
 
   if (route.selected_route) {
     renderRoutePolyline(route.selected_route.waypoints, '#3fe0c5', 4, true, 'selected_route');
   } else if (route.waypoints) {
     renderRoutePolyline(route.waypoints, '#3fe0c5', 4, true, 'selected_route');
+  }
+
+  // Camera framing: Zoom so ALL candidate instruments and target gap are visible on page load!
+  if (candidates.length > 0 && gap.latitude) {
+    const pts = [
+      Cesium.Cartesian3.fromDegrees(gap.longitude, gap.latitude),
+      ...candidates.map(c => Cesium.Cartesian3.fromDegrees(c.longitude, c.latitude))
+    ];
+    const bs = Cesium.BoundingSphere.fromPoints(pts);
+    viewer.camera.flyToBoundingSphere(bs, {
+      duration: 1.5,
+      offset: new Cesium.HeadingPitchRange(
+        Cesium.Math.toRadians(0),
+        Cesium.Math.toRadians(-50),
+        Math.max(bs.radius * 2.8, 500000)
+      )
+    });
   }
 }
 
@@ -493,7 +816,7 @@ class MissionPlayback {
     // Show all candidates
     setActivePhase(2);
     document.getElementById('simPhase').textContent = '03 FEASIBILITY CHECK';
-    renderFleetInstruments(this.sim.all_candidates || [], null);
+    renderFleetInstruments(this.sim.all_candidates || [], null, gap);
     await this.wait(1200 / this.speed);
 
     // Highlight rejections then selection
@@ -513,7 +836,7 @@ class MissionPlayback {
 
     setActivePhase(3);
     document.getElementById('simPhase').textContent = '04 INSTRUMENT SELECTED';
-    renderFleetInstruments(this.sim.all_candidates || [], selId);
+    renderFleetInstruments(this.sim.all_candidates || [], selId, gap);
     await this.wait(600 / this.speed);
 
     // Route planning animation
@@ -534,11 +857,12 @@ class MissionPlayback {
     // Create vehicle at start
     const startWp = (routing.selected_route || {}).waypoints?.[0] || this.frames[0];
     if (startWp) {
-      this.vehicleParts = createInstrumentModel(
-        viewer, 'vehicle', winner.platform_type,
-        startWp.latitude, startWp.longitude, 0,
-        startWp.heading_deg || 0, winner.name, 'DEPLOYING'
-      );
+      const activeWinnerData = Object.assign({}, winner, {
+        latitude: startWp.latitude,
+        longitude: startWp.longitude,
+        heading_deg: startWp.heading_deg || 0
+      });
+      this.vehicleParts = createInstrumentModel(viewer, activeWinnerData, true, false, gap);
     }
     this.prePhaseDone = true;
   }
