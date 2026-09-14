@@ -2304,6 +2304,10 @@ async function initCesiumGlobe(){
   });
   window.viewer = viewer;
 
+  // Immediately dismiss loading overlay as soon as viewer instance is created!
+  const loader = document.getElementById("loading");
+  if(loader) loader.style.display = "none";
+
   state.worldTerrainLoaded = false;
   state.terrainProviderType = "EllipsoidTerrainProvider (Smooth WGS84 Ellipsoid)";
 
@@ -6184,6 +6188,12 @@ if(btnPrevStory) btnPrevStory.onclick = prevStoryStep;
 // Boot Sequence
 // ---------------------------------------------------------------------
 (async function boot(){
+  // Immediate safety timeout: ensure loading screen overlay is dismissed
+  setTimeout(() => {
+    const l = document.getElementById("loading");
+    if(l) l.style.display = "none";
+  }, 1200);
+
   try{
     await initCesiumGlobe();
     // Initialize Natural Earth pixel-perfect ocean land-sea mask
