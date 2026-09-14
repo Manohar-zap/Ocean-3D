@@ -818,18 +818,22 @@ function drawProfileChart() {
   const ctx = canvas.getContext('2d');
   const w = canvas.width, h = canvas.height;
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = '#11273c';
+  ctx.fillStyle = '#0c1e30';
   ctx.fillRect(0, 0, w, h);
 
-  // Axes
-  ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(50, 10); ctx.lineTo(50, h - 20); ctx.lineTo(w - 10, h - 20); ctx.stroke();
-  ctx.fillStyle = '#94a3b8'; ctx.font = '9px IBM Plex Mono';
+  // Axes & Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(50, 15); ctx.lineTo(50, h - 25); ctx.lineTo(w - 15, h - 25); ctx.stroke();
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '9px "IBM Plex Mono", monospace';
   ctx.fillText('Depth (m)', 4, h / 2);
-  ctx.fillText('T (°C)', w / 2 - 20, h - 6);
+  ctx.fillText('T (°C) / S (PSU)', w / 2 - 35, h - 8);
 
   if (!profilePoints.length) {
-    ctx.fillStyle = '#64748b'; ctx.fillText('Awaiting sampling...', w / 2 - 50, h / 2);
+    ctx.fillStyle = '#64748b';
+    ctx.fillText('Awaiting CTD sampling...', w / 2 - 55, h / 2);
     return;
   }
 
@@ -838,19 +842,29 @@ function drawProfileChart() {
   const minT = Math.min(...temps) - 1, maxT = Math.max(...temps) + 1;
 
   profilePoints.forEach((p, i) => {
-    const x = 50 + ((p.temp - minT) / (maxT - minT)) * (w - 70);
-    const y = 10 + (p.depth / maxDepth) * (h - 40);
-    ctx.fillStyle = '#38bdf8';
-    ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+    const x = 50 + ((p.temp - minT) / Math.max(1, maxT - minT)) * (w - 75);
+    const y = 15 + (p.depth / maxDepth) * (h - 45);
+
+    const isTarget = currentMissionData && Math.abs(p.depth - (currentMissionData.target_gap?.depth_m || 500)) < 20;
+
+    // Draw point node
+    ctx.fillStyle = isTarget ? '#f59e0b' : '#38bdf8';
+    ctx.beginPath();
+    ctx.arc(x, y, isTarget ? 6 : 4, 0, Math.PI * 2);
+    ctx.fill();
+
     if (i > 0) {
       const prev = profilePoints[i - 1];
-      const px = 50 + ((prev.temp - minT) / (maxT - minT)) * (w - 70);
-      const py = 10 + (prev.depth / maxDepth) * (h - 40);
-      ctx.strokeStyle = '#3fe0c5'; ctx.lineWidth = 2;
+      const px = 50 + ((prev.temp - minT) / Math.max(1, maxT - minT)) * (w - 75);
+      const py = 15 + (prev.depth / maxDepth) * (h - 45);
+      ctx.strokeStyle = '#3fe0c5';
+      ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(x, y); ctx.stroke();
     }
-    ctx.fillStyle = '#94a3b8'; ctx.font = '8px IBM Plex Mono';
-    ctx.fillText(`${p.depth}m`, x + 6, y + 3);
+
+    ctx.fillStyle = isTarget ? '#f59e0b' : '#94a3b8';
+    ctx.font = isTarget ? 'bold 9px "IBM Plex Mono", monospace' : '8px "IBM Plex Mono", monospace';
+    ctx.fillText(`${p.depth}m ${p.temp}°C`, x + 7, y + 3);
   });
 }
 
@@ -887,10 +901,23 @@ function updateWaterColumn(depthM, sample, targetDepthM, seafloorM, bathyStatus)
   }).join('<div style="color:var(--teal); text-align:center; line-height:1.2;">↓</div>');
 
   if (sample) {
-    const sim = sample.simulated ? ' <span style="color:#f59e0b;">(SIMULATED)</span>' : '';
+    const isTarget = Math.abs(sample.depth_m - targetD) < 20;
+    const provBadge = sample.simulated
+      ? '<span class="badge amber">SIMULATED MEASUREMENT</span>'
+      : '<span class="badge blue">MODEL-DERIVED SIMULATION</span>';
+    const targetTag = isTarget
+      ? '<div style="color:#34d399; font-weight:700; margin-top:4px; letter-spacing:0.5px;">★ TARGET VARIABLE ACQUIRED</div>'
+      : '';
+
     document.getElementById('wcSampleReadout').innerHTML =
-      `<div style="color:var(--accent);font-weight:700;margin-bottom:2px;">SAMPLING AT ${depthM} m</div>
-       TEMP ${sample.temperature_c} °C<br>SALINITY ${sample.salinity_psu} PSU<br>PRESSURE ${sample.pressure_dbar} dbar${sim}`;
+      `<div style="color:var(--accent); font-weight:700; margin-bottom:2px;">CTD SAMPLING AT ${sample.depth_m} m</div>
+       <div style="font-size:9.5px; line-height:1.6; color:var(--text);">
+         TEMP: <b style="color:var(--cyan);">${sample.temperature_c} °C</b><br>
+         SALINITY: <b style="color:var(--teal);">${sample.salinity_psu} PSU</b><br>
+         PRESSURE: <b style="color:var(--text-dim);">${sample.pressure_dbar} dbar</b>
+       </div>
+       <div style="margin-top:4px;">${provBadge}</div>
+       ${targetTag}`;
   }
 }
 
@@ -1178,41 +1205,95 @@ class MissionPlayback {
   }
 
   updateSamplingFrame(sample, idx) {
+    const targetDepthM = this.sim.target?.depth_m || 500;
+    const isTarget = Math.abs(sample.depth_m - targetDepthM) < 20;
+
     setActivePhase(11);
-    document.getElementById('simPhase').textContent = '12 SENSOR SAMPLING';
-    document.getElementById('simStatusBadge').textContent = 'SAMPLING';
+    document.getElementById('simPhase').textContent = isTarget
+      ? '12 SENSOR SAMPLING — TARGET VARIABLE ACQUIRED'
+      : `12 SENSOR SAMPLING AT ${sample.depth_m}m`;
+
+    document.getElementById('simStatusBadge').textContent = isTarget ? 'TARGET ACQUIRED' : 'SAMPLING';
+    document.getElementById('simStatusBadge').className = isTarget ? 'badge green' : 'badge blue';
     document.getElementById('simDepth').textContent = `${sample.depth_m} m`;
 
-    const targetDepthM = this.sim.target?.depth_m || 500;
     updateWaterColumn(sample.depth_m, sample, targetDepthM, this.sim.seafloor_depth_m, this.sim.bathymetry_status);
     addProfilePoint(sample.depth_m, sample.temperature_c, sample.salinity_psu);
 
+    // Update Dive Sequence UI
     const el = document.getElementById(`s_${sample.depth_m}`);
     if (el) {
-      const sim = sample.simulated ? ' (SIM)' : '';
-      el.innerHTML = `<span style="color:#34d399;font-weight:700;">✓ T=${sample.temperature_c}°C S=${sample.salinity_psu}${sim}</span>`;
+      const provTag = sample.simulated ? ' [SIM]' : ' [MODEL]';
+      const glowCls = isTarget ? 'style="color:#34d399; font-weight:700;"' : 'style="color:#38bdf8;"';
+      el.innerHTML = `<span ${glowCls}>✓ T=${sample.temperature_c}°C S=${sample.salinity_psu}${provTag}${isTarget ? ' ★ TARGET ACQUIRED' : ''}</span>`;
     }
 
+    // Stop vehicle translation & deploy CTD probe with winch cable in 3D
+    const target = this.sim.target;
     if (this.vehicleParts) {
-      const target = this.sim.target;
-      updateInstrumentParts(this.vehicleParts, target.latitude, target.longitude, sample.depth_m, 0, 0);
+      updateInstrumentParts(this.vehicleParts, target.latitude, target.longitude, 0.0, 0, 0);
     }
 
-    viewer.camera.lookAt(
-      positionFromLatLonDepth(this.sim.target.latitude, this.sim.target.longitude, sample.depth_m),
-      new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-18), Math.max(450, sample.depth_m * 1.4))
-    );
-  }
+    if (!this.sensorProbeEnt) {
+      // 3D CTD Rosette Probe Package
+      this.sensorProbeEnt = viewer.entities.add({
+        position: positionFromLatLonDepth(target.latitude, target.longitude, sample.depth_m),
+        cylinder: {
+          length: 14,
+          topRadius: 8,
+          bottomRadius: 8,
+          material: Cesium.Color.fromCssColorString('#38bdf8').withAlpha(0.95),
+          outline: true,
+          outlineColor: Cesium.Color.WHITE
+        },
+        label: {
+          text: `CTD PROBE: ${sample.depth_m}m`,
+          font: 'bold 11px "IBM Plex Mono", monospace',
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          fillColor: Cesium.Color.WHITE,
+          outlineColor: Cesium.Color.BLACK,
+          outlineWidth: 3,
+          pixelOffset: new Cesium.Cartesian2(0, -22),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY
+        }
+      });
+      missionEntities.push(this.sensorProbeEnt);
 
+      // 3D Winch Cable
+      this.winchCableEnt = viewer.entities.add({
+        polyline: {
+          positions: new Cesium.CallbackProperty(() => [
+            positionFromLatLonDepth(target.latitude, target.longitude, 0),
+            positionFromLatLonDepth(target.latitude, target.longitude, this.currentProbeDepth || sample.depth_m)
+          ], false),
+          width: 3,
+          material: Cesium.Color.fromCssColorString('#cbd5e1')
+        }
+      });
+      missionEntities.push(this.winchCableEnt);
+    } else {
+      this.sensorProbeEnt.position = positionFromLatLonDepth(target.latitude, target.longitude, sample.depth_m);
+      this.currentProbeDepth = sample.depth_m;
+      if (this.sensorProbeEnt.label) {
+        this.sensorProbeEnt.label.text = isTarget
+          ? `★ CTD TARGET PROBE: ${sample.depth_m}m`
+          : `CTD PROBE: ${sample.depth_m}m`;
+      }
+    }
+
+    // Camera Director focuses on underwater CTD sampling probe at depth
+    const headingRad = Cesium.Math.toRadians(this.sim.selected_platform?.heading_deg || 0);
     viewer.camera.lookAt(
       positionFromLatLonDepth(this.sim.target.latitude, this.sim.target.longitude, sample.depth_m),
-      new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-15), 600)
+      new Cesium.HeadingPitchRange(headingRad, Cesium.Math.toRadians(-18), Math.max(450, sample.depth_m * 1.4))
     );
   }
 
   showGapReduction() {
     setActivePhase(13);
     document.getElementById('simPhase').textContent = '14 INFORMATION GAP REASSESSED';
+    document.getElementById('simStatusBadge').textContent = 'DATA ACQUIRED';
+    document.getElementById('simStatusBadge').className = 'badge green';
     const before = this.sim.before_simulation.information_gap_percent;
     const after = this.sim.after_simulation.information_gap_percent;
     document.getElementById('gapBefore').textContent = `${before}%`;
