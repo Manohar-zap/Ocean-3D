@@ -1357,8 +1357,10 @@ class NOAAGDPDrifterAdapter:
         # (platform_id, lat, lon, name, region)
         ("GDP-4301501", 15.20, 88.40, "NOAA GDP Surface Drifter 4301501", "Bay of Bengal"),
         ("GDP-4301502", 11.50, 85.10, "NOAA GDP Surface Drifter 4301502", "Bay of Bengal"),
+        ("GDP-4301503", 13.80, 82.50, "NOAA GDP Surface Drifter 4301503", "Bay of Bengal"),
         ("GDP-5201601", 14.80, 68.20, "NOAA GDP Surface Drifter 5201601", "Arabian Sea"),
         ("GDP-5201602",  9.10, 71.50, "NOAA GDP Surface Drifter 5201602", "Arabian Sea"),
+        ("GDP-5201603", 16.20, 69.50, "NOAA GDP Surface Drifter 5201603", "Arabian Sea"),
         ("GDP-1300501", 32.50, -64.20, "NOAA GDP Atlantic Surface Drifter 1300501", "North Atlantic"),
         ("GDP-1300502", 24.10, -78.50, "NOAA GDP Gulf Stream Surface Drifter 1300502", "Atlantic"),
         ("GDP-3301201",  0.50, -140.20, "NOAA GDP Equatorial Pacific Surface Drifter", "Pacific"),
@@ -1420,6 +1422,8 @@ class OceanSITESAdapter:
 
     STATIONS = [
         # (platform_id, lat, lon, name, region)
+        ("OS-RAMA-BOB", 15.00, 90.00, "OceanSITES RAMA Bay of Bengal Observatory", "Bay of Bengal"),
+        ("OS-RAMA-EQ", 0.00, 80.50, "OceanSITES RAMA Equatorial Indian Ocean Observatory", "Equatorial Indian Ocean"),
         ("OS-KEO", 32.30, 144.60, "OceanSITES Kuroshio Extension Observatory (KEO)", "North Pacific"),
         ("OS-PAPA", 50.10, -144.90, "OceanSITES Station Papa Ocean Observatory", "North Pacific"),
         ("OS-NTAS", 14.82, -51.02, "OceanSITES Northwest Tropical Atlantic Station (NTAS)", "Tropical Atlantic"),
@@ -1506,6 +1510,8 @@ class AUV_ERDDAP_Adapter:
     """NOAA / IOOS ERDDAP Autonomous Underwater Vehicle (AUV) Mission Adapter."""
 
     AUV_STATIONS = [
+        ("AUV-INCOIS-01", 15.10, 88.20, "INCOIS Deep Survey AUV Mission", "Bay of Bengal"),
+        ("AUV-NIOT-02", 12.40, 72.80, "NIOT Coastal AUV Survey", "Arabian Sea"),
         ("AUV-DORADO-01", 36.75, -122.15, "MBARI Dorado AUV Mission", "Monterey Bay"),
         ("AUV-SENTRY-02", 15.30, -61.20, "WHOI Sentry Deep AUV Dive", "Caribbean Sea"),
         ("AUV-CNAV-03", 26.50, -89.20, "C-NAV Gulf of Mexico AUV Survey", "Gulf of Mexico"),
@@ -1589,6 +1595,8 @@ class USV_Saildrone_Adapter:
     """NOAA ERDDAP / Saildrone Uncrewed Surface Vehicle (USV) Deployment Adapter."""
 
     USV_STATIONS = [
+        ("USV-INCOIS-SAILDRONE", 13.50, 85.40, "INCOIS / Saildrone Bay of Bengal USV", "Bay of Bengal"),
+        ("USV-RAMA-WAVEGLIDER", 8.20, 76.50, "INCOIS / RAMA Arabian Sea Wave Glider", "Arabian Sea"),
         ("USV-SAILDRONE-1021", 12.40, -45.20, "Saildrone USV Tropical Atlantic Mission", "Atlantic"),
         ("USV-SAILDRONE-1045", 35.80, -74.10, "Saildrone USV Gulf Stream Survey", "North Atlantic"),
         ("USV-WAVEGLIDER-03", 21.30, -157.80, "IOOS Wave Glider Hawaii Coastal USV", "Pacific"),
@@ -1647,6 +1655,8 @@ class ROV_OceanExploration_Adapter:
     """NOAA Ocean Exploration / OET / MBARI Deep-Sea ROV Dive Station Adapter."""
 
     ROV_STATIONS = [
+        ("ROV-SAGAR-DISCOVERER", 14.20, 87.80, "INCOIS / ORV Sagar Kanya Deep ROV Dive", "Bay of Bengal"),
+        ("ROV-NIOT-SAMUDRA", 11.80, 73.20, "NIOT Samudra Deep ROV Dive", "Arabian Sea"),
         ("ROV-DISCOVERER-01", 11.20, 142.10, "NOAA ROV Deep Discoverer Mariana Trench Dive", "Pacific"),
         ("ROV-HERCULES-02", 0.80, -91.20, "OET ROV Hercules Galapagos Rift Survey", "Pacific"),
         ("ROV-VENTANA-03", 36.70, -122.00, "MBARI ROV Ventana Monterey Canyon Dive", "Pacific"),
@@ -1731,6 +1741,8 @@ class ResearchVesselUnderwayAdapter:
 
     VESSEL_STATIONS = [
         ("R/V-SAGAR-KANYA", 12.80, 74.80, "INCOIS ORV Sagar Kanya Underway Track", "Indian Ocean"),
+        ("R/V-SAGAR-NIDHI", 15.80, 84.50, "NIOT Sagar Nidhi Underway Track", "Bay of Bengal"),
+        ("R/V-SAGAR-SAMPADA", 9.50, 75.20, "CIFT Sagar Sampada Underway Track", "Arabian Sea"),
         ("R/V-ROGER-REVELLE", 18.20, -155.10, "R/V Roger Revelle Underway TSG", "Pacific"),
         ("R/V-FALKOR", -18.20, 148.50, "Schmidt Ocean R/V Falkor Underway Survey", "Coral Sea"),
         ("R/V-THOMPSON", 47.60, -122.30, "R/V Thomas G. Thompson Pacific Transect", "North Pacific"),
