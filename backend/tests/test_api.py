@@ -120,6 +120,20 @@ class TestOCEAN3DAPI(unittest.TestCase):
         self.assertIn("depths", data)
         self.assertIn("grid", data)
 
+    def test_adaptive_mission_html(self):
+        response = self.client.get("/adaptive-mission.html")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("ADAPTIVE MISSION PLANNER", response.text)
+
+    def test_static_frontend_files(self):
+        res_js = self.client.get("/adaptive-mission.js")
+        self.assertEqual(res_js.status_code, 200)
+        res_css = self.client.get("/adaptive-mission.css")
+        self.assertEqual(res_css.status_code, 200)
+        res_index = self.client.get("/index.html")
+        self.assertEqual(res_index.status_code, 200)
+
 
 if __name__ == "__main__":
     unittest.main()
+

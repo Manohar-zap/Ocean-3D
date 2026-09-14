@@ -802,6 +802,24 @@ def read_root():
     return {"status": "ok", "message": "OCEAN 3D API Gateway is active. Visit /docs for API documentation."}
 
 
+@app.get("/index.html")
+def get_index_html():
+    """Serve frontend/index.html on /index.html"""
+    for candidate in ["frontend/index.html", "../frontend/index.html", os.path.join("..", "frontend", "index.html")]:
+        if os.path.exists(candidate):
+            return FileResponse(candidate)
+    raise HTTPException(404, "index.html not found")
+
+
+@app.get("/adaptive-mission.html")
+def get_adaptive_mission_html():
+    """Serve frontend/adaptive-mission.html on /adaptive-mission.html"""
+    for candidate in ["frontend/adaptive-mission.html", "../frontend/adaptive-mission.html", os.path.join("..", "frontend", "adaptive-mission.html")]:
+        if os.path.exists(candidate):
+            return FileResponse(candidate)
+    raise HTTPException(404, "adaptive-mission.html not found")
+
+
 @app.get("/config.js")
 def get_config_js():
     """Serve frontend/config.js to prevent 404 when frontend is opened via backend host."""
@@ -817,10 +835,24 @@ def service_worker():
     return PlainTextResponse("// Service worker placeholder\nself.addEventListener('fetch', function(event) {});", media_type="application/javascript")
 
 
-# Serve static assets from frontend directory if present
-_frontend_path = "frontend" if os.path.exists("frontend") else ("../frontend" if os.path.exists("../frontend") else None)
+# Serve static assets and full frontend directory if present
+_base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_frontend_candidates = [
+    "frontend",
+    "../frontend",
+    os.path.join("..", "frontend"),
+    os.path.join(_base_dir, "frontend")
+]
+_frontend_path = None
+for _c in _frontend_candidates:
+    if os.path.exists(_c):
+        _frontend_path = _c
+        break
+
 if _frontend_path:
     if os.path.exists(os.path.join(_frontend_path, "assets")):
         app.mount("/assets", StaticFiles(directory=os.path.join(_frontend_path, "assets")), name="assets")
+    app.mount("/", StaticFiles(directory=_frontend_path, html=True), name="frontend")
+
 
 
