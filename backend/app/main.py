@@ -191,7 +191,7 @@ _ARGOVIS_TRACK_CACHE: dict[str, list[dict]] = {}
 
 @app.get("/api/observations")
 def query_observations(
-    platform_type: Optional[str] = Query(None, description="argo | glider | ctd | bgc | mooring"),
+    platform_type: Optional[str] = Query(None, description="argo | glider | ctd | bgc | mooring | drifter | oceansites | auv | usv | rov | vessel"),
     variable: Optional[str] = None,
     min_lat: float = -90, max_lat: float = 90,
     min_lon: float = -180, max_lon: float = 180,
@@ -212,7 +212,11 @@ def query_observations(
         records_by_platform.setdefault(r.platform_id, []).append(r)
 
     markers: list[dict] = []
-    summary_counts = {"argo": 0, "glider": 0, "ctd": 0, "bgc": 0, "mooring": 0, "drifter": 0, "oceansites": 0, "active": 0, "recent": 0, "stale": 0}
+    summary_counts = {
+        "argo": 0, "glider": 0, "ctd": 0, "bgc": 0, "mooring": 0,
+        "drifter": 0, "oceansites": 0, "auv": 0, "usv": 0, "rov": 0, "vessel": 0,
+        "active": 0, "recent": 0, "stale": 0
+    }
     latest_update = ""
 
     for pid, p_rows in records_by_platform.items():
@@ -233,9 +237,15 @@ def query_observations(
         if ptype in summary_counts:
             summary_counts[ptype] += 1
 
-        if ptype == "glider":
+        if ptype in ("glider", "auv"):
             category_class = "MOBILE AUTONOMOUS OBSERVING PLATFORM"
             controllability = "POTENTIALLY MISSION-CONTROLLABLE"
+        elif ptype == "usv":
+            category_class = "MOBILE SURFACE OBSERVING PLATFORM"
+            controllability = "POTENTIALLY MISSION-CONTROLLABLE"
+        elif ptype == "rov":
+            category_class = "TETHERED MOBILE OBSERVING PLATFORM"
+            controllability = "REQUIRES SUPPORT VESSEL"
         elif ptype in ("argo", "bgc"):
             category_class = "AUTONOMOUS DRIFTING OBSERVATION PLATFORM"
             controllability = "NOT MISSION-CONTROLLABLE"
@@ -248,6 +258,9 @@ def query_observations(
         elif ptype == "oceansites":
             category_class = "FIXED DEEP-OCEAN OBSERVATORY"
             controllability = "NOT MISSION-CONTROLLABLE"
+        elif ptype == "vessel":
+            category_class = "VESSEL-BASED OBSERVATION SYSTEM"
+            controllability = "SUPPORT ASSET / NON-STANDALONE MOBILE PLATFORM"
         else:
             category_class = "VESSEL-BASED HYDROGRAPHIC CAST"
             controllability = "NOT A STANDALONE MOBILE MISSION PLATFORM"
@@ -281,6 +294,10 @@ def query_observations(
             "mooring": summary_counts["mooring"],
             "drifter": summary_counts["drifter"],
             "oceansites": summary_counts["oceansites"],
+            "auv": summary_counts["auv"],
+            "usv": summary_counts["usv"],
+            "rov": summary_counts["rov"],
+            "vessel": summary_counts["vessel"],
             "active": summary_counts["active"],
             "recent": summary_counts["recent"],
             "stale": summary_counts["stale"],

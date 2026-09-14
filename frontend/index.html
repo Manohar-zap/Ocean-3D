@@ -450,6 +450,14 @@
             <label class="switch"><input type="checkbox" id="ovDrifter" checked><span class="slider-toggle"></span></label></div>
           <div class="toggle-row"><span><img src="assets/icons/ctd.png" alt="OceanSITES Observatory" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#a855f7"></span>OceanSITES Observatories</span>
             <label class="switch"><input type="checkbox" id="ovOceanSites" checked><span class="slider-toggle"></span></label></div>
+          <div class="toggle-row"><span><img src="assets/icons/glider.png" alt="AUV Deployment" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#06b6d4"></span>AUV Missions (NOAA/MBARI)</span>
+            <label class="switch"><input type="checkbox" id="ovAuv" checked><span class="slider-toggle"></span></label></div>
+          <div class="toggle-row"><span><img src="assets/icons/argo_float.png" alt="Uncrewed Surface Vehicle" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#3b82f6"></span>USVs (Saildrone / Wave Glider)</span>
+            <label class="switch"><input type="checkbox" id="ovUsv" checked><span class="slider-toggle"></span></label></div>
+          <div class="toggle-row"><span><img src="assets/icons/ctd.png" alt="Deep-Sea ROV" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#eab308"></span>Deep-Sea ROV Dives (OET/NOAA)</span>
+            <label class="switch"><input type="checkbox" id="ovRov" checked><span class="slider-toggle"></span></label></div>
+          <div class="toggle-row"><span><img src="assets/icons/ctd.png" alt="Research Vessel" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#f97316"></span>Underway Research Vessels</span>
+            <label class="switch"><input type="checkbox" id="ovVessel" checked><span class="slider-toggle"></span></label></div>
         </div>
 
         <div>
@@ -463,6 +471,10 @@
               <div>CTD: <span id="cntCtd" class="mono" style="color:#c58ee0; font-weight:600;">0</span></div>
               <div>DRIFTER: <span id="cntDrifter" class="mono" style="color:#f43f5e; font-weight:600;">0</span></div>
               <div>OCEANSITES: <span id="cntOceanSites" class="mono" style="color:#a855f7; font-weight:600;">0</span></div>
+              <div>AUV: <span id="cntAuv" class="mono" style="color:#06b6d4; font-weight:600;">0</span></div>
+              <div>USV: <span id="cntUsv" class="mono" style="color:#3b82f6; font-weight:600;">0</span></div>
+              <div>ROV: <span id="cntRov" class="mono" style="color:#eab308; font-weight:600;">0</span></div>
+              <div>VESSEL: <span id="cntVessel" class="mono" style="color:#f97316; font-weight:600;">0</span></div>
             </div>
             <div style="display:flex; justify-content:space-between; margin-top:2px; padding-top:4px; border-top:1px solid var(--line); font-weight:600;">
               <span>ACTIVE PLATFORMS</span>
@@ -3098,7 +3110,7 @@ async function loadVectors(){
 // Observations & Floating Platform Icons
 // ---------------------------------------------------------------------
 const PLATFORM_COLOR = {
-  argo: '#f2a65a', glider: '#8ec9e0', ctd: '#c58ee0', bgc: '#8ee0a4', mooring: '#38bdf8', drifter: '#f43f5e', oceansites: '#a855f7'
+  argo: '#f2a65a', glider: '#8ec9e0', ctd: '#c58ee0', bgc: '#8ee0a4', mooring: '#38bdf8', drifter: '#f43f5e', oceansites: '#a855f7', auv: '#06b6d4', usv: '#3b82f6', rov: '#eab308', vessel: '#f97316'
 };
 
 const PLATFORM_ICON = {
@@ -3108,7 +3120,11 @@ const PLATFORM_ICON = {
   bgc: 'assets/icons/bgc.png',
   mooring: 'assets/icons/ctd.png',
   drifter: 'assets/icons/argo_float.png',
-  oceansites: 'assets/icons/ctd.png'
+  oceansites: 'assets/icons/ctd.png',
+  auv: 'assets/icons/glider.png',
+  usv: 'assets/icons/argo_float.png',
+  rov: 'assets/icons/ctd.png',
+  vessel: 'assets/icons/ctd.png'
 };
 
 let trackEntity = null;
@@ -3292,6 +3308,18 @@ async function loadObservations(){
     const oceanSitesEl = document.getElementById("cntOceanSites");
     if(oceanSitesEl) oceanSitesEl.textContent = data.summary.oceansites || 0;
 
+    const auvEl = document.getElementById("cntAuv");
+    if(auvEl) auvEl.textContent = data.summary.auv || 0;
+
+    const usvEl = document.getElementById("cntUsv");
+    if(usvEl) usvEl.textContent = data.summary.usv || 0;
+
+    const rovEl = document.getElementById("cntRov");
+    if(rovEl) rovEl.textContent = data.summary.rov || 0;
+
+    const vesselEl = document.getElementById("cntVessel");
+    if(vesselEl) vesselEl.textContent = data.summary.vessel || 0;
+
     document.getElementById("cntTotal").textContent = data.count || 0;
     document.getElementById("lblLatestUpdate").textContent = formatDateOnly(data.summary.latest_update);
 
@@ -3308,10 +3336,14 @@ async function loadObservations(){
     bgc: document.getElementById("ovBgc") ? document.getElementById("ovBgc").checked : true,
     drifter: document.getElementById("ovDrifter") ? document.getElementById("ovDrifter").checked : true,
     oceansites: document.getElementById("ovOceanSites") ? document.getElementById("ovOceanSites").checked : true,
+    auv: document.getElementById("ovAuv") ? document.getElementById("ovAuv").checked : true,
+    usv: document.getElementById("ovUsv") ? document.getElementById("ovUsv").checked : true,
+    rov: document.getElementById("ovRov") ? document.getElementById("ovRov").checked : true,
+    vessel: document.getElementById("ovVessel") ? document.getElementById("ovVessel").checked : true,
   };
 
   const sortedMarkers = (data.markers || []).slice().sort((a, b) => {
-    const order = { argo: 0, mooring: 1, ctd: 2, bgc: 3, glider: 4, drifter: 5, oceansites: 6 };
+    const order = { argo: 0, mooring: 1, ctd: 2, bgc: 3, glider: 4, drifter: 5, oceansites: 6, auv: 7, usv: 8, rov: 9, vessel: 10 };
     const pa = order[(a.platform_type || "argo").toLowerCase()] || 0;
     const pb = order[(b.platform_type || "argo").toLowerCase()] || 0;
     return pa - pb;
@@ -3796,6 +3828,128 @@ function update3DDepthCursor(){
       ${renderObsSection("PROVIDER & PROVENANCE")}
       ${renderObsRow("Organization", sourceOrg)}
       ${renderObsRow("Observatory Status", "GLOBAL DEEP-OCEAN TIME-SERIES", "color:#a855f7; font-weight:600;")}
+      ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
+      ${renderObsRow("Quality Status", qc, "color:var(--accent);")}
+      ${renderObsRow("Observation Date", profileDateStr)}
+    `;
+  } else if(ptype === "AUV") {
+    // 8. AUV — AUTONOMOUS UNDERWATER VEHICLE
+    const tStr = tNum !== null ? `${tNum.toFixed(2)} °C` : "N/A";
+    const sStr = sNum !== null ? `${sNum.toFixed(2)} PSU` : "N/A";
+    const sourceOrg = state.selectedProfile.source_organization || "NOAA / IOOS ERDDAP AUV Operations";
+
+    obsHtml = `
+      ${renderObsSection("IDENTIFICATION")}
+      ${renderObsRow("ID", pid, "color:#06b6d4; font-weight:600;")}
+      ${renderObsRow("Type", "Autonomous Underwater Vehicle (AUV)")}
+      ${renderObsRow("Classification", "MOBILE AUTONOMOUS OBSERVING PLATFORM")}
+      ${renderObsRow("Controllability", "POTENTIALLY MISSION-CONTROLLABLE")}
+      ${renderObsRow("Network", "NOAA / IOOS ERDDAP AUV Fleet")}
+
+      ${renderObsSection("LOCATION")}
+      ${renderObsRow("Latitude", formatLat(lat))}
+      ${renderObsRow("Longitude", formatLon(lon))}
+      ${renderObsRow("Selected Depth", depthStr, "color:#38bdf8; font-weight:700; font-size:13px;")}
+
+      ${renderObsSection("PAYLOAD SENSORS")}
+      ${renderObsRow("Pressure", presStr)}
+      ${renderObsRow("Temperature", tStr)}
+      ${renderObsRow("Salinity", sStr)}
+      ${renderObsRow("Density (σ₀)", densityStr)}
+
+      ${renderObsSection("PROVIDER & PROVENANCE")}
+      ${renderObsRow("Organization", sourceOrg)}
+      ${renderObsRow("AUV Mission Status", "ACTIVE DIVE SURVEY", "color:#06b6d4; font-weight:600;")}
+      ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
+      ${renderObsRow("Quality Status", qc, "color:var(--accent);")}
+      ${renderObsRow("Observation Date", profileDateStr)}
+    `;
+  } else if(ptype === "USV") {
+    // 9. USV — UNCREWED SURFACE VEHICLE
+    const tStr = tNum !== null ? `${tNum.toFixed(2)} °C` : "N/A";
+    const sourceOrg = state.selectedProfile.source_organization || "NOAA / Saildrone / IOOS USV Network";
+
+    obsHtml = `
+      ${renderObsSection("IDENTIFICATION")}
+      ${renderObsRow("ID", pid, "color:#3b82f6; font-weight:600;")}
+      ${renderObsRow("Type", "Uncrewed Surface Vehicle (USV)")}
+      ${renderObsRow("Classification", "MOBILE SURFACE OBSERVING PLATFORM")}
+      ${renderObsRow("Controllability", "POTENTIALLY MISSION-CONTROLLABLE")}
+      ${renderObsRow("Network", "NOAA / Saildrone / IOOS Network")}
+
+      ${renderObsSection("LOCATION")}
+      ${renderObsRow("Latitude", formatLat(lat))}
+      ${renderObsRow("Longitude", formatLon(lon))}
+      ${renderObsRow("Observation Depth", "0.0 m (Surface)", "color:#38bdf8; font-weight:700; font-size:13px;")}
+
+      ${renderObsSection("SURFACE MET / OCEAN SENSORS")}
+      ${renderObsRow("Sea Surface Temperature", tStr)}
+
+      ${renderObsSection("PROVIDER & PROVENANCE")}
+      ${renderObsRow("Organization", sourceOrg)}
+      ${renderObsRow("USV Mission Status", "SURFACE TRANSECT ACTIVE", "color:#3b82f6; font-weight:600;")}
+      ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
+      ${renderObsRow("Quality Status", qc, "color:var(--accent);")}
+      ${renderObsRow("Observation Date", profileDateStr)}
+    `;
+  } else if(ptype === "ROV") {
+    // 10. ROV — REMOTELY OPERATED VEHICLE
+    const tStr = tNum !== null ? `${tNum.toFixed(2)} °C` : "N/A";
+    const sStr = sNum !== null ? `${sNum.toFixed(2)} PSU` : "N/A";
+    const sourceOrg = state.selectedProfile.source_organization || "NOAA Ocean Exploration / OET / MBARI";
+
+    obsHtml = `
+      ${renderObsSection("IDENTIFICATION")}
+      ${renderObsRow("ID", pid, "color:#eab308; font-weight:600;")}
+      ${renderObsRow("Type", "Remotely Operated Vehicle (ROV)")}
+      ${renderObsRow("Classification", "TETHERED MOBILE OBSERVING PLATFORM")}
+      ${renderObsRow("Controllability", "REQUIRES SUPPORT VESSEL")}
+      ${renderObsRow("Network", "NOAA Ocean Exploration / OET / MBARI")}
+
+      ${renderObsSection("LOCATION")}
+      ${renderObsRow("Latitude", formatLat(lat))}
+      ${renderObsRow("Longitude", formatLon(lon))}
+      ${renderObsRow("Selected Depth", depthStr, "color:#38bdf8; font-weight:700; font-size:13px;")}
+
+      ${renderObsSection("DEEP-SEA DIVE SENSORS")}
+      ${renderObsRow("Pressure", presStr)}
+      ${renderObsRow("Temperature", tStr)}
+      ${renderObsRow("Salinity", sStr)}
+      ${renderObsRow("Density (σ₀)", densityStr)}
+
+      ${renderObsSection("PROVIDER & PROVENANCE")}
+      ${renderObsRow("Organization", sourceOrg)}
+      ${renderObsRow("ROV Status", "DEEP TETHERED DIVE SURVEY", "color:#eab308; font-weight:600;")}
+      ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
+      ${renderObsRow("Quality Status", qc, "color:var(--accent);")}
+      ${renderObsRow("Observation Date", profileDateStr)}
+    `;
+  } else if(ptype === "VESSEL") {
+    // 11. VESSEL — RESEARCH VESSEL UNDERWAY OBSERVATION
+    const tStr = tNum !== null ? `${tNum.toFixed(2)} °C` : "N/A";
+    const sStr = sNum !== null ? `${sNum.toFixed(2)} PSU` : "N/A";
+    const sourceOrg = state.selectedProfile.source_organization || "INCOIS / SAMOS / NOAA Marine Operations";
+
+    obsHtml = `
+      ${renderObsSection("IDENTIFICATION")}
+      ${renderObsRow("ID", pid, "color:#f97316; font-weight:600;")}
+      ${renderObsRow("Type", "Underway Research Vessel")}
+      ${renderObsRow("Classification", "VESSEL-BASED OBSERVATION SYSTEM")}
+      ${renderObsRow("Controllability", "SUPPORT ASSET / NON-STANDALONE MOBILE PLATFORM")}
+      ${renderObsRow("Network", "SAMOS / INCOIS Underway Fleet")}
+
+      ${renderObsSection("LOCATION")}
+      ${renderObsRow("Latitude", formatLat(lat))}
+      ${renderObsRow("Longitude", formatLon(lon))}
+      ${renderObsRow("Draft Sampling Depth", "2.0 m (Hull TSG)", "color:#38bdf8; font-weight:700; font-size:13px;")}
+
+      ${renderObsSection("UNDERWAY TSG MEASUREMENTS")}
+      ${renderObsRow("Thermosalinograph Temp", tStr)}
+      ${renderObsRow("Thermosalinograph Salinity", sStr)}
+
+      ${renderObsSection("PROVIDER & PROVENANCE")}
+      ${renderObsRow("Organization", sourceOrg)}
+      ${renderObsRow("Vessel Status", "CRUISE UNDERWAY TRANSECT", "color:#f97316; font-weight:600;")}
       ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
       ${renderObsRow("Quality Status", qc, "color:var(--accent);")}
       ${renderObsRow("Observation Date", profileDateStr)}
