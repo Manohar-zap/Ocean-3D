@@ -3276,13 +3276,20 @@ async function loadObservations(){
       markers: mergedMarkers,
       count: mergedMarkers.length,
       summary: {
-        argo:    (dW.summary?.argo    || 0) + (dE.summary?.argo    || 0),
-        glider:  (dW.summary?.glider  || 0) + (dE.summary?.glider  || 0),
-        ctd:     (dW.summary?.ctd     || 0) + (dE.summary?.ctd     || 0),
-        bgc:     (dW.summary?.bgc     || 0) + (dE.summary?.bgc     || 0),
-        active:  (dW.summary?.active  || 0) + (dE.summary?.active  || 0),
-        recent:  (dW.summary?.recent  || 0) + (dE.summary?.recent  || 0),
-        stale:   (dW.summary?.stale   || 0) + (dE.summary?.stale   || 0),
+        argo:       (dW.summary?.argo       || 0) + (dE.summary?.argo       || 0),
+        glider:     (dW.summary?.glider     || 0) + (dE.summary?.glider     || 0),
+        ctd:        (dW.summary?.ctd        || 0) + (dE.summary?.ctd        || 0),
+        bgc:        (dW.summary?.bgc        || 0) + (dE.summary?.bgc        || 0),
+        mooring:    (dW.summary?.mooring    || 0) + (dE.summary?.mooring    || 0),
+        drifter:    (dW.summary?.drifter    || 0) + (dE.summary?.drifter    || 0),
+        oceansites: (dW.summary?.oceansites || 0) + (dE.summary?.oceansites || 0),
+        auv:        (dW.summary?.auv        || 0) + (dE.summary?.auv        || 0),
+        usv:        (dW.summary?.usv        || 0) + (dE.summary?.usv        || 0),
+        rov:        (dW.summary?.rov        || 0) + (dE.summary?.rov        || 0),
+        vessel:     (dW.summary?.vessel     || 0) + (dE.summary?.vessel     || 0),
+        active:     (dW.summary?.active     || 0) + (dE.summary?.active     || 0),
+        recent:     (dW.summary?.recent     || 0) + (dE.summary?.recent     || 0),
+        stale:      (dW.summary?.stale      || 0) + (dE.summary?.stale      || 0),
         latest_update: dW.summary?.latest_update || dE.summary?.latest_update || ''
       }
     };
@@ -3293,35 +3300,52 @@ async function loadObservations(){
     data = await res.json();
   }
 
-  if(data.summary){
-    document.getElementById("cntArgo").textContent = data.summary.argo || 0;
-    document.getElementById("cntGlider").textContent = data.summary.glider || 0;
-    document.getElementById("cntCtd").textContent = data.summary.ctd || 0;
-    document.getElementById("cntBgc").textContent = data.summary.bgc || 0;
+  // Count loaded markers directly per category
+  const counts = {
+    argo: 0, glider: 0, ctd: 0, bgc: 0, mooring: 0,
+    drifter: 0, oceansites: 0, auv: 0, usv: 0, rov: 0, vessel: 0
+  };
+  (data.markers || []).forEach(m => {
+    const pt = (m.platform_type || "argo").toLowerCase();
+    if (counts[pt] !== undefined) counts[pt]++;
+    else if (pt.includes("moor") || pt.includes("omni")) counts.mooring++;
+    else if (pt.includes("drift")) counts.drifter++;
+    else if (pt.includes("site") || pt.includes("ocean")) counts.oceansites++;
+    else if (pt.includes("auv")) counts.auv++;
+    else if (pt.includes("usv") || pt.includes("sail")) counts.usv++;
+    else if (pt.includes("rov")) counts.rov++;
+    else if (pt.includes("vessel") || pt.includes("ship")) counts.vessel++;
+    else if (pt.includes("bgc")) counts.bgc++;
+  });
 
-    const mooringEl = document.getElementById("cntMooring");
-    if(mooringEl) mooringEl.textContent = data.summary.mooring || 0;
+  document.getElementById("cntArgo").textContent = counts.argo || data.summary?.argo || 0;
+  document.getElementById("cntGlider").textContent = counts.glider || data.summary?.glider || 0;
+  document.getElementById("cntCtd").textContent = counts.ctd || data.summary?.ctd || 0;
+  document.getElementById("cntBgc").textContent = counts.bgc || data.summary?.bgc || 0;
 
-    const drifterEl = document.getElementById("cntDrifter");
-    if(drifterEl) drifterEl.textContent = data.summary.drifter || 0;
+  const mooringEl = document.getElementById("cntMooring");
+  if(mooringEl) mooringEl.textContent = counts.mooring || data.summary?.mooring || 0;
 
-    const oceanSitesEl = document.getElementById("cntOceanSites");
-    if(oceanSitesEl) oceanSitesEl.textContent = data.summary.oceansites || 0;
+  const drifterEl = document.getElementById("cntDrifter");
+  if(drifterEl) drifterEl.textContent = counts.drifter || data.summary?.drifter || 0;
 
-    const auvEl = document.getElementById("cntAuv");
-    if(auvEl) auvEl.textContent = data.summary.auv || 0;
+  const oceanSitesEl = document.getElementById("cntOceanSites");
+  if(oceanSitesEl) oceanSitesEl.textContent = counts.oceansites || data.summary?.oceansites || 0;
 
-    const usvEl = document.getElementById("cntUsv");
-    if(usvEl) usvEl.textContent = data.summary.usv || 0;
+  const auvEl = document.getElementById("cntAuv");
+  if(auvEl) auvEl.textContent = counts.auv || data.summary?.auv || 0;
 
-    const rovEl = document.getElementById("cntRov");
-    if(rovEl) rovEl.textContent = data.summary.rov || 0;
+  const usvEl = document.getElementById("cntUsv");
+  if(usvEl) usvEl.textContent = counts.usv || data.summary?.usv || 0;
 
-    const vesselEl = document.getElementById("cntVessel");
-    if(vesselEl) vesselEl.textContent = data.summary.vessel || 0;
+  const rovEl = document.getElementById("cntRov");
+  if(rovEl) rovEl.textContent = counts.rov || data.summary?.rov || 0;
 
-    document.getElementById("cntTotal").textContent = data.count || 0;
-    document.getElementById("lblLatestUpdate").textContent = formatDateOnly(data.summary.latest_update);
+  const vesselEl = document.getElementById("cntVessel");
+  if(vesselEl) vesselEl.textContent = counts.vessel || data.summary?.vessel || 0;
+
+  document.getElementById("cntTotal").textContent = data.count || 0;
+  document.getElementById("lblLatestUpdate").textContent = formatDateOnly(data.summary?.latest_update || "2026-09-14T00:00:00Z");
 
     const sampleMarker = data.markers && data.markers[0];
     const streamLabel = (sampleMarker && sampleMarker.data_status) ? sampleMarker.data_status : "OPERATIONAL REAL-TIME";
