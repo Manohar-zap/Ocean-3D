@@ -191,7 +191,7 @@ _ARGOVIS_TRACK_CACHE: dict[str, list[dict]] = {}
 
 @app.get("/api/observations")
 def query_observations(
-    platform_type: Optional[str] = Query(None, description="argo | glider | ctd | bgc"),
+    platform_type: Optional[str] = Query(None, description="argo | glider | ctd | bgc | mooring"),
     variable: Optional[str] = None,
     min_lat: float = -90, max_lat: float = 90,
     min_lon: float = -180, max_lon: float = 180,
@@ -212,7 +212,7 @@ def query_observations(
         records_by_platform.setdefault(r.platform_id, []).append(r)
 
     markers: list[dict] = []
-    summary_counts = {"argo": 0, "glider": 0, "ctd": 0, "bgc": 0, "active": 0, "recent": 0, "stale": 0}
+    summary_counts = {"argo": 0, "glider": 0, "ctd": 0, "bgc": 0, "mooring": 0, "active": 0, "recent": 0, "stale": 0}
     latest_update = ""
 
     for pid, p_rows in records_by_platform.items():
@@ -233,9 +233,12 @@ def query_observations(
         if ptype in summary_counts:
             summary_counts[ptype] += 1
 
+        category_class = "MOBILE OBSERVING PLATFORM" if ptype == "glider" else "OBSERVATION-ONLY / FIXED"
+
         markers.append({
             "platform_id": latest_r.platform_id,
             "platform_type": latest_r.platform_type,
+            "category_class": category_class,
             "lat": latest_r.latitude,
             "lon": latest_r.longitude,
             "depth": latest_r.depth,
@@ -257,6 +260,7 @@ def query_observations(
             "glider": summary_counts["glider"],
             "ctd": summary_counts["ctd"],
             "bgc": summary_counts["bgc"],
+            "mooring": summary_counts["mooring"],
             "active": summary_counts["active"],
             "recent": summary_counts["recent"],
             "stale": summary_counts["stale"],
@@ -275,9 +279,12 @@ def latest_platforms():
         cur = by_platform.get(r.platform_id)
         if cur is None or r.time > cur["timestamp"]:
             ds = getattr(r, "data_status", "OPERATIONAL REAL-TIME")
+            ptype = r.platform_type.lower() if r.platform_type else "argo"
+            category_class = "MOBILE OBSERVING PLATFORM" if ptype == "glider" else "OBSERVATION-ONLY / FIXED"
             by_platform[r.platform_id] = {
                 "platform_id": r.platform_id,
                 "platform_type": r.platform_type,
+                "category_class": category_class,
                 "latitude": r.latitude,
                 "longitude": r.longitude,
                 "depth": r.depth,

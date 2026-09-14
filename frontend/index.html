@@ -3692,6 +3692,37 @@ function update3DDepthCursor(){
       ${renderObsRow("Platform Status", platformStatus, "color:var(--accent); font-weight:600;")}
       ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
     `;
+  } else if(ptype === "MOORING") {
+    // 5. MOORING — INCOIS OMNI & RAMA MOORED OCEAN BUOY
+    const tStr = tNum !== null ? `${tNum.toFixed(2)} °C` : "N/A";
+    const sStr = sNum !== null ? `${sNum.toFixed(2)} PSU` : "N/A";
+    const sourceOrg = state.selectedProfile.source_organization || "INCOIS / NIOT (MoES, India)";
+
+    obsHtml = `
+      ${renderObsSection("IDENTIFICATION")}
+      ${renderObsRow("ID", pid, "color:#38bdf8; font-weight:600;")}
+      ${renderObsRow("Type", "Moored Ocean Buoy")}
+      ${renderObsRow("Classification", "OBSERVATION-ONLY / FIXED")}
+      ${renderObsRow("Network", "INCOIS OMNI & RAMA Array")}
+
+      ${renderObsSection("LOCATION")}
+      ${renderObsRow("Latitude", formatLat(lat))}
+      ${renderObsRow("Longitude", formatLon(lon))}
+      ${renderObsRow("Selected Depth", depthStr, "color:#38bdf8; font-weight:700; font-size:13px;")}
+
+      ${renderObsSection("SUBSURFACE CTD MEASUREMENTS")}
+      ${renderObsRow("Pressure", presStr)}
+      ${renderObsRow("Temperature", tStr)}
+      ${renderObsRow("Salinity", sStr)}
+      ${renderObsRow("Density (σ₀)", densityStr)}
+
+      ${renderObsSection("PROVIDER & PROVENANCE")}
+      ${renderObsRow("Organization", sourceOrg)}
+      ${renderObsRow("Mooring Status", "FIXED ANCHORED STATION", "color:#38bdf8; font-weight:600;")}
+      ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
+      ${renderObsRow("Quality Status", qc, "color:var(--accent);")}
+      ${renderObsRow("Profile Date", profileDateStr)}
+    `;
   } else {
     // 1. ARGO — CORE FLOAT
     const wmoNum = pid.replace(/\D/g, '') || "5906203";
