@@ -77,6 +77,23 @@ class MissionSimulatorEngine:
             return round(sum(r.value for r in rows) / len(rows), 3), False
         return None, True
 
+    def query_seafloor_depth(self, lat: float, lon: float) -> tuple[Optional[float], str]:
+        """Query GEBCO/ETOPO seafloor bathymetry depth in meters."""
+        rows = store.query_model(
+            QueryFilters(
+                dataset_id="gebco_bathymetry",
+                variable="elevation",
+                min_lat=lat - 0.2,
+                max_lat=lat + 0.2,
+                min_lon=lon - 0.2,
+                max_lon=lon + 0.2,
+            )
+        )
+        if rows and rows[0].value < 0:
+            seafloor_m = round(abs(rows[0].value), 1)
+            return seafloor_m, "GEBCO 2023 Bathymetry"
+        return None, "BATHYMETRY UNAVAILABLE — DEPTH LIMIT SIMULATION"
+
     def _simulate_profile_sample(
         self, lat: float, lon: float, depth: float, base_temp: Optional[float]
     ) -> dict[str, Any]:
@@ -175,7 +192,7 @@ class MissionSimulatorEngine:
                 frame_idx += 1
             prev = curr
 
-        # Descent at target
+        # Descent at target with realistic pitch and depth profile
         descent_depths = [0, 50, 100, 200, 350, 500]
         if target_depth not in descent_depths:
             descent_depths.append(int(target_depth))
@@ -188,9 +205,20 @@ class MissionSimulatorEngine:
             ratio = (d_idx + 1) / len(descent_depths)
             energy_ratio = 0.85 + ratio * 0.15
             battery = start_battery - energy_required * energy_ratio
-            phase = "DESCENT" if depth < target_depth else ("TARGET_APPROACH" if depth == target_depth else "DESCENT")
-            if depth >= target_depth:
-                phase = "TARGET_REACHED" if depth == target_depth else "DESCENT"
+
+            if depth == 0:
+                phase = "TRANSIT"
+                pitch = 0.0
+            elif depth < target_depth:
+                phase = "DESCENT"
+                pitch = -20.0  # Steeping downward dive pitch
+            elif depth == target_depth:
+                phase = "TARGET_REACHED"
+                pitch = 0.0    # Level flight at target depth
+            else:
+                phase = "DEEP_SAMPLING"
+                pitch = -12.0
+
             frames.append(
                 {
                     "frame": frame_idx,
@@ -199,7 +227,7 @@ class MissionSimulatorEngine:
                     "depth_m": float(depth),
                     "heading_deg": frames[-1]["heading_deg"] if frames else 0.0,
                     "ground_track_deg": frames[-1]["ground_track_deg"] if frames else 0.0,
-                    "pitch_deg": -15.0 if depth > 0 else 0.0,
+                    "pitch_deg": pitch,
                     "current_u": waypoints[-1].get("current_u", 0.0),
                     "current_v": waypoints[-1].get("current_v", 0.0),
                     "current_speed_mps": waypoints[-1].get("current_speed_mps", 0.0),
@@ -241,6 +269,8 @@ class MissionSimulatorEngine:
         after_uncertainty = eig["posterior_uncertainty_percent"]
         info_gain = eig["expected_information_gain_percent"]
 
+        seafloor_m, bathy_status = self.query_seafloor_depth(latitude, longitude)
+
         waypoints = route.get("waypoints", [])
         frames = self._build_trajectory_frames(
             waypoints,
@@ -264,6 +294,8 @@ class MissionSimulatorEngine:
             "status": "SIMULATION_COMPLETED",
             "fleet_provenance": FLEET_PROVENANCE,
             "mission_phases": MISSION_PHASES,
+            "seafloor_depth_m": seafloor_m,
+            "bathymetry_status": bathy_status,
             "target": {
                 "latitude": latitude,
                 "longitude": longitude,

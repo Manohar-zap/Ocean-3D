@@ -190,7 +190,13 @@ main.center-viewport { position: relative; background: #020710; }
   font-family: var(--font-mono); font-size: 10px;
 }
 .water-column-overlay.hidden { display: none; }
-.wc-title { color: var(--cyan); font-weight: 700; text-align: center; margin-bottom: 8px; letter-spacing: 1px; }
+.wc-title { color: var(--cyan); font-weight: 700; text-align: center; margin-bottom: 6px; letter-spacing: 1px; }
+.wc-bathy-badge {
+  font-size: 8.5px; font-family: var(--font-mono); color: var(--accent);
+  background: rgba(245, 158, 11, 0.15); border: 1px solid var(--accent);
+  padding: 2px 4px; border-radius: 3px; text-align: center; margin-bottom: 8px;
+  display: block; word-break: break-word;
+}
 .wc-ruler { border-left: 2px solid var(--cyan); padding-left: 10px; line-height: 2.2; color: var(--text-dim); }
 .wc-ruler .active-depth { color: var(--accent); font-weight: 700; }
 .wc-sample { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 9px; color: var(--text); }

@@ -489,7 +489,10 @@ function renderCurrentField(field, targetDepthM, provenance) {
 // ─── Gap Target ─────────────────────────────────────────────────────────────
 
 function renderGapTarget(gap) {
-  const ent = viewer.entities.add({
+  const targetDepth = Math.abs(gap.depth_m || 500);
+
+  // Surface Target Ellipse Ring
+  const entSurface = viewer.entities.add({
     position: positionFromLatLonDepth(gap.latitude, gap.longitude, 0),
     ellipse: {
       semiMajorAxis: 120000, semiMinorAxis: 120000, height: 0,
@@ -497,7 +500,7 @@ function renderGapTarget(gap) {
       outline: true, outlineColor: Cesium.Color.fromCssColorString('#f59e0b'), outlineWidth: 3
     },
     label: {
-      text: `GAP TARGET\n${gap.latitude}°N ${gap.longitude}°E\nDepth ${gap.depth_m}m | Priority ${gap.priority_score}%`,
+      text: `SURFACE GAP TARGET\n${gap.latitude}°N ${gap.longitude}°E\nPriority ${gap.priority_score}%`,
       font: 'bold 11px "IBM Plex Mono", monospace', style: Cesium.LabelStyle.FILL_AND_OUTLINE,
       pixelOffset: new Cesium.Cartesian2(0, -40),
       fillColor: Cesium.Color.fromCssColorString('#f59e0b'),
@@ -505,7 +508,44 @@ function renderGapTarget(gap) {
       disableDepthTestDistance: Number.POSITIVE_INFINITY
     }
   });
-  missionEntities.push(ent);
+  missionEntities.push(entSurface);
+
+  // 3D Underwater Target Volume at Depth (-500m)
+  const targetPos3D = positionFromLatLonDepth(gap.latitude, gap.longitude, targetDepth);
+  const ent3D = viewer.entities.add({
+    position: targetPos3D,
+    cylinder: {
+      length: 80,
+      topRadius: 25000,
+      bottomRadius: 25000,
+      material: Cesium.Color.fromCssColorString('#f59e0b').withAlpha(0.35),
+      outline: true,
+      outlineColor: Cesium.Color.fromCssColorString('#f59e0b')
+    },
+    label: {
+      text: `🎯 3D TARGET VOLUME\nDepth: ${targetDepth} m`,
+      font: 'bold 12px "IBM Plex Mono", monospace',
+      style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+      fillColor: Cesium.Color.fromCssColorString('#f59e0b'),
+      outlineColor: Cesium.Color.BLACK,
+      outlineWidth: 4,
+      disableDepthTestDistance: Number.POSITIVE_INFINITY
+    }
+  });
+  missionEntities.push(ent3D);
+
+  // Vertical Guide Column connecting Surface (0m) to Underwater Target (-500m)
+  const surfacePos = positionFromLatLonDepth(gap.latitude, gap.longitude, 0);
+  const guideCol = viewer.entities.add({
+    polyline: {
+      positions: [surfacePos, targetPos3D],
+      width: 3,
+      material: new Cesium.PolylineDashMaterialProperty({
+        color: Cesium.Color.fromCssColorString('#f59e0b')
+      })
+    }
+  });
+  missionEntities.push(guideCol);
 }
 
 // ─── Route Polylines ────────────────────────────────────────────────────────
@@ -814,19 +854,42 @@ function drawProfileChart() {
   });
 }
 
-// ─── Water column overlay ────────────────────────────────────────────────────
+// ─── Water Column Overlay ──────────────────────────────────────────────────
 
-function updateWaterColumn(depthM, sample) {
+function updateWaterColumn(depthM, sample, targetDepthM, seafloorM, bathyStatus) {
   const overlay = document.getElementById('waterColumnOverlay');
+  if (!overlay) return;
   overlay.classList.remove('hidden');
-  const depths = [0, 100, 250, 500, 1000];
-  document.getElementById('wcRuler').innerHTML = depths.map(d =>
-    `<div class="${Math.abs(d - depthM) < 50 ? 'active-depth' : ''}">${d === 0 ? 'SURFACE' : d + ' m'}${d === depthM ? ' ← NOW' : ''}</div>`
-  ).join('<div style="color:var(--cyan);text-align:center;">↓</div>');
+
+  const badgeEl = document.getElementById('wcBathymetryBadge');
+  if (badgeEl) {
+    if (seafloorM) {
+      badgeEl.textContent = `SEAFLOOR: ${seafloorM} m`;
+    } else {
+      badgeEl.textContent = bathyStatus || 'BATHYMETRY UNAVAILABLE — DEPTH LIMIT SIMULATION';
+    }
+  }
+
+  const depths = [0, 100, 250, 500, 750, 1000];
+  const targetD = targetDepthM || 500;
+  const curD = Math.round(depthM || 0);
+
+  document.getElementById('wcRuler').innerHTML = depths.map(d => {
+    let tag = d === 0 ? 'SURFACE (0m)' : `${d}m`;
+    let isCur = Math.abs(d - curD) < 40;
+    let isTarget = Math.abs(d - targetD) < 20;
+
+    let extra = '';
+    if (isCur) extra += ` <span style="color:var(--accent); font-weight:700;">↓ NOW: ${curD}m</span>`;
+    if (isTarget) extra += ` <span style="color:var(--cyan); font-weight:700;">🎯 TARGET</span>`;
+
+    return `<div class="${isCur ? 'active-depth' : ''}">${tag}${extra}</div>`;
+  }).join('<div style="color:var(--teal); text-align:center; line-height:1.2;">↓</div>');
+
   if (sample) {
     const sim = sample.simulated ? ' <span style="color:#f59e0b;">(SIMULATED)</span>' : '';
     document.getElementById('wcSampleReadout').innerHTML =
-      `<div style="color:var(--accent);font-weight:700;">${depthM} m</div>
+      `<div style="color:var(--accent);font-weight:700;margin-bottom:2px;">SAMPLING AT ${depthM} m</div>
        TEMP ${sample.temperature_c} °C<br>SALINITY ${sample.salinity_psu} PSU<br>PRESSURE ${sample.pressure_dbar} dbar${sim}`;
   }
 }
@@ -1047,20 +1110,27 @@ class MissionPlayback {
     const remDist = Math.max(0, (route.distance_km || 0) * (1 - this.frameIdx / Math.max(1, this.frames.length)));
     document.getElementById('simDistRem').textContent = `${remDist.toFixed(1)} km`;
 
-    if (frame.depth_m > 0) updateWaterColumn(frame.depth_m, null);
-    else hideWaterColumn();
+    // Water Column Overlay & Camera Director
+    const targetDepthM = this.sim.target?.depth_m || 500;
+    updateWaterColumn(frame.depth_m, null, targetDepthM, this.sim.seafloor_depth_m, this.sim.bathymetry_status);
 
-    // Camera director
-    if (frame.depth_m > 50) {
+    if (frame.depth_m > 0) {
+      // Underwater Close-Up View tracking vehicle descent into water column
+      const headingRad = Cesium.Math.toRadians(frame.heading_deg || 0);
       viewer.camera.lookAt(
         positionFromLatLonDepth(frame.latitude, frame.longitude, frame.depth_m),
-        new Cesium.HeadingPitchRange(Cesium.Math.toRadians(frame.heading_deg + 90), Cesium.Math.toRadians(-20), 800)
+        new Cesium.HeadingPitchRange(
+          headingRad + Math.PI / 2.0,
+          Cesium.Math.toRadians(-22.0),
+          Math.max(500, frame.depth_m * 1.6)
+        )
       );
-    } else if (this.frameIdx % 5 === 0) {
+    } else if (this.frameIdx % 4 === 0) {
+      // Surface Transit View
       viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(frame.longitude, frame.latitude, 80000),
-        orientation: { heading: Cesium.Math.toRadians(frame.heading_deg), pitch: Cesium.Math.toRadians(-35), roll: 0 },
-        duration: 0.5
+        destination: positionFromLatLonDepth(frame.latitude, frame.longitude, 60000),
+        orientation: { heading: Cesium.Math.toRadians(frame.heading_deg || 0), pitch: Cesium.Math.toRadians(-40), roll: 0 },
+        duration: 0.4
       });
     }
   }
@@ -1071,7 +1141,8 @@ class MissionPlayback {
     document.getElementById('simStatusBadge').textContent = 'SAMPLING';
     document.getElementById('simDepth').textContent = `${sample.depth_m} m`;
 
-    updateWaterColumn(sample.depth_m, sample);
+    const targetDepthM = this.sim.target?.depth_m || 500;
+    updateWaterColumn(sample.depth_m, sample, targetDepthM, this.sim.seafloor_depth_m, this.sim.bathymetry_status);
     addProfilePoint(sample.depth_m, sample.temperature_c, sample.salinity_psu);
 
     const el = document.getElementById(`s_${sample.depth_m}`);
@@ -1082,8 +1153,14 @@ class MissionPlayback {
 
     if (this.vehicleParts) {
       const target = this.sim.target;
-      updateInstrumentParts(this.vehicleParts, target.latitude, target.longitude, sample.depth_m, 0, -10);
+      updateInstrumentParts(this.vehicleParts, target.latitude, target.longitude, sample.depth_m, 0, 0);
     }
+
+    viewer.camera.lookAt(
+      positionFromLatLonDepth(this.sim.target.latitude, this.sim.target.longitude, sample.depth_m),
+      new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-18), Math.max(450, sample.depth_m * 1.4))
+    );
+  }
 
     viewer.camera.lookAt(
       positionFromLatLonDepth(this.sim.target.latitude, this.sim.target.longitude, sample.depth_m),
