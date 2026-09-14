@@ -438,14 +438,18 @@
           <div class="section-title">Instrument Overlays</div>
           <div class="toggle-row"><span><img src="assets/icons/argo_float.png" alt="Argo Float" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#f2a65a"></span>Argo Floats</span>
             <label class="switch"><input type="checkbox" id="ovArgo" checked><span class="slider-toggle"></span></label></div>
+          <div class="toggle-row"><span><img src="assets/icons/bgc.png" alt="BGC-Argo Float" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#8ee0a4"></span>BGC-Argo Floats</span>
+            <label class="switch"><input type="checkbox" id="ovBgc" checked><span class="slider-toggle"></span></label></div>
           <div class="toggle-row"><span><img src="assets/icons/ctd.png" alt="Moored Buoy" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#38bdf8"></span>Moored Buoys (OMNI)</span>
             <label class="switch"><input type="checkbox" id="ovMooring" checked><span class="slider-toggle"></span></label></div>
           <div class="toggle-row"><span><img src="assets/icons/glider.png" alt="Autonomous Glider" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#8ec9e0"></span>Autonomous Gliders</span>
             <label class="switch"><input type="checkbox" id="ovGlider" checked><span class="slider-toggle"></span></label></div>
           <div class="toggle-row"><span><img src="assets/icons/ctd.png" alt="Shipboard CTD Cast" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#c58ee0"></span>Shipboard CTD Casts</span>
             <label class="switch"><input type="checkbox" id="ovCtd" checked><span class="slider-toggle"></span></label></div>
-          <div class="toggle-row"><span><img src="assets/icons/bgc.png" alt="BGC-Argo Float" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#8ee0a4"></span>BGC-Argo Floats</span>
-            <label class="switch"><input type="checkbox" id="ovBgc" checked><span class="slider-toggle"></span></label></div>
+          <div class="toggle-row"><span><img src="assets/icons/argo_float.png" alt="Surface Drifter" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#f43f5e"></span>Surface Drifters (NOAA GDP)</span>
+            <label class="switch"><input type="checkbox" id="ovDrifter" checked><span class="slider-toggle"></span></label></div>
+          <div class="toggle-row"><span><img src="assets/icons/ctd.png" alt="OceanSITES Observatory" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#a855f7"></span>OceanSITES Observatories</span>
+            <label class="switch"><input type="checkbox" id="ovOceanSites" checked><span class="slider-toggle"></span></label></div>
         </div>
 
         <div>
@@ -453,10 +457,12 @@
           <div id="trackerSummaryCard" style="font-size:11px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); padding:8px 10px; display:flex; flex-direction:column; gap:4px;">
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
               <div>ARGO: <span id="cntArgo" class="mono" style="color:#f2a65a; font-weight:600;">0</span></div>
+              <div>BGC: <span id="cntBgc" class="mono" style="color:#8ee0a4; font-weight:600;">0</span></div>
               <div>MOORING: <span id="cntMooring" class="mono" style="color:#38bdf8; font-weight:600;">0</span></div>
               <div>GLIDER: <span id="cntGlider" class="mono" style="color:#8ec9e0; font-weight:600;">0</span></div>
               <div>CTD: <span id="cntCtd" class="mono" style="color:#c58ee0; font-weight:600;">0</span></div>
-              <div>BGC: <span id="cntBgc" class="mono" style="color:#8ee0a4; font-weight:600;">0</span></div>
+              <div>DRIFTER: <span id="cntDrifter" class="mono" style="color:#f43f5e; font-weight:600;">0</span></div>
+              <div>OCEANSITES: <span id="cntOceanSites" class="mono" style="color:#a855f7; font-weight:600;">0</span></div>
             </div>
             <div style="display:flex; justify-content:space-between; margin-top:2px; padding-top:4px; border-top:1px solid var(--line); font-weight:600;">
               <span>ACTIVE PLATFORMS</span>
@@ -3092,7 +3098,7 @@ async function loadVectors(){
 // Observations & Floating Platform Icons
 // ---------------------------------------------------------------------
 const PLATFORM_COLOR = {
-  argo: '#f2a65a', glider: '#8ec9e0', ctd: '#c58ee0', bgc: '#8ee0a4', mooring: '#38bdf8'
+  argo: '#f2a65a', glider: '#8ec9e0', ctd: '#c58ee0', bgc: '#8ee0a4', mooring: '#38bdf8', drifter: '#f43f5e', oceansites: '#a855f7'
 };
 
 const PLATFORM_ICON = {
@@ -3100,7 +3106,9 @@ const PLATFORM_ICON = {
   glider: 'assets/icons/glider.png',
   ctd: 'assets/icons/ctd.png',
   bgc: 'assets/icons/bgc.png',
-  mooring: 'assets/icons/ctd.png'
+  mooring: 'assets/icons/ctd.png',
+  drifter: 'assets/icons/argo_float.png',
+  oceansites: 'assets/icons/ctd.png'
 };
 
 let trackEntity = null;
@@ -3274,9 +3282,16 @@ async function loadObservations(){
     document.getElementById("cntGlider").textContent = data.summary.glider || 0;
     document.getElementById("cntCtd").textContent = data.summary.ctd || 0;
     document.getElementById("cntBgc").textContent = data.summary.bgc || 0;
-    const mooringCount = (data.markers || []).filter(m => (m.platform_type || "").toLowerCase() === "mooring").length;
+
     const mooringEl = document.getElementById("cntMooring");
-    if(mooringEl) mooringEl.textContent = mooringCount;
+    if(mooringEl) mooringEl.textContent = data.summary.mooring || 0;
+
+    const drifterEl = document.getElementById("cntDrifter");
+    if(drifterEl) drifterEl.textContent = data.summary.drifter || 0;
+
+    const oceanSitesEl = document.getElementById("cntOceanSites");
+    if(oceanSitesEl) oceanSitesEl.textContent = data.summary.oceansites || 0;
+
     document.getElementById("cntTotal").textContent = data.count || 0;
     document.getElementById("lblLatestUpdate").textContent = formatDateOnly(data.summary.latest_update);
 
@@ -3286,15 +3301,17 @@ async function loadObservations(){
   }
 
   const toggles = {
-    argo: document.getElementById("ovArgo").checked,
+    argo: document.getElementById("ovArgo") ? document.getElementById("ovArgo").checked : true,
     mooring: document.getElementById("ovMooring") ? document.getElementById("ovMooring").checked : true,
-    glider: document.getElementById("ovGlider").checked,
-    ctd: document.getElementById("ovCtd").checked,
-    bgc: document.getElementById("ovBgc").checked,
+    glider: document.getElementById("ovGlider") ? document.getElementById("ovGlider").checked : true,
+    ctd: document.getElementById("ovCtd") ? document.getElementById("ovCtd").checked : true,
+    bgc: document.getElementById("ovBgc") ? document.getElementById("ovBgc").checked : true,
+    drifter: document.getElementById("ovDrifter") ? document.getElementById("ovDrifter").checked : true,
+    oceansites: document.getElementById("ovOceanSites") ? document.getElementById("ovOceanSites").checked : true,
   };
 
   const sortedMarkers = (data.markers || []).slice().sort((a, b) => {
-    const order = { argo: 0, mooring: 1, ctd: 2, bgc: 3, glider: 4 };
+    const order = { argo: 0, mooring: 1, ctd: 2, bgc: 3, glider: 4, drifter: 5, oceansites: 6 };
     const pa = order[(a.platform_type || "argo").toLowerCase()] || 0;
     const pb = order[(b.platform_type || "argo").toLowerCase()] || 0;
     return pa - pb;
@@ -3722,6 +3739,66 @@ function update3DDepthCursor(){
       ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
       ${renderObsRow("Quality Status", qc, "color:var(--accent);")}
       ${renderObsRow("Profile Date", profileDateStr)}
+    `;
+  } else if(ptype === "DRIFTER") {
+    // 6. DRIFTER — NOAA GLOBAL DRIFTER PROGRAM SURFACE BUOY
+    const tStr = tNum !== null ? `${tNum.toFixed(2)} °C` : "N/A";
+    const sourceOrg = state.selectedProfile.source_organization || "NOAA / AOML Global Drifter Program (GDP)";
+
+    obsHtml = `
+      ${renderObsSection("IDENTIFICATION")}
+      ${renderObsRow("ID", pid, "color:#f43f5e; font-weight:600;")}
+      ${renderObsRow("Type", "Surface Drifting Buoy")}
+      ${renderObsRow("Classification", "SURFACE DRIFTING OBSERVATION PLATFORM")}
+      ${renderObsRow("Controllability", "NOT MISSION-CONTROLLABLE")}
+      ${renderObsRow("Network", "NOAA Global Drifter Program (GDP)")}
+
+      ${renderObsSection("LOCATION")}
+      ${renderObsRow("Latitude", formatLat(lat))}
+      ${renderObsRow("Longitude", formatLon(lon))}
+      ${renderObsRow("Observation Depth", "0.0 m (Sea Surface)", "color:#38bdf8; font-weight:700; font-size:13px;")}
+
+      ${renderObsSection("SURFACE MEASUREMENTS")}
+      ${renderObsRow("Sea Surface Temperature", tStr)}
+
+      ${renderObsSection("PROVIDER & PROVENANCE")}
+      ${renderObsRow("Organization", sourceOrg)}
+      ${renderObsRow("Drifter Status", "SURFACE DRIFT ACTIVE", "color:#f43f5e; font-weight:600;")}
+      ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
+      ${renderObsRow("Quality Status", qc, "color:var(--accent);")}
+      ${renderObsRow("Observation Date", profileDateStr)}
+    `;
+  } else if(ptype === "OCEANSITES") {
+    // 7. OCEANSITES — GLOBAL DEEP-OCEAN TIME-SERIES OBSERVATORY
+    const tStr = tNum !== null ? `${tNum.toFixed(2)} °C` : "N/A";
+    const sStr = sNum !== null ? `${sNum.toFixed(2)} PSU` : "N/A";
+    const sourceOrg = state.selectedProfile.source_organization || "OceanSITES / WMO GOOS";
+
+    obsHtml = `
+      ${renderObsSection("IDENTIFICATION")}
+      ${renderObsRow("ID", pid, "color:#a855f7; font-weight:600;")}
+      ${renderObsRow("Type", "Deep-Ocean Observatory")}
+      ${renderObsRow("Classification", "FIXED DEEP-OCEAN OBSERVATORY")}
+      ${renderObsRow("Controllability", "NOT MISSION-CONTROLLABLE")}
+      ${renderObsRow("Network", "OceanSITES Global Reference Network")}
+
+      ${renderObsSection("LOCATION")}
+      ${renderObsRow("Latitude", formatLat(lat))}
+      ${renderObsRow("Longitude", formatLon(lon))}
+      ${renderObsRow("Selected Depth", depthStr, "color:#38bdf8; font-weight:700; font-size:13px;")}
+
+      ${renderObsSection("TIME-SERIES MEASUREMENTS")}
+      ${renderObsRow("Pressure", presStr)}
+      ${renderObsRow("Temperature", tStr)}
+      ${renderObsRow("Salinity", sStr)}
+      ${renderObsRow("Density (σ₀)", densityStr)}
+
+      ${renderObsSection("PROVIDER & PROVENANCE")}
+      ${renderObsRow("Organization", sourceOrg)}
+      ${renderObsRow("Observatory Status", "GLOBAL DEEP-OCEAN TIME-SERIES", "color:#a855f7; font-weight:600;")}
+      ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
+      ${renderObsRow("Quality Status", qc, "color:var(--accent);")}
+      ${renderObsRow("Observation Date", profileDateStr)}
     `;
   } else {
     // 1. ARGO — CORE FLOAT

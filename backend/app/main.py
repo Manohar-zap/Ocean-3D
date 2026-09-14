@@ -212,7 +212,7 @@ def query_observations(
         records_by_platform.setdefault(r.platform_id, []).append(r)
 
     markers: list[dict] = []
-    summary_counts = {"argo": 0, "glider": 0, "ctd": 0, "bgc": 0, "mooring": 0, "active": 0, "recent": 0, "stale": 0}
+    summary_counts = {"argo": 0, "glider": 0, "ctd": 0, "bgc": 0, "mooring": 0, "drifter": 0, "oceansites": 0, "active": 0, "recent": 0, "stale": 0}
     latest_update = ""
 
     for pid, p_rows in records_by_platform.items():
@@ -233,12 +233,30 @@ def query_observations(
         if ptype in summary_counts:
             summary_counts[ptype] += 1
 
-        category_class = "MOBILE OBSERVING PLATFORM" if ptype == "glider" else "OBSERVATION-ONLY / FIXED"
+        if ptype == "glider":
+            category_class = "MOBILE AUTONOMOUS OBSERVING PLATFORM"
+            controllability = "POTENTIALLY MISSION-CONTROLLABLE"
+        elif ptype in ("argo", "bgc"):
+            category_class = "AUTONOMOUS DRIFTING OBSERVATION PLATFORM"
+            controllability = "NOT MISSION-CONTROLLABLE"
+        elif ptype == "drifter":
+            category_class = "SURFACE DRIFTING OBSERVATION PLATFORM"
+            controllability = "NOT MISSION-CONTROLLABLE"
+        elif ptype == "mooring":
+            category_class = "FIXED MOORED OBSERVATION PLATFORM"
+            controllability = "NOT MISSION-CONTROLLABLE"
+        elif ptype == "oceansites":
+            category_class = "FIXED DEEP-OCEAN OBSERVATORY"
+            controllability = "NOT MISSION-CONTROLLABLE"
+        else:
+            category_class = "VESSEL-BASED HYDROGRAPHIC CAST"
+            controllability = "NOT A STANDALONE MOBILE MISSION PLATFORM"
 
         markers.append({
             "platform_id": latest_r.platform_id,
             "platform_type": latest_r.platform_type,
             "category_class": category_class,
+            "controllability": controllability,
             "lat": latest_r.latitude,
             "lon": latest_r.longitude,
             "depth": latest_r.depth,
@@ -261,6 +279,8 @@ def query_observations(
             "ctd": summary_counts["ctd"],
             "bgc": summary_counts["bgc"],
             "mooring": summary_counts["mooring"],
+            "drifter": summary_counts["drifter"],
+            "oceansites": summary_counts["oceansites"],
             "active": summary_counts["active"],
             "recent": summary_counts["recent"],
             "stale": summary_counts["stale"],
