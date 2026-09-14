@@ -123,7 +123,7 @@ class TestOCEAN3DAPI(unittest.TestCase):
     def test_adaptive_mission_html(self):
         response = self.client.get("/adaptive-mission.html")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("ADAPTIVE MISSION PLANNER", response.text)
+        self.assertIn("Adaptive Mission Planner Workspace", response.text)
 
     def test_static_frontend_files(self):
         res_js = self.client.get("/adaptive-mission.js")
