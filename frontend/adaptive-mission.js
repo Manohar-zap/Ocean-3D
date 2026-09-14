@@ -448,27 +448,42 @@ function clearMissionGlobe() {
 
 // ─── Current Field Arrows ───────────────────────────────────────────────────
 
-function renderCurrentField(field) {
+function renderCurrentField(field, targetDepthM, provenance) {
   if (!field || !field.length) return;
-  field.forEach((pt, idx) => {
+  const depth = Math.abs(targetDepthM || (field[0] && field[0].depth_m) || 500);
+
+  field.forEach((pt) => {
     const speed = pt.speed_mps || 0;
-    const scale = Math.min(80000, 40000 + speed * 120000);
     const dirRad = Cesium.Math.toRadians(pt.direction_deg || 0);
+    const scale = Math.min(80000, 30000 + speed * 100000);
     const endLat = pt.latitude + (Math.sin(dirRad) * scale / 111320);
     const endLon = pt.longitude + (Math.cos(dirRad) * scale / (111320 * Math.cos(Cesium.Math.toRadians(pt.latitude))));
-    const alpha = Math.min(0.95, 0.3 + speed * 1.2);
+    const alpha = Math.min(0.95, 0.4 + speed * 1.2);
+
     const ent = viewer.entities.add({
       polyline: {
-        positions: Cesium.Cartesian3.fromDegreesArrayHeights([
-          pt.longitude, pt.latitude, -Math.min(pt.depth_m || 0, 1),
-          endLon, endLat, -Math.min(pt.depth_m || 0, 1)
-        ]),
-        width: Math.max(2, speed * 8),
-        material: Cesium.Color.fromCssColorString('#3fe0c5').withAlpha(alpha)
+        positions: [
+          positionFromLatLonDepth(pt.latitude, pt.longitude, depth),
+          positionFromLatLonDepth(endLat, endLon, depth)
+        ],
+        width: Math.max(3, Math.min(8, speed * 12)),
+        material: new Cesium.PolylineArrowMaterialProperty(
+          Cesium.Color.fromCssColorString('#3fe0c5').withAlpha(alpha)
+        )
       }
     });
     missionEntities.push(ent);
   });
+
+  const depthEl = document.getElementById('legDepthVal');
+  if (depthEl) depthEl.textContent = `${depth} m`;
+
+  const provEl = document.getElementById('legProvVal');
+  if (provEl) {
+    const provText = provenance || (field[0] && field[0].provenance) || 'INCOIS MODEL';
+    provEl.textContent = provText;
+    provEl.className = provText === 'INCOIS MODEL' ? 'badge blue' : 'badge amber';
+  }
 }
 
 // ─── Gap Target ─────────────────────────────────────────────────────────────
@@ -591,6 +606,69 @@ function renderMissionPlanUI(plan) {
   document.getElementById('gapAfter').textContent = `${eig.posterior_uncertainty_percent || '—'}%`;
   document.getElementById('gainVal').textContent = eig.expected_information_gain_percent != null ? `+${eig.expected_information_gain_percent}%` : '—';
 
+  // Populate Route Options Comparison Table
+  const routeTable = document.getElementById('routeComparisonTable');
+  if (routeTable) {
+    const winnerRoute = winner.route_details || {};
+    const candidates = winnerRoute.candidate_routes || plan.routing?.candidate_routes || [];
+    const direct = winnerRoute.direct_route || plan.routing?.direct_route;
+    const selected = winnerRoute.selected_route || plan.routing?.selected_route;
+
+    let html = '';
+
+    if (direct) {
+      const assist = direct.current_assistance_mps || 0;
+      const oppose = direct.current_opposition_mps || 0;
+      const netTag = assist >= oppose
+        ? `<span style="color:#34d399;">+${assist.toFixed(2)}m/s ASSIST</span>`
+        : `<span style="color:#ef4444;">-${oppose.toFixed(2)}m/s DRAG</span>`;
+
+      html += `
+        <div class="route-row direct">
+          <div class="route-hdr">
+            <span>DIRECT ROUTE (Straight)</span>
+            <span class="badge blue">BASELINE</span>
+          </div>
+          <div class="route-metrics">
+            <div>Dist: ${direct.distance_km} km</div>
+            <div>Time: ${direct.travel_time_hours} h</div>
+            <div>Flow: ${netTag}</div>
+            <div>Cost J: ${direct.total_cost}</div>
+          </div>
+        </div>`;
+    }
+
+    candidates.forEach((r, idx) => {
+      const isOpt = selected && (r.label === selected.label || r.total_cost === selected.total_cost);
+      const assist = r.current_assistance_mps || 0;
+      const oppose = r.current_opposition_mps || 0;
+      const netTag = assist >= oppose
+        ? `<span style="color:#34d399;">+${assist.toFixed(2)}m/s ASSIST</span>`
+        : `<span style="color:#ef4444;">-${oppose.toFixed(2)}m/s DRAG</span>`;
+      const badge = isOpt
+        ? `<span class="badge green">OPTIMAL (SELECTED)</span>`
+        : `<span class="badge blue">CANDIDATE ${String.fromCharCode(65 + idx)}</span>`;
+
+      html += `
+        <div class="route-row ${isOpt ? 'optimal' : ''}">
+          <div class="route-hdr">
+            <span>${r.label || 'ROUTE ' + String.fromCharCode(65 + idx)}</span>
+            ${badge}
+          </div>
+          <div class="route-metrics">
+            <div>Dist: ${r.distance_km} km</div>
+            <div>Time: ${r.travel_time_hours} h</div>
+            <div>Flow: ${netTag}</div>
+            <div>Risk: ${r.risk_score}</div>
+            <div>Energy: ${r.energy_cost}</div>
+            <div>Cost J: ${r.total_cost}</div>
+          </div>
+        </div>`;
+    });
+
+    routeTable.innerHTML = html;
+  }
+
   if (plan.fleet_provenance) {
     document.getElementById('fleetProvenanceBadge').textContent = plan.fleet_provenance;
   }
@@ -639,12 +717,27 @@ function renderMissionGlobeOverlay(plan) {
 
   renderGapTarget(gap);
   renderFleetInstruments(candidates, winner.instrument_id, gap);
-  renderCurrentField(plan.current_field || route.current_field || []);
 
+  // Render current field at target planning depth with explicit provenance
+  const fieldDepth = gap.depth_m || plan.current_depth_m || route.current_depth_m || 500;
+  const fieldProv = plan.current_data_provenance || route.current_data_provenance || 'INCOIS MODEL';
+  renderCurrentField(plan.current_field || route.current_field || [], fieldDepth, fieldProv);
+
+  // Render Direct Route (grey baseline)
+  if (route.direct_route) {
+    renderRoutePolyline(route.direct_route.waypoints, '#64748b', 2, false, 'direct_route');
+  }
+  // Render Candidate Routes A, B, C (Indigo, Purple, Violet)
+  if (route.candidate_routes) {
+    route.candidate_routes.forEach((r, idx) => {
+      renderRoutePolyline(r.waypoints, ['#818cf8', '#a78bfa', '#c084fc'][idx] || '#818cf8', 2.5, false, `cand_route_${idx}`);
+    });
+  }
+  // Render Selected Optimal Route (Glowing Cyan)
   if (route.selected_route) {
-    renderRoutePolyline(route.selected_route.waypoints, '#3fe0c5', 4, true, 'selected_route');
+    renderRoutePolyline(route.selected_route.waypoints, '#3fe0c5', 5, true, 'selected_route');
   } else if (route.waypoints) {
-    renderRoutePolyline(route.waypoints, '#3fe0c5', 4, true, 'selected_route');
+    renderRoutePolyline(route.waypoints, '#3fe0c5', 5, true, 'selected_route');
   }
 
   // Camera framing: Zoom so ALL candidate instruments and target gap are visible on page load!
@@ -777,10 +870,13 @@ class MissionPlayback {
     document.getElementById('gapHeatmapOverlay').classList.add('hidden');
     clearMissionGlobe();
 
-    const gap = this.sim.target_gap;
-    const winner = this.sim.selected_platform;
+    const gap = this.sim.target_gap || {};
+    const winner = this.sim.selected_platform || {};
+    const fieldDepth = gap.depth_m || this.sim.current_depth_m || 500;
+    const fieldProv = this.sim.current_data_provenance || 'INCOIS MODEL';
+
     renderGapTarget(gap);
-    renderCurrentField(this.sim.routing?.current_field || []);
+    renderCurrentField(this.sim.routing?.current_field || [], fieldDepth, fieldProv);
 
     // Pre-animation phases: scanner → candidates → routes
     await this.runPreAnimation(gap, winner);
@@ -841,18 +937,22 @@ class MissionPlayback {
 
     // Route planning animation
     setActivePhase(4);
-    document.getElementById('simPhase').textContent = '05 ROUTE OPTIMIZED';
+    document.getElementById('simPhase').textContent = '05 ROUTE ANALYSIS — DIRECT BASELINE';
     const routing = this.sim.routing || {};
     if (routing.direct_route) renderRoutePolyline(routing.direct_route.waypoints, '#64748b', 2, false, 'direct');
-    await this.wait(700 / this.speed);
+    await this.wait(800 / this.speed);
+
+    document.getElementById('simPhase').textContent = '05 ROUTE ANALYSIS — EVALUATING CANDIDATES (A, B, C)';
     (routing.candidate_routes || []).forEach((r, i) => {
-      renderRoutePolyline(r.waypoints, ['#818cf8', '#a78bfa', '#c084fc'][i] || '#818cf8', 2, false, `cand_${i}`);
+      renderRoutePolyline(r.waypoints, ['#818cf8', '#a78bfa', '#c084fc'][i] || '#818cf8', 3, false, `cand_${i}`);
     });
-    await this.wait(900 / this.speed);
+    await this.wait(1000 / this.speed);
+
+    document.getElementById('simPhase').textContent = '05 ROUTE ANALYSIS — OPTIMAL LOW-COST PATH MINIMIZED';
     if (routing.selected_route) {
       renderRoutePolyline(routing.selected_route.waypoints, '#3fe0c5', 5, true, 'optimal');
     }
-    await this.wait(600 / this.speed);
+    await this.wait(800 / this.speed);
 
     // Create vehicle at start
     const startWp = (routing.selected_route || {}).waypoints?.[0] || this.frames[0];
@@ -925,6 +1025,19 @@ class MissionPlayback {
     document.getElementById('simHeading').textContent = `${frame.heading_deg.toFixed(0)}°`;
     document.getElementById('simGroundTrack').textContent = `${frame.ground_track_deg.toFixed(0)}°`;
     document.getElementById('simDragVal').textContent = `${frame.current_speed_mps.toFixed(2)} m/s → ${frame.current_direction_deg.toFixed(0)}°`;
+
+    // Compute current assist / drag along vehicle heading
+    const radH = Cesium.Math.toRadians(frame.heading_deg || 0);
+    const radC = Cesium.Math.toRadians(frame.current_direction_deg || 0);
+    const along = (frame.current_speed_mps || 0) * Math.cos(radH - radC);
+    const assistEl = document.getElementById('simAssistDrag');
+    if (assistEl) {
+      if (along >= 0) {
+        assistEl.innerHTML = `<span style="color:#34d399; font-weight:700;">CURRENT ASSIST: +${along.toFixed(2)} m/s</span>`;
+      } else {
+        assistEl.innerHTML = `<span style="color:#ef4444; font-weight:700;">CURRENT DRAG: ${along.toFixed(2)} m/s</span>`;
+      }
+    }
     document.getElementById('simBattVal').textContent = `${frame.battery_percent.toFixed(1)}%`;
     document.getElementById('simBattFill').style.width = `${frame.battery_percent}%`;
     document.getElementById('simStatusBadge').textContent = frame.phase;

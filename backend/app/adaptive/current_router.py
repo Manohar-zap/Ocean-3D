@@ -47,8 +47,8 @@ class CurrentRouterEngine:
         )
         return (math.degrees(math.atan2(y, x)) + 360.0) % 360.0
 
-    def query_current_vector(self, lat: float, lon: float, depth: float = 0.0) -> tuple[float, float, float, float]:
-        """Return (u, v, speed_mps, direction_deg) from model store or fallback climatology."""
+    def query_current_vector(self, lat: float, lon: float, depth: float = 0.0) -> tuple[float, float, float, float, str]:
+        """Return (u, v, speed_mps, direction_deg, provenance) from model store or fallback climatology."""
         rows_u = store.query_model(
             QueryFilters(
                 dataset_id="incois_las_model",
@@ -73,11 +73,18 @@ class CurrentRouterEngine:
                 max_depth=depth,
             )
         )
-        u = (sum(r.value for r in rows_u) / len(rows_u)) if rows_u else 0.35
-        v = (sum(r.value for r in rows_v) / len(rows_v)) if rows_v else -0.25
+        if rows_u and rows_v:
+            u = sum(r.value for r in rows_u) / len(rows_u)
+            v = sum(r.value for r in rows_v) / len(rows_v)
+            prov = "INCOIS MODEL"
+        else:
+            u = 0.35
+            v = -0.25
+            prov = "DEMO FALLBACK"
+
         speed = math.sqrt(u * u + v * v)
         direction = (math.degrees(math.atan2(v, u)) + 360.0) % 360.0
-        return u, v, round(speed, 3), round(direction, 1)
+        return u, v, round(speed, 3), round(direction, 1), prov
 
     def sample_current_field(
         self,
@@ -94,7 +101,7 @@ class CurrentRouterEngine:
         while lat <= center_lat + half + 1e-9:
             lon = center_lon - half
             while lon <= center_lon + half + 1e-9:
-                u, v, speed, direction = self.query_current_vector(lat, lon, depth_m)
+                u, v, speed, direction, prov = self.query_current_vector(lat, lon, depth_m)
                 field.append(
                     {
                         "latitude": round(lat, 4),
@@ -104,6 +111,7 @@ class CurrentRouterEngine:
                         "current_v": round(v, 4),
                         "speed_mps": speed,
                         "direction_deg": direction,
+                        "provenance": prov,
                     }
                 )
                 lon += step_deg
@@ -136,7 +144,7 @@ class CurrentRouterEngine:
                 lat = min_lat + ratio_i * (max_lat - min_lat)
                 lon = min_lon + ratio_j * (max_lon - min_lon)
                 row.append((lat, lon))
-                u, v, speed, direction = self.query_current_vector(lat, lon, depth_m)
+                u, v, speed, direction, _prov = self.query_current_vector(lat, lon, depth_m)
                 rad_b = math.radians(self._calculate_bearing(lat, lon, target_lat, target_lon))
                 along = u * math.cos(rad_b) + v * math.sin(rad_b)
                 cross = abs(-u * math.sin(rad_b) + v * math.cos(rad_b))
@@ -246,7 +254,7 @@ class CurrentRouterEngine:
         """Convert grid path to geographic waypoints with navigation metadata."""
         if len(path) < 2:
             lat, lon = cells[path[0][0]][path[0][1]]
-            u, v, speed, direction = self.query_current_vector(lat, lon, target_depth_m)
+            u, v, speed, direction, _prov = self.query_current_vector(lat, lon, target_depth_m)
             return [
                 {
                     "sequence": 1,
@@ -397,7 +405,7 @@ class CurrentRouterEngine:
         meta: dict[tuple[int, int], dict[str, float]] = {}
         waypoints: list[dict[str, Any]] = []
         for idx, (lat, lon) in enumerate(raw):
-            u, v, speed, direction = self.query_current_vector(lat, lon, target_depth_m if idx == n else 0.0)
+            u, v, speed, direction, _prov = self.query_current_vector(lat, lon, target_depth_m if idx == n else 0.0)
             meta[(0, 0)] = {"u": u, "v": v, "speed": speed, "direction": direction, "along": 0, "cross": 0, "risk": speed / 0.8}
             depth = 0.0 if idx < n else target_depth_m
             heading = 0.0
@@ -460,7 +468,8 @@ class CurrentRouterEngine:
 
         center_lat = (start_lat + target_lat) / 2.0
         center_lon = (start_lon + target_lon) / 2.0
-        current_field = self.sample_current_field(center_lat, center_lon, 0.0, span_deg=2.5, step_deg=0.35)
+        current_field = self.sample_current_field(center_lat, center_lon, target_depth_m, span_deg=2.5, step_deg=0.35)
+        prov_summary = next((f["provenance"] for f in current_field if f.get("provenance") == "INCOIS MODEL"), "DEMO FALLBACK")
 
         u_avg = sum(w["current_u"] for w in selected["waypoints"]) / max(1, len(selected["waypoints"]))
         v_avg = sum(w["current_v"] for w in selected["waypoints"]) / max(1, len(selected["waypoints"]))
@@ -485,13 +494,14 @@ class CurrentRouterEngine:
             "candidate_routes": candidates,
             "selected_route": selected,
             "current_field": current_field,
+            "current_depth_m": target_depth_m,
+            "current_data_provenance": prov_summary,
             "routing_algorithm": {
                 "name": "grid_astar_multi_candidate",
                 "grid_size": len(cells),
                 "cost_function": "J = w_time*T + w_energy*E + w_risk*R + w_distance*D",
                 "weights": {"time": W_TIME, "energy": W_ENERGY, "risk": W_RISK, "distance": W_DISTANCE},
             },
-            "current_data_provenance": "MODEL_STORE_OR_CLIMATOLOGY_FALLBACK",
         }
 
 

@@ -64,6 +64,18 @@
           <span>▶</span><span>PLAY MISSION</span>
         </button>
       </div>
+
+      <!-- Route Options & Cost Evaluation -->
+      <div class="mission-card" id="routeOptionsCard">
+        <div class="card-hdr">
+          <span>Route Options & Cost Function</span>
+          <span id="routeProvBadge" class="badge blue">J COST MINIMIZED</span>
+        </div>
+        <div style="font-size:10px; color:var(--text-dim);">
+          Cost Function: J = 0.35 T + 0.30 E + 0.20 R + 0.15 D
+        </div>
+        <div id="routeComparisonTable" class="route-table"></div>
+      </div>
     </aside>
 
     <main class="center-viewport">
@@ -86,12 +98,16 @@
         </div>
       </div>
 
-      <!-- Current legend -->
+      <!-- Current legend & Field Depth / Provenance -->
       <div id="currentLegend" class="current-legend">
-        <div class="legend-title">CURRENT VELOCITY (model)</div>
-        <div class="legend-row"><span class="leg-arrow s1"></span> 0.1 m/s</div>
-        <div class="legend-row"><span class="leg-arrow s2"></span> 0.3 m/s</div>
-        <div class="legend-row"><span class="leg-arrow s3"></span> 0.5 m/s</div>
+        <div class="legend-title">CURRENT VELOCITY & FIELD</div>
+        <div class="legend-row"><span class="leg-label">CURRENT DEPTH:</span> <span id="legDepthVal" class="leg-val">500 m</span></div>
+        <div class="legend-row"><span class="leg-label">CURRENT SOURCE:</span> <span id="legProvVal" class="badge blue">INCOIS MODEL</span></div>
+        <div style="margin-top:6px; border-top:1px solid var(--line); padding-top:4px;">
+          <div class="legend-row"><span class="leg-arrow s1"></span> 0.1 m/s (Light)</div>
+          <div class="legend-row"><span class="leg-arrow s2"></span> 0.3 m/s (Moderate)</div>
+          <div class="legend-row"><span class="leg-arrow s3"></span> 0.5 m/s (Strong)</div>
+        </div>
       </div>
 
       <!-- Water column overlay -->
@@ -145,9 +161,10 @@
         <div class="metric-row"><span style="color:var(--text-dim);">Elapsed Time</span><span id="simTime" class="metric-val">T + 0.0 h</span></div>
         <div class="metric-row"><span style="color:var(--text-dim);">Depth</span><span id="simDepth" class="metric-val" style="color:var(--cyan);">0 m</span></div>
         <div class="metric-row"><span style="color:var(--text-dim);">Distance Remaining</span><span id="simDistRem" class="metric-val">—</span></div>
-        <div class="metric-row"><span style="color:var(--text-dim);">Vehicle Heading</span><span id="simHeading" class="metric-val">—</span></div>
-        <div class="metric-row"><span style="color:var(--text-dim);">Ground Track</span><span id="simGroundTrack" class="metric-val">—</span></div>
-        <div class="metric-row"><span style="color:var(--text-dim);">Current</span><span id="simDragVal" class="metric-val" style="color:var(--teal);">—</span></div>
+        <div class="metric-row"><span style="color:var(--text-dim);">Vehicle Heading</span><span id="simHeading" class="metric-val">0°</span></div>
+        <div class="metric-row"><span style="color:var(--text-dim);">Ground Track</span><span id="simGroundTrack" class="metric-val">0°</span></div>
+        <div class="metric-row"><span style="color:var(--text-dim);">Current Velocity</span><span id="simDragVal" class="metric-val" style="color:var(--teal);">—</span></div>
+        <div class="metric-row"><span style="color:var(--text-dim);">Current Assist / Drag</span><span id="simAssistDrag" class="metric-val">—</span></div>
         <div style="margin-top:4px;">
           <div class="metric-row"><span style="color:var(--text-dim);">Battery</span><span id="simBattVal" class="metric-val" style="color:var(--green);">—</span></div>
           <div class="gauge-bar"><div id="simBattFill" class="gauge-fill" style="width:0%;"></div></div>
