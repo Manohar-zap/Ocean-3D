@@ -132,7 +132,6 @@ function createInstrumentModel(viewer, cData, isSelected, isRejected, targetGap)
       image: badgeUrl,
       scale: 0.9,
       verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-      disableDepthTestDistance: Number.POSITIVE_INFINITY,
       scaleByDistance: new Cesium.NearFarScalar(1e3, 0.8, 5e6, 1.1)
     }
   });
@@ -163,7 +162,6 @@ function createInstrumentModel(viewer, cData, isSelected, isRejected, targetGap)
       showBackground: true,
       backgroundColor: Cesium.Color.fromCssColorString('rgba(7, 20, 34, 0.88)'),
       backgroundPadding: new Cesium.Cartesian2(8, 4),
-      disableDepthTestDistance: Number.POSITIVE_INFINITY,
       scaleByDistance: new Cesium.NearFarScalar(1e3, 0.9, 5e6, 1.05)
     }
   });
@@ -393,8 +391,20 @@ async function initMissionGlobe() {
   const token = (typeof window !== 'undefined' && window.CESIUM_ION_TOKEN) || '';
   if (token && token !== 'demo_token') Cesium.Ion.defaultAccessToken = token;
 
+  let baseLayer;
+  try {
+    baseLayer = new Cesium.ImageryLayer(new Cesium.UrlTemplateImageryProvider({
+      url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      maximumLevel: 19,
+      credit: 'Esri'
+    }));
+  } catch (e) {
+    baseLayer = undefined;
+  }
+
   viewer = new Cesium.Viewer('cesiumContainer', {
-    terrainProvider: Cesium.createWorldTerrain ? Cesium.createWorldTerrain() : new Cesium.EllipsoidTerrainProvider(),
+    baseLayer: baseLayer,
+    terrainProvider: new Cesium.EllipsoidTerrainProvider(),
     animation: false, baseLayerPicker: false, fullscreenButton: false,
     geocoder: false, homeButton: false, infoBox: false,
     sceneModePicker: false, selectionIndicator: false, timeline: false, navigationHelpButton: false
@@ -491,24 +501,82 @@ function renderCurrentField(field, targetDepthM, provenance) {
 function renderGapTarget(gap) {
   const targetDepth = Math.abs(gap.depth_m || 500);
 
-  // Surface Target Ellipse Ring
-  const entSurface = viewer.entities.add({
+  // 1. Organic Surface Target Polygon with Cyan Dashed Boundary
+  const polyCoords = gap.polygon_coordinates;
+  if (polyCoords && Array.isArray(polyCoords) && polyCoords.length >= 3) {
+    const flatCoords = [];
+    polyCoords.forEach(pt => {
+      if (Array.isArray(pt) && pt.length >= 2) flatCoords.push(pt[0], pt[1]);
+    });
+
+    if (flatCoords.length >= 6) {
+      const cartesianPositions = Cesium.Cartesian3.fromDegreesArray(flatCoords);
+
+      // Shaded Surface Fill
+      const polyEnt = viewer.entities.add({
+        polygon: {
+          hierarchy: cartesianPositions,
+          height: 0,
+          material: Cesium.Color.fromCssColorString('#0891b2').withAlpha(0.24)
+        }
+      });
+      missionEntities.push(polyEnt);
+
+      // Cyan Dashed Perimeter Boundary Line
+      const borderEnt = viewer.entities.add({
+        polyline: {
+          positions: cartesianPositions,
+          width: 3.5,
+          material: new Cesium.PolylineDashMaterialProperty({
+            color: Cesium.Color.fromCssColorString('#22d3ee'),
+            dashLength: 16.0
+          }),
+          clampToGround: true
+        }
+      });
+      missionEntities.push(borderEnt);
+
+      // Interior Survey Sampling Grid Dots
+      if (gap.survey_points && Array.isArray(gap.survey_points)) {
+        gap.survey_points.forEach(sPt => {
+          const dotEnt = viewer.entities.add({
+            position: Cesium.Cartesian3.fromDegrees(sPt[0], sPt[1], 0),
+            point: {
+              pixelSize: 4.5,
+              color: Cesium.Color.fromCssColorString('#38bdf8'),
+              outlineColor: Cesium.Color.BLACK,
+              outlineWidth: 1.0
+            }
+          });
+          missionEntities.push(dotEnt);
+        });
+      }
+    }
+  } else {
+    // Fallback: Surface Target Ellipse Ring
+    const entSurface = viewer.entities.add({
+      position: positionFromLatLonDepth(gap.latitude, gap.longitude, 0),
+      ellipse: {
+        semiMajorAxis: 120000, semiMinorAxis: 120000, height: 0,
+        material: Cesium.Color.fromCssColorString('#0891b2').withAlpha(0.22),
+        outline: true, outlineColor: Cesium.Color.fromCssColorString('#22d3ee'), outlineWidth: 3
+      }
+    });
+    missionEntities.push(entSurface);
+  }
+
+  // Label at Gap Centroid
+  const lblEnt = viewer.entities.add({
     position: positionFromLatLonDepth(gap.latitude, gap.longitude, 0),
-    ellipse: {
-      semiMajorAxis: 120000, semiMinorAxis: 120000, height: 0,
-      material: Cesium.Color.fromCssColorString('#f59e0b').withAlpha(0.2),
-      outline: true, outlineColor: Cesium.Color.fromCssColorString('#f59e0b'), outlineWidth: 3
-    },
     label: {
-      text: `SURFACE GAP TARGET\n${gap.latitude}°N ${gap.longitude}°E\nPriority ${gap.priority_score}%`,
+      text: `SURFACE SURVEY ZONE\n${gap.name || 'Ocean Information Gap'}\nPriority ${gap.priority_score}%`,
       font: 'bold 11px "IBM Plex Mono", monospace', style: Cesium.LabelStyle.FILL_AND_OUTLINE,
       pixelOffset: new Cesium.Cartesian2(0, -40),
-      fillColor: Cesium.Color.fromCssColorString('#f59e0b'),
-      outlineColor: Cesium.Color.BLACK, outlineWidth: 3,
-      disableDepthTestDistance: Number.POSITIVE_INFINITY
+      fillColor: Cesium.Color.fromCssColorString('#22d3ee'),
+      outlineColor: Cesium.Color.BLACK, outlineWidth: 3
     }
   });
-  missionEntities.push(entSurface);
+  missionEntities.push(lblEnt);
 
   // 3D Underwater Target Volume at Depth (-500m)
   const targetPos3D = positionFromLatLonDepth(gap.latitude, gap.longitude, targetDepth);
@@ -528,8 +596,7 @@ function renderGapTarget(gap) {
       style: Cesium.LabelStyle.FILL_AND_OUTLINE,
       fillColor: Cesium.Color.fromCssColorString('#f59e0b'),
       outlineColor: Cesium.Color.BLACK,
-      outlineWidth: 4,
-      disableDepthTestDistance: Number.POSITIVE_INFINITY
+      outlineWidth: 4
     }
   });
   missionEntities.push(ent3D);
@@ -1324,8 +1391,7 @@ class MissionPlayback {
           fillColor: Cesium.Color.WHITE,
           outlineColor: Cesium.Color.BLACK,
           outlineWidth: 3,
-          pixelOffset: new Cesium.Cartesian2(0, -22),
-          disableDepthTestDistance: Number.POSITIVE_INFINITY
+          pixelOffset: new Cesium.Cartesian2(0, -22)
         }
       });
       missionEntities.push(this.sensorProbeEnt);

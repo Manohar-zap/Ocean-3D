@@ -1,0 +1,449 @@
+/* OCEAN 3D — Adaptive Ocean Observation & Mission Styles */
+:root {
+  --adm-bg: rgba(7, 16, 25, 0.94);
+  --adm-panel: rgba(13, 26, 36, 0.95);
+  --adm-panel-card: rgba(16, 33, 46, 0.9);
+  --adm-line: rgba(255, 255, 255, 0.12);
+  --adm-accent: #f59e0b;
+  --adm-teal: #3fe0c5;
+  --adm-cyan: #38bdf8;
+  --adm-green: #34d399;
+  --adm-red: #f43f5e;
+}
+
+/* 1. Right-side Slide-in Adaptive Mission Panel */
+#adaptiveMissionPanel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 420px;
+  height: 100%;
+  background: var(--adm-panel);
+  border-left: 1px solid var(--adm-line);
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(12px);
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 18;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 16px 80px 16px;
+  gap: 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--adm-teal) var(--adm-panel-card);
+}
+#adaptiveMissionPanel.open {
+  transform: translateX(0);
+}
+#adaptiveMissionPanel .close-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+#adaptiveMissionPanel .close-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Mission card container */
+.adm-card {
+  background: var(--adm-panel-card);
+  border: 1px solid var(--adm-line);
+  border-radius: 4px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.adm-card-hdr {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--adm-accent);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--adm-line);
+  padding-bottom: 4px;
+  margin-bottom: 2px;
+}
+.adm-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  font-size: 11.5px;
+  gap: 8px;
+}
+.adm-label {
+  color: var(--text-dim);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.adm-val {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+}
+
+/* Scientific Priority Badges */
+.badge-priority {
+  font-size: 9.5px;
+  font-weight: 700;
+  font-family: 'IBM Plex Mono', monospace;
+  padding: 2px 7px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.badge-priority.critical {
+  background: rgba(244, 63, 94, 0.22);
+  color: #f43f5e;
+  border: 1px solid #f43f5e;
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.35);
+}
+.badge-priority.high {
+  background: rgba(244, 63, 94, 0.18);
+  color: #fb7185;
+  border: 1px solid #fb7185;
+}
+.badge-priority.moderate {
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+  border: 1px solid #f59e0b;
+}
+.badge-priority.elevated {
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  border: 1px solid #38bdf8;
+}
+.badge-priority.resolved {
+  background: rgba(52, 211, 153, 0.2);
+  color: #34d399;
+  border: 1px solid #34d399;
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.35);
+}
+
+/* 2. Top Mission Phase Timeline Bar */
+#phaseTimeline {
+  position: absolute;
+  top: 10px;
+  left: 20px;
+  right: 20px;
+  height: 38px;
+  background: rgba(7, 20, 32, 0.88);
+  border: 1px solid var(--adm-line);
+  border-radius: 4px;
+  backdrop-filter: blur(8px);
+  z-index: 12;
+  display: none;
+  align-items: center;
+  padding: 0 10px;
+  gap: 6px;
+  overflow-x: auto;
+}
+#phaseTimeline::-webkit-scrollbar { height: 3px; }
+#phaseTimeline::-webkit-scrollbar-thumb { background: var(--adm-teal); }
+.pt-step {
+  font-size: 9.5px;
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--text-dim);
+  padding: 3px 8px;
+  border-radius: 3px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+.pt-step.active {
+  color: #fff;
+  background: rgba(245, 158, 11, 0.25);
+  border-color: var(--adm-accent);
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+}
+.pt-step.passed {
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.12);
+}
+
+/* 3. Top-Center Cinematic Story Narration Banner */
+#cinematicBanner {
+  position: absolute;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(8, 20, 34, 0.92);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 6px;
+  padding: 10px 22px;
+  z-index: 15;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.65);
+  pointer-events: none;
+  text-align: center;
+  max-width: 680px;
+}
+.cb-phase {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--adm-accent);
+  text-transform: uppercase;
+  font-family: 'IBM Plex Mono', monospace;
+}
+.cb-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.3px;
+}
+.cb-sub {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* 4. Live Telemetry HUD */
+#missionTelemetryHud {
+  position: absolute;
+  top: 105px;
+  left: 16px;
+  width: 270px;
+  background: rgba(7, 20, 32, 0.9);
+  border: 1px solid var(--adm-line);
+  border-radius: 6px;
+  padding: 12px;
+  z-index: 15;
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+}
+.tel-hdr {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--adm-cyan);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--adm-line);
+  padding-bottom: 4px;
+}
+.tel-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+}
+.tel-val {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  color: #fff;
+}
+.tel-battery-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+.tel-battery-fill {
+  height: 100%;
+  background: var(--adm-green);
+  width: 82%;
+  transition: width 0.3s ease;
+}
+
+/* 5. 3D Water Column Depth Gauge Overlay */
+#adaptiveWaterColumnOverlay {
+  position: absolute;
+  top: 105px;
+  right: 440px;
+  width: 190px;
+  background: rgba(7, 20, 32, 0.9);
+  border: 1px solid var(--adm-line);
+  border-radius: 6px;
+  padding: 10px;
+  z-index: 15;
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  backdrop-filter: blur(8px);
+}
+.wc-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--adm-teal);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--adm-line);
+  padding-bottom: 4px;
+}
+.wc-ruler-container {
+  position: relative;
+  height: 160px;
+  border-left: 2px solid rgba(255, 255, 255, 0.2);
+  margin: 6px 0 6px 14px;
+}
+.wc-marker {
+  position: absolute;
+  left: 0;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9.5px;
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--text-dim);
+}
+.wc-marker::before {
+  content: '';
+  width: 6px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.4);
+}
+.wc-vehicle-cursor {
+  position: absolute;
+  left: -6px;
+  width: 14px;
+  height: 14px;
+  background: var(--adm-accent);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  box-shadow: 0 0 10px var(--adm-accent);
+  transition: top 0.25s linear;
+}
+.wc-cursor-label {
+  position: absolute;
+  left: 18px;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--adm-accent);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* 6. Mission Playback Controller Bar */
+#missionPlaybackBar {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(7, 20, 34, 0.94);
+  border: 1px solid var(--adm-line);
+  border-radius: 24px;
+  padding: 6px 16px;
+  z-index: 16;
+  display: none;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(10px);
+}
+.pb-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--adm-line);
+  color: #fff;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: all 0.15s ease;
+}
+.pb-btn:hover {
+  background: var(--adm-accent);
+  color: #000;
+}
+.pb-scrubber {
+  width: 180px;
+  accent-color: var(--adm-accent);
+  cursor: pointer;
+}
+.pb-time {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #fff;
+  min-width: 65px;
+}
+.pb-speed-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  font-size: 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.pb-speed-btn.active {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: var(--adm-accent);
+  color: var(--adm-accent);
+  font-weight: 700;
+}
+
+/* 7. Modal Cards (Candidate Feasibility & Final Summary) */
+.adm-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 50;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.adm-modal-backdrop.open {
+  display: flex;
+}
+.adm-modal-box {
+  width: 520px;
+  max-width: 92vw;
+  background: var(--adm-panel);
+  border: 1px solid var(--adm-line);
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
+}
+.adm-modal-hdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--adm-line);
+  padding-bottom: 10px;
+}
+.adm-modal-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

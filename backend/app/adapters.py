@@ -1829,21 +1829,14 @@ REGISTERED_ADAPTERS: list[Adapter] = [
     CTD_ERDDAP_Adapter(),
     BGCArgoAdapter(),
     INCOISMooredBuoyAdapter(),
-    NOAAGDPDrifterAdapter(),
-    OceanSITESAdapter(),
-    AUV_ERDDAP_Adapter(),
-    USV_Saildrone_Adapter(),
-    ROV_OceanExploration_Adapter(),
-    ResearchVesselUnderwayAdapter(),
 ]
 
 # The logical "sources" the Ingestion Worker polls (Architecture Sec. 6/7).
 # In production these are real endpoints (INCOIS LAS, Copernicus, Argo GDAC,
-# Glider DAC); here they're symbolic keys the synthetic adapters recognize.
+# Glider DAC); here they're symbolic keys the adapters recognize.
 SOURCE_KEYS = [
     "gebco_bathymetry", "copernicus_cmems", "incois_las_model", "bgc_model",
-    "argo_gdac", "glider_dac", "ctd_cast", "bgc_argo", "incois_omni_mooring",
-    "gdp_drifter", "oceansites_mooring", "auv_dac", "usv_saildrone", "rov_dive", "research_vessel"
+    "argo_gdac", "glider_dac", "ctd_cast", "bgc_argo", "incois_omni_mooring"
 ]
 
 

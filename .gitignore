@@ -1,25 +1,5 @@
-# Python
+# Python compiled byte-code & test cache
 __pycache__/
 *.py[cod]
-*$py.class
-.venv/
-venv/
-ENV/
-env/
-*.egg-info/
 .pytest_cache/
-
-# IDE, Secrets, Temporary Screenshots, Documents & OS
-.env
-.env.local
-frontend/config.js
-*.png
-!frontend/assets/icons/*.png
-*.docx
-*.doc
-*.pdf
-.idea/
-.vscode/
-*.log
-backend/*.log
-Thumbs.db
+node_modules/

@@ -37,9 +37,9 @@ class EnergyModelEngine:
             sensor_watts = 1500.0
             battery_capacity_wh = 10000000.0
         else:  # Glider
-            propulsion_watts = 8.5    # Low power buoyancy engine
-            sensor_watts = 3.2
-            battery_capacity_wh = 3200.0   # Long-range primary lithium battery pack (2400-3600 Wh)
+            propulsion_watts = 3.5    # Duty-cycled low power buoyancy engine (glide cycle)
+            sensor_watts = 2.5
+            battery_capacity_wh = 4800.0   # Long-range primary lithium battery pack (4200-5200 Wh)
 
         # Effective ground speed considering ocean current drag (v_effective = v_cruise - v_current_headwind)
         effective_speed = max(0.05, cruise_speed_mps - max(-0.5, min(0.5, current_drag_mps)))

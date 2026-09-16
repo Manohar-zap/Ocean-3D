@@ -10,3 +10,4 @@ numpy==2.3.2
 shapely==2.1.2
 httpx==0.28.1
 selenium==4.49.0
+scikit-learn>=1.4.0

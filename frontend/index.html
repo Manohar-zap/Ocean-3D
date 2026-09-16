@@ -8,12 +8,14 @@
 <!-- CesiumJS Official Library v1.114 -->
 <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
 <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+<link href="adaptive-mission-globe.css" rel="stylesheet">
 
 <!-- Three.js Library for Right-Panel 3D WebGL Water-Column Renderer -->
 <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
 
 <script src="config.js"></script>
 <script src="assets/ocean_mask_data.js"></script>
+<script src="adaptive-mission-globe.js"></script>
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
@@ -325,16 +327,13 @@
     <div class="modeswitch" id="mainViewSwitcher" style="margin-right:8px;">
       <button id="btnViewGIS" class="active" title="Cesium 3D Globe with live ARGO floats, Gliders, and CTD profiles">🌍 Satellite GIS View</button>
       <button id="btnViewTerrain" title="3D Deformed Earth Without Water & Dynamic Water Level Terrain">🌐 3D Water Level & Geoid Terrain</button>
+      <button id="btnNavAdaptiveMission" title="Open Closed-Loop Adaptive Mission Planner Workspace">🚀 Adaptive Mission</button>
     </div>
     <button id="btnOpenOceanStories" style="background:rgba(63, 224, 197, 0.15); border:1px solid var(--accent); color:var(--accent); font-family:inherit; font-size:12px; font-weight:600; padding:5px 11px; border-radius:var(--radius); cursor:pointer; display:flex; align-items:center; gap:6px; margin-right:8px;">
       <span>📖</span>
       <span>Ocean Stories</span>
       <span style="font-size:9.5px; background:var(--accent); color:#04201b; padding:1px 5px; border-radius:2px; font-weight:700;">INCOIS</span>
     </button>
-    <a href="adaptive-mission.html" id="btnNavAdaptiveMission" target="_blank" style="background:rgba(245, 158, 11, 0.15); border:1px solid #f59e0b; color:#f59e0b; font-family:inherit; font-size:12px; font-weight:600; padding:5px 11px; border-radius:var(--radius); text-decoration:none; display:flex; align-items:center; gap:6px; margin-right:8px;" title="Open Closed-Loop Adaptive Mission Planner Workspace">
-      <span>🚀</span>
-      <span>Adaptive Mission</span>
-    </a>
     <div class="modeswitch">
       <button id="btnResearch" class="active">🔬 Researcher</button>
       <button id="btnFisher">🐟 Fisher</button>
@@ -386,6 +385,8 @@
 
         <div>
           <div class="section-title">3D Scene Layers</div>
+          <div class="toggle-row"><span><span class="swatch" style="background:#f43f5e; box-shadow:0 0 6px #f43f5e;"></span>⚠️ Adaptive Information Gaps</span>
+            <label class="switch"><input type="checkbox" id="ovGaps" checked><span class="slider-toggle"></span></label></div>
           <div class="toggle-row"><span>🇮🇳 India EEZ Boundary (200 NM)</span>
             <label class="switch"><input type="checkbox" id="ovIndiaEEZ" checked><span class="slider-toggle"></span></label></div>
           <div class="toggle-row"><span>🌊 Animated Ocean Currents</span>
@@ -446,18 +447,6 @@
             <label class="switch"><input type="checkbox" id="ovGlider" checked><span class="slider-toggle"></span></label></div>
           <div class="toggle-row"><span><img src="assets/icons/ctd.png" alt="Shipboard CTD Cast" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#c58ee0"></span>Shipboard CTD Casts</span>
             <label class="switch"><input type="checkbox" id="ovCtd" checked><span class="slider-toggle"></span></label></div>
-          <div class="toggle-row"><span><img src="assets/icons/argo_float.png" alt="Surface Drifter" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#f43f5e"></span>Surface Drifters (NOAA GDP)</span>
-            <label class="switch"><input type="checkbox" id="ovDrifter" checked><span class="slider-toggle"></span></label></div>
-          <div class="toggle-row"><span><img src="assets/icons/ctd.png" alt="OceanSITES Observatory" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#a855f7"></span>OceanSITES Observatories</span>
-            <label class="switch"><input type="checkbox" id="ovOceanSites" checked><span class="slider-toggle"></span></label></div>
-          <div class="toggle-row"><span><img src="assets/icons/glider.png" alt="AUV Deployment" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#06b6d4"></span>AUV Missions (NOAA/MBARI)</span>
-            <label class="switch"><input type="checkbox" id="ovAuv" checked><span class="slider-toggle"></span></label></div>
-          <div class="toggle-row"><span><img src="assets/icons/argo_float.png" alt="Uncrewed Surface Vehicle" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#3b82f6"></span>USVs (Saildrone / Wave Glider)</span>
-            <label class="switch"><input type="checkbox" id="ovUsv" checked><span class="slider-toggle"></span></label></div>
-          <div class="toggle-row"><span><img src="assets/icons/ctd.png" alt="Deep-Sea ROV" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#eab308"></span>Deep-Sea ROV Dives (OET/NOAA)</span>
-            <label class="switch"><input type="checkbox" id="ovRov" checked><span class="slider-toggle"></span></label></div>
-          <div class="toggle-row"><span><img src="assets/icons/ctd.png" alt="Research Vessel" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#f97316"></span>Underway Research Vessels</span>
-            <label class="switch"><input type="checkbox" id="ovVessel" checked><span class="slider-toggle"></span></label></div>
         </div>
 
         <div>
@@ -469,12 +458,6 @@
               <div>MOORING: <span id="cntMooring" class="mono" style="color:#38bdf8; font-weight:600;">0</span></div>
               <div>GLIDER: <span id="cntGlider" class="mono" style="color:#8ec9e0; font-weight:600;">0</span></div>
               <div>CTD: <span id="cntCtd" class="mono" style="color:#c58ee0; font-weight:600;">0</span></div>
-              <div>DRIFTER: <span id="cntDrifter" class="mono" style="color:#f43f5e; font-weight:600;">0</span></div>
-              <div>OCEANSITES: <span id="cntOceanSites" class="mono" style="color:#a855f7; font-weight:600;">0</span></div>
-              <div>AUV: <span id="cntAuv" class="mono" style="color:#06b6d4; font-weight:600;">0</span></div>
-              <div>USV: <span id="cntUsv" class="mono" style="color:#3b82f6; font-weight:600;">0</span></div>
-              <div>ROV: <span id="cntRov" class="mono" style="color:#eab308; font-weight:600;">0</span></div>
-              <div>VESSEL: <span id="cntVessel" class="mono" style="color:#f97316; font-weight:600;">0</span></div>
             </div>
             <div style="display:flex; justify-content:space-between; margin-top:2px; padding-top:4px; border-top:1px solid var(--line); font-weight:600;">
               <span>ACTIVE PLATFORMS</span>
@@ -518,6 +501,17 @@
               <span id="provTime" class="mono" style="font-size:10px; color:var(--text-dim);">2026-09-08</span>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: ADAPTIVE INFORMATION GAPS & MISSIONS -->
+      <div id="tab-adaptive" class="tab-pane" style="display:none;">
+        <div class="section-title">Detected Ocean Information Gaps</div>
+        <div style="font-size:10px; color:var(--text-dim); line-height:1.4;">
+          Regions where observational density, staleness, depth coverage, or model disagreement warrant autonomous sampling missions. Click any gap to inspect & plan.
+        </div>
+        <div id="adaptiveGapList" style="display:flex; flex-direction:column; gap:6px;">
+          <div style="font-size:11px; color:var(--text-dim); padding:8px;">Analyzing global ocean telemetry...</div>
         </div>
       </div>
 
@@ -1122,6 +1116,230 @@
       <button class="action primary" id="btnCompare" style="margin-top:6px;">Compare with Model at Selected Depth</button>
       <div id="compareResult"></div>
     </div>
+
+    <!-- =================================================================== -->
+    <!-- ADAPTIVE OCEAN OBSERVATION — MISSION CONTROL & OVERLAYS             -->
+    <!-- =================================================================== -->
+
+    <!-- Top Mission Phase Timeline Bar -->
+    <div id="phaseTimeline"></div>
+
+    <!-- Top-Center Story Narration Banner -->
+    <div id="cinematicBanner">
+      <div class="cb-phase" id="cbPhaseTag">PHASE 01 — GAP DETECTED</div>
+      <div class="cb-title" id="cbTitle">HIGH-VALUE OBSERVATION GAP DETECTED</div>
+      <div class="cb-sub" id="cbSubText">Target: 15.40°N 88.70°E | Depth: 500m | Priority: 82%</div>
+    </div>
+
+    <!-- Live Telemetry HUD -->
+    <div id="missionTelemetryHud">
+      <div class="tel-hdr">
+        <span>Mission Telemetry</span>
+        <span id="telStatusBadge" class="badge-priority elevated" style="font-size:9px; background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.4);">SIMULATED STREAM</span>
+      </div>
+      <div style="font-size:9px; color:#f59e0b; background:rgba(245,158,11,0.08); padding:2px 6px; border-radius:3px; margin:2px 0 5px 0; text-align:center; font-family:'IBM Plex Mono',monospace; border:1px dashed rgba(245,158,11,0.3);">
+        [PLANNING ASSET — NUMERICAL SIMULATION]
+      </div>
+      <div class="tel-row"><span class="adm-label">Vehicle Depth:</span><span id="telDepthVal" class="tel-val" style="color:var(--adm-cyan);">0 m [SIM]</span></div>
+      <div class="tel-row"><span class="adm-label">Speed / Track:</span><span id="telSpeedVal" class="tel-val">0.35 m/s [SIM]</span></div>
+      <div class="tel-row"><span class="adm-label">True Heading:</span><span id="telHeadingVal" class="tel-val">045° [SIM]</span></div>
+      <div class="tel-row">
+        <span class="adm-label">Battery Level:</span>
+        <span id="telBattVal" class="tel-val" style="color:var(--adm-green);">82.0% [SIM]</span>
+      </div>
+      <div class="tel-battery-bar"><div id="telBattFill" class="tel-battery-fill"></div></div>
+      <div style="border-top:1px solid var(--adm-line); padding-top:4px; margin-top:2px;">
+        <div class="tel-row"><span class="adm-label">Synthetic Temp:</span><span id="telTempVal" class="tel-val" style="color:#38bdf8;">28.20 °C [SIM]</span></div>
+        <div class="tel-row"><span class="adm-label">Synthetic Salinity:</span><span id="telSalVal" class="tel-val">34.85 PSU [SIM]</span></div>
+        <div class="tel-row"><span class="adm-label">Synthetic Pressure:</span><span id="telPressVal" class="tel-val">10.2 dbar [SIM]</span></div>
+        <div class="tel-row"><span class="adm-label">Synthetic Oxygen:</span><span id="telOxyVal" class="tel-val" style="color:#34d399;">194 µmol/kg [SIM]</span></div>
+        <div class="tel-row"><span class="adm-label">Synthetic Chl-a:</span><span id="telChlVal" class="tel-val" style="color:#8ee0a4;">0.52 mg/m³ [SIM]</span></div>
+      </div>
+    </div>
+
+    <!-- 3D Water Column Depth Gauge Overlay -->
+    <div id="adaptiveWaterColumnOverlay">
+      <div class="wc-title">3D Water Column Descent</div>
+      <div class="wc-ruler-container">
+        <div class="wc-marker" style="top:0%;"><span>0 m (Surface)</span></div>
+        <div class="wc-marker" style="top:20%;"><span>100 m (Mixed)</span></div>
+        <div class="wc-marker" style="top:40%;"><span>250 m (Thermocline)</span></div>
+        <div class="wc-marker" style="top:65%;"><span>500 m (Target)</span></div>
+        <div class="wc-marker" style="top:95%;"><span>1000 m (Deep)</span></div>
+        <div id="wcVehicleCursor" class="wc-vehicle-cursor" style="top:0%;">
+          <span id="wcCursorLabel" class="wc-cursor-label">0 m</span>
+        </div>
+      </div>
+      <div style="font-size:9px; color:var(--text-dim); display:flex; justify-content:space-between; border-top:1px solid var(--adm-line); padding-top:4px;">
+        <span>Bathymetry Limit:</span>
+        <span style="color:var(--adm-teal); font-weight:600;">GEBCO Seabed Safe</span>
+      </div>
+    </div>
+
+    <!-- Mission Playback Controller Bar -->
+    <div id="missionPlaybackBar">
+      <button id="btnPbRestart" class="pb-btn" title="Restart Simulation">↺</button>
+      <button id="btnPbPlay" class="pb-btn" title="Play / Pause" style="background:var(--adm-accent); color:#000; font-weight:bold;">▶</button>
+      <input type="range" id="timelineScrubber" min="0" max="1000" value="0" class="pb-scrubber">
+      <span id="playbackTime" class="pb-time">T+ 0h 00m</span>
+      <div style="display:flex; gap:3px;">
+        <button class="pb-speed-btn" data-speed="0.5">0.5x</button>
+        <button class="pb-speed-btn active" data-speed="1.0">1x</button>
+        <button class="pb-speed-btn" data-speed="2.0">2x</button>
+        <button class="pb-speed-btn" data-speed="4.0">4x</button>
+      </div>
+    </div>
+
+    <!-- Right Slide-in Focused Adaptive Mission & Information Gap Panel -->
+    <div id="adaptiveMissionPanel">
+      <button class="close-btn" id="btnCloseAdaptivePanel" title="Close Panel">✕</button>
+      
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--adm-line); padding-bottom:6px;">
+        <span style="font-size:12px; font-weight:700; color:#fff; letter-spacing:0.5px;">INFORMATION GAP DETECTED</span>
+        <span id="admBadgePriority" class="badge-priority high">HIGH — 82%</span>
+      </div>
+
+      <div id="admGapTitle" style="font-size:14px; font-weight:700; color:var(--adm-teal); line-height:1.25;">
+        Bay of Bengal Deep Thermocline
+      </div>
+      <div id="admGapCoords" class="mono" style="font-size:11px; color:var(--text-dim);">
+        15.40°N, 88.70°E (500 m depth)
+      </div>
+
+      <!-- Why considered an observation gap -->
+      <div class="adm-card">
+        <div class="adm-card-hdr">
+          <span>Oceanographic Diagnostic</span>
+          <span class="badge-priority elevated">REASON</span>
+        </div>
+        <div id="admGapReason" style="font-size:11.5px; color:var(--text); line-height:1.45;">
+          High model-observation disagreement with critically sparse subsurface soundings.
+        </div>
+      </div>
+
+      <!-- Observation diagnostics list (9 fields) -->
+      <div class="adm-card">
+        <div class="adm-card-hdr">
+          <span>Observation Coverage & Telemetry</span>
+          <span style="font-size:9.5px; color:var(--text-dim);">INCOIS DIGITAL TWIN</span>
+        </div>
+        <div class="adm-row"><span class="adm-label">Regional Coverage:</span><span id="admCoverage" class="adm-val" style="font-size:10.5px;">Sparse</span></div>
+        <div class="adm-row"><span class="adm-label">Nearest Active Float:</span><span id="admNearest" class="adm-val" style="color:var(--adm-accent); font-size:10.5px;">ARGO-5906203</span></div>
+        <div class="adm-row"><span class="adm-label">Observation Staleness:</span><span id="admStaleness" class="adm-val">18.4 days</span></div>
+        <div class="adm-row"><span class="adm-label">Vertical Depth Status:</span><span id="admDepthStatus" class="adm-val" style="color:#ef4444; font-size:10.5px;">0-100m only; deep column missing</span></div>
+        <div class="adm-row"><span class="adm-label">Missing Variables:</span><span id="admMissingVars" class="adm-val" style="color:var(--adm-cyan); font-size:10.5px;">Dissolved Oxygen, Salinity</span></div>
+        <div class="adm-row"><span class="adm-label">Model Disagreement:</span><span id="admDisagreement" class="adm-val" style="color:#f43f5e;">ΔT = +1.84 °C</span></div>
+      </div>
+
+      <!-- Priority Factor Breakdown Bars -->
+      <div class="adm-card">
+        <div class="adm-card-hdr">
+          <span>Priority Factor Analysis</span>
+          <span style="font-size:9.5px; color:var(--text-dim);">0 - 100%</span>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:4px; font-size:10.5px;">
+          <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Spatial Distance:</span><span class="mono">40% weight</span></div>
+          <div style="background:rgba(255,255,255,0.1); height:5px; border-radius:3px; overflow:hidden;"><div id="admBarSpatial" style="height:100%; background:var(--adm-red); width:80%;"></div></div>
+          <div style="display:flex; justify-content:space-between; margin-top:2px;"><span style="color:var(--text-dim);">Temporal Staleness:</span><span class="mono">25% weight</span></div>
+          <div style="background:rgba(255,255,255,0.1); height:5px; border-radius:3px; overflow:hidden;"><div id="admBarTemporal" style="height:100%; background:var(--adm-accent); width:70%;"></div></div>
+          <div style="display:flex; justify-content:space-between; margin-top:2px;"><span style="color:var(--text-dim);">Model-Obs Discrepancy:</span><span class="mono">25% weight</span></div>
+          <div style="background:rgba(255,255,255,0.1); height:5px; border-radius:3px; overflow:hidden;"><div id="admBarDisagreement" style="height:100%; background:#fb7185; width:85%;"></div></div>
+          <div style="display:flex; justify-content:space-between; margin-top:2px;"><span style="color:var(--text-dim);">Depth Unobserved:</span><span class="mono">10% weight</span></div>
+          <div style="background:rgba(255,255,255,0.1); height:5px; border-radius:3px; overflow:hidden;"><div id="admBarDepth" style="height:100%; background:var(--adm-cyan); width:50%;"></div></div>
+        </div>
+      </div>
+
+      <!-- Main Action Button -->
+      <button id="btnAdaptivePlayMission" class="action primary" style="font-size:12.5px; font-weight:700; padding:10px; display:flex; align-items:center; justify-content:center; gap:8px; background:rgba(245, 158, 11, 0.25); border-color:var(--adm-accent); color:var(--adm-accent); cursor:pointer;">
+        <span>🚀</span>
+        <span>PLAN & LAUNCH MISSION</span>
+      </button>
+
+      <!-- Candidate Platforms Section -->
+      <div id="admPlanningSection" style="display:none; flex-direction:column; gap:8px;">
+        <div class="adm-card-hdr" style="margin-top:6px;">
+          <span>Candidate Platforms (Fleet Search)</span>
+          <span class="badge-priority elevated">FEASIBILITY</span>
+        </div>
+        <div id="admCandidateList" style="display:flex; flex-direction:column; gap:6px;"></div>
+      </div>
+
+      <!-- Execution Section when platform is selected -->
+      <div id="admExecutionSection" class="adm-card" style="display:none; border-color:var(--adm-accent); background:rgba(245, 158, 11, 0.08);">
+        <div class="adm-card-hdr">
+          <span>Mission Plan Decision</span>
+          <span class="badge-priority resolved">READY</span>
+        </div>
+        <div class="adm-row"><span class="adm-label">Selected Platform:</span><span id="admWinnerName" class="adm-val" style="color:var(--adm-accent);">GLIDER-07</span></div>
+        <div class="adm-row"><span class="adm-label">Platform Class:</span><span id="admWinnerType" class="adm-val">AUTONOMOUS GLIDER</span></div>
+        <div class="adm-row"><span class="adm-label">Transit Distance:</span><span id="admWinnerDist" class="adm-val">142.4 km</span></div>
+        <div class="adm-row"><span class="adm-label">Estimated Duration:</span><span id="admWinnerDuration" class="adm-val">38.4 hours</span></div>
+        <div class="adm-row"><span class="adm-label">Energy Expenditure:</span><span id="admWinnerEnergy" class="adm-val">28.4%</span></div>
+        <div class="adm-row"><span class="adm-label">Safety Reserve:</span><span id="admWinnerReserve" class="adm-val" style="color:var(--adm-green);">25.2% (Feasible)</span></div>
+        <button id="btnAdaptiveExecuteSim" class="action primary" style="margin-top:6px; font-weight:700; background:rgba(52, 211, 153, 0.25); border-color:#34d399; color:#34d399; cursor:pointer;">
+          <span>▶</span>
+          <span>START 3D MISSION SIMULATION</span>
+        </button>
+      </div>
+
+      <!-- Requirement 16: Failure Case Card (Remote Gap, No Platform Feasible) -->
+      <div id="admFailureSection" class="adm-card" style="display:none; border-color:#f43f5e; background:rgba(244, 63, 94, 0.1);">
+        <div class="adm-card-hdr" style="color:#f43f5e;">
+          <span>Feasibility Analysis Status</span>
+          <span class="badge-priority critical">NO FEASIBLE PLATFORM</span>
+        </div>
+        <div id="admFailReason" style="font-size:11.5px; color:#fff; line-height:1.45;">
+          All mobile platforms exceed maximum range or depth threshold for this remote gap.
+        </div>
+        <div style="font-size:10px; font-weight:700; color:var(--text-dim); text-transform:uppercase; margin-top:4px;">
+          Recommended Alternatives:
+        </div>
+        <ul style="margin:2px 0 0 16px; padding:0; font-size:11px; color:#f1f5f9; line-height:1.4;">
+          <li>Dispatch oceanographic research vessel expedition (ORV Sagar Kanya)</li>
+          <li>Air-deploy autonomous deep-profiling BGC-Argo float</li>
+          <li>Maintain remote monitoring via satellite altimetry & radiometry</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Post-Mission Summary Modal -->
+    <div id="missionSummaryModal" class="adm-modal-backdrop">
+      <div class="adm-modal-box">
+        <div class="adm-modal-hdr">
+          <div class="adm-modal-title">
+            <span style="color:#34d399;">✓</span>
+            <span>MISSION COMPLETE — DIGITAL TWIN REASSESSED</span>
+          </div>
+          <button class="close-btn" onclick="closeMissionSummaryModal()" style="background:none; border:none; color:var(--text-dim); font-size:18px; cursor:pointer;">✕</button>
+        </div>
+        <div style="font-size:12px; color:var(--text); line-height:1.5;">
+          Controllable observing platform completed the 3D depth sampling sequence down to the target horizon. Continuous temperature, salinity, pressure, and dissolved oxygen profiles were ingested into the Ocean Digital Twin.
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+          <div class="adm-card">
+            <span class="adm-label">PRIOR INFORMATION GAP</span>
+            <span id="smBefore" class="adm-val" style="color:#f43f5e; font-size:18px;">86.4%</span>
+            <span style="font-size:10px; color:var(--text-dim);">Critical Uncertainty</span>
+          </div>
+          <div class="adm-card">
+            <span class="adm-label">POSTERIOR INFORMATION GAP</span>
+            <span id="smAfter" class="adm-val" style="color:#34d399; font-size:18px;">24.2%</span>
+            <span style="font-size:10px; color:var(--text-dim);">Resolved & Constrained</span>
+          </div>
+        </div>
+        <div class="adm-card">
+          <div class="adm-row"><span class="adm-label">Expected Information Gain:</span><span id="smGain" class="adm-val" style="color:var(--adm-cyan);">+62.2%</span></div>
+          <div class="adm-row"><span class="adm-label">Uncertainty Reduction:</span><span id="smReduction" class="adm-val" style="color:var(--adm-green);">72.0%</span></div>
+          <div class="adm-row"><span class="adm-label">Digital Twin Status:</span><span class="adm-val">SIMULATED REASSESSMENT COMPLETE</span></div>
+        </div>
+        <div style="font-size:10.5px; color:#f59e0b; background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.35); border-radius:4px; padding:6px 10px; line-height:1.45; font-family:'IBM Plex Mono',monospace;">
+          ⚠ <strong>PROVENANCE & SIMULATION NOTICE:</strong> All vehicle trajectories, transit battery expenditures, and acquired soundings are numerically generated planning models. Real operational assets are limited to verified in-situ observational networks (Argo, Moorings, CTD).
+        </div>
+        <button class="action primary" onclick="closeMissionSummaryModal()" style="margin-top:4px; padding:8px; font-weight:600; cursor:pointer;">
+          Resume 3D Ocean Digital Twin Workspace
+        </button>
+      </div>
+    </div>
   </main>
 
   <footer>
@@ -1496,23 +1714,34 @@ let terrainDrainTimer = null;
 let terrainDrainDirection = -1;
 
 function switchMainView(mode){
-  state.mainView = mode; // 'gis' or 'terrain'
+  state.mainView = mode; // 'gis', 'terrain', or 'adaptive'
   const btnGIS = document.getElementById("btnViewGIS");
   const btnTerrain = document.getElementById("btnViewTerrain");
+  const btnAdaptive = document.getElementById("btnNavAdaptiveMission");
   const cContainer = document.getElementById("cesiumContainer");
   const tContainer = document.getElementById("terrainGlobeContainer");
   const hint = document.getElementById("hint");
   const depthBanner = document.getElementById("depthDisplayBanner");
   const coordsReadout = document.getElementById("coordsReadout");
 
+  const sidebarTabs = document.querySelector(".sidebar-tabs");
+  const tabPanes = document.querySelectorAll(".tab-pane");
+
+  if(btnGIS) btnGIS.classList.toggle("active", mode === 'gis');
+  if(btnTerrain) btnTerrain.classList.toggle("active", mode === 'terrain');
+  if(btnAdaptive) btnAdaptive.classList.toggle("active", mode === 'adaptive');
+
   if(mode === 'terrain'){
-    if(btnGIS) btnGIS.classList.remove("active");
-    if(btnTerrain) btnTerrain.classList.add("active");
     if(cContainer) cContainer.style.display = "none";
     if(tContainer) tContainer.style.display = "block";
     if(hint) hint.style.display = "none";
     if(depthBanner) depthBanner.style.display = "none";
     if(coordsReadout) coordsReadout.style.display = "none";
+
+    if(sidebarTabs) sidebarTabs.style.display = "flex";
+    const activeTab = document.querySelector(".sidebar-tab.active");
+    const activeTabId = activeTab ? activeTab.getAttribute("data-tab") : "tab-gis";
+    tabPanes.forEach(p => p.style.display = (p.id === activeTabId ? "flex" : "none"));
 
     if(!threeTerrainGlobeInitialized){
       initThreeTerrainGlobe();
@@ -1520,14 +1749,34 @@ function switchMainView(mode){
       onTerrainResize();
     }
     update3DWaterLevelTerrain(state.waterLevelPercent !== undefined ? state.waterLevelPercent : 100);
-  } else {
-    if(btnGIS) btnGIS.classList.add("active");
-    if(btnTerrain) btnTerrain.classList.remove("active");
+  } else if(mode === 'adaptive') {
     if(cContainer) cContainer.style.display = "block";
     if(tContainer) tContainer.style.display = "none";
     if(hint) hint.style.display = "block";
     if(depthBanner) depthBanner.style.display = "block";
     if(coordsReadout) coordsReadout.style.display = "block";
+
+    // Hide standard GIS tabs on left panel and present ONLY the Adaptive Mission pane
+    if(sidebarTabs) sidebarTabs.style.display = "none";
+    tabPanes.forEach(p => p.style.display = (p.id === "tab-adaptive" ? "flex" : "none"));
+
+    if (window.adaptiveState && window.adaptiveState.gaps && window.adaptiveState.gaps.length > 0) {
+      if (typeof window.selectAdaptiveGap === 'function') {
+        window.selectAdaptiveGap(window.adaptiveState.gaps[0]);
+      }
+    }
+  } else {
+    // GIS Mode
+    if(cContainer) cContainer.style.display = "block";
+    if(tContainer) tContainer.style.display = "none";
+    if(hint) hint.style.display = "block";
+    if(depthBanner) depthBanner.style.display = "block";
+    if(coordsReadout) coordsReadout.style.display = "block";
+
+    if(sidebarTabs) sidebarTabs.style.display = "flex";
+    const activeTab = document.querySelector(".sidebar-tab.active");
+    const activeTabId = activeTab ? activeTab.getAttribute("data-tab") : "tab-gis";
+    tabPanes.forEach(p => p.style.display = (p.id === activeTabId ? "flex" : "none"));
   }
 }
 
@@ -2287,9 +2536,7 @@ async function initCesiumGlobe(){
     baseLayer = undefined;
   }
 
-  // Create Cesium Viewer with fixed satellite view and no rightside imagery icons
-  viewer = new Cesium.Viewer('cesiumContainer', {
-    baseLayer: baseLayer,
+  const viewerOptions = {
     terrainProvider: new Cesium.EllipsoidTerrainProvider(),
     timeline: false,
     animation: false,
@@ -2301,7 +2548,15 @@ async function initCesiumGlobe(){
     fullscreenButton: false,
     selectionIndicator: true,
     infoBox: false
-  });
+  };
+  if (baseLayer) {
+    viewerOptions.baseLayer = baseLayer;
+  } else {
+    viewerOptions.baseLayer = false;
+  }
+
+  // Create Cesium Viewer with fixed satellite view and no rightside imagery icons
+  viewer = new Cesium.Viewer('cesiumContainer', viewerOptions);
   window.viewer = viewer;
 
   // Immediately dismiss loading overlay as soon as viewer instance is created!
@@ -2379,12 +2634,19 @@ async function initCesiumGlobe(){
     }
   }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-  // Click Platform Entity & Fisher Location Query
+  // Click Platform Entity, Adaptive Information Gap, or Fisher Location Query
   handler.setInputAction(async (click) => {
     const pickedObject = viewer.scene.pick(click.position);
-    if(Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.userData){
-      const platform_id = pickedObject.id.userData.platform_id;
-      if(platform_id) openProfile(platform_id);
+    if(Cesium.defined(pickedObject) && pickedObject.id){
+      if(pickedObject.id.gapData && typeof selectAdaptiveGap === 'function'){
+        selectAdaptiveGap(pickedObject.id.gapData);
+        return;
+      }
+      if(pickedObject.id.userData && pickedObject.id.userData.platform_id){
+        const platform_id = pickedObject.id.userData.platform_id;
+        if(platform_id) openProfile(platform_id);
+        return;
+      }
     } else if(state.mode === "fisher") {
       const cartesian = viewer.camera.pickEllipsoid(click.position, viewer.scene.globe.ellipsoid);
       if(cartesian) {
@@ -3114,7 +3376,7 @@ async function loadVectors(){
 // Observations & Floating Platform Icons
 // ---------------------------------------------------------------------
 const PLATFORM_COLOR = {
-  argo: '#f2a65a', glider: '#8ec9e0', ctd: '#c58ee0', bgc: '#8ee0a4', mooring: '#38bdf8', drifter: '#f43f5e', oceansites: '#a855f7', auv: '#06b6d4', usv: '#3b82f6', rov: '#eab308', vessel: '#f97316'
+  argo: '#f2a65a', glider: '#8ec9e0', ctd: '#c58ee0', bgc: '#8ee0a4', mooring: '#38bdf8'
 };
 
 const PLATFORM_ICON = {
@@ -3122,13 +3384,7 @@ const PLATFORM_ICON = {
   glider: 'assets/icons/glider.png',
   ctd: 'assets/icons/ctd.png',
   bgc: 'assets/icons/bgc.png',
-  mooring: 'assets/icons/ctd.png',
-  drifter: 'assets/icons/argo_float.png',
-  oceansites: 'assets/icons/ctd.png',
-  auv: 'assets/icons/glider.png',
-  usv: 'assets/icons/argo_float.png',
-  rov: 'assets/icons/ctd.png',
-  vessel: 'assets/icons/ctd.png'
+  mooring: 'assets/icons/ctd.png'
 };
 
 let trackEntity = null;
@@ -3306,19 +3562,12 @@ async function loadObservations(){
 
   // Count loaded markers directly per category
   const counts = {
-    argo: 0, glider: 0, ctd: 0, bgc: 0, mooring: 0,
-    drifter: 0, oceansites: 0, auv: 0, usv: 0, rov: 0, vessel: 0
+    argo: 0, glider: 0, ctd: 0, bgc: 0, mooring: 0
   };
   (data.markers || []).forEach(m => {
     const pt = (m.platform_type || "argo").toLowerCase();
     if (counts[pt] !== undefined) counts[pt]++;
     else if (pt.includes("moor") || pt.includes("omni")) counts.mooring++;
-    else if (pt.includes("drift")) counts.drifter++;
-    else if (pt.includes("site") || pt.includes("ocean")) counts.oceansites++;
-    else if (pt.includes("auv")) counts.auv++;
-    else if (pt.includes("usv") || pt.includes("sail")) counts.usv++;
-    else if (pt.includes("rov")) counts.rov++;
-    else if (pt.includes("vessel") || pt.includes("ship")) counts.vessel++;
     else if (pt.includes("bgc")) counts.bgc++;
   });
 
@@ -3330,31 +3579,12 @@ async function loadObservations(){
   const mooringEl = document.getElementById("cntMooring");
   if(mooringEl) mooringEl.textContent = counts.mooring || data.summary?.mooring || 0;
 
-  const drifterEl = document.getElementById("cntDrifter");
-  if(drifterEl) drifterEl.textContent = counts.drifter || data.summary?.drifter || 0;
-
-  const oceanSitesEl = document.getElementById("cntOceanSites");
-  if(oceanSitesEl) oceanSitesEl.textContent = counts.oceansites || data.summary?.oceansites || 0;
-
-  const auvEl = document.getElementById("cntAuv");
-  if(auvEl) auvEl.textContent = counts.auv || data.summary?.auv || 0;
-
-  const usvEl = document.getElementById("cntUsv");
-  if(usvEl) usvEl.textContent = counts.usv || data.summary?.usv || 0;
-
-  const rovEl = document.getElementById("cntRov");
-  if(rovEl) rovEl.textContent = counts.rov || data.summary?.rov || 0;
-
-  const vesselEl = document.getElementById("cntVessel");
-  if(vesselEl) vesselEl.textContent = counts.vessel || data.summary?.vessel || 0;
-
   document.getElementById("cntTotal").textContent = data.count || 0;
   document.getElementById("lblLatestUpdate").textContent = formatDateOnly(data.summary?.latest_update || "2026-09-14T00:00:00Z");
 
     const sampleMarker = data.markers && data.markers[0];
     const streamLabel = (sampleMarker && sampleMarker.data_status) ? sampleMarker.data_status : "OPERATIONAL REAL-TIME";
     document.getElementById("lblTrackerMode").textContent = streamLabel;
-  }
 
   const toggles = {
     argo: document.getElementById("ovArgo") ? document.getElementById("ovArgo").checked : true,
@@ -3362,16 +3592,10 @@ async function loadObservations(){
     glider: document.getElementById("ovGlider") ? document.getElementById("ovGlider").checked : true,
     ctd: document.getElementById("ovCtd") ? document.getElementById("ovCtd").checked : true,
     bgc: document.getElementById("ovBgc") ? document.getElementById("ovBgc").checked : true,
-    drifter: document.getElementById("ovDrifter") ? document.getElementById("ovDrifter").checked : true,
-    oceansites: document.getElementById("ovOceanSites") ? document.getElementById("ovOceanSites").checked : true,
-    auv: document.getElementById("ovAuv") ? document.getElementById("ovAuv").checked : true,
-    usv: document.getElementById("ovUsv") ? document.getElementById("ovUsv").checked : true,
-    rov: document.getElementById("ovRov") ? document.getElementById("ovRov").checked : true,
-    vessel: document.getElementById("ovVessel") ? document.getElementById("ovVessel").checked : true,
   };
 
   const sortedMarkers = (data.markers || []).slice().sort((a, b) => {
-    const order = { argo: 0, mooring: 1, ctd: 2, bgc: 3, glider: 4, drifter: 5, oceansites: 6, auv: 7, usv: 8, rov: 9, vessel: 10 };
+    const order = { argo: 0, mooring: 1, ctd: 2, bgc: 3, glider: 4 };
     const pa = order[(a.platform_type || "argo").toLowerCase()] || 0;
     const pb = order[(b.platform_type || "argo").toLowerCase()] || 0;
     return pa - pb;
@@ -5248,6 +5472,8 @@ document.getElementById("exagSlider").oninput = async (e) => {
 };
 document.getElementById("btnViewGIS").onclick = () => switchMainView('gis');
 document.getElementById("btnViewTerrain").onclick = () => switchMainView('terrain');
+const btnAdaptiveNav = document.getElementById("btnNavAdaptiveMission");
+if(btnAdaptiveNav) btnAdaptiveNav.onclick = () => switchMainView('adaptive');
 
 document.getElementById("waterLevelSlider").oninput = (e) => {
   const val = parseInt(e.target.value);
@@ -6205,6 +6431,9 @@ if(btnPrevStory) btnPrevStory.onclick = prevStoryStep;
 
     // Load data catalog & ocean layers in background
     loadCatalog().catch(err => console.warn("loadCatalog notice:", err));
+    if(typeof loadAdaptiveInformationGaps === 'function') {
+      loadAdaptiveInformationGaps().catch(err => console.warn("loadAdaptiveInformationGaps notice:", err));
+    }
 
     // Eagerly initialize the Three.js water column renderer and render the default profile
     // so the 3D visualization section is always visible (not blank) when the panel opens

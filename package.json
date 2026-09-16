@@ -1,0 +1,27 @@
+{
+  "name": "ocean3d",
+  "version": "1.0.0",
+  "description": "Web-based interactive 3D visualization platform that integrates numerical ocean model outputs and in-situ observations.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Manohar-zap/Ocean-3D.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Manohar-zap/Ocean-3D/issues"
+  },
+  "homepage": "https://github.com/Manohar-zap/Ocean-3D#readme",
+  "dependencies": {
+    "puppeteer": "^25.11.0"
+  }
+}

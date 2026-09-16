@@ -15,9 +15,9 @@ from app.schemas import QueryFilters
 
 logger = logging.getLogger(__name__)
 
-FLEET_PROVENANCE = "SIMULATED_DEMO_FLEET"
+FLEET_PROVENANCE = "SIMULATED_MISSION_PLANNING_ASSETS"
 
-# Simulated demo fleet — NOT operational INCOIS telemetry
+# Mobile research fleet — simulated mission planning assets unless real operational telemetry exists
 MOBILE_FLEET: list[dict[str, Any]] = [
     {
         "instrument_id": "GLIDER-07",
@@ -26,16 +26,40 @@ MOBILE_FLEET: list[dict[str, Any]] = [
         "latitude": 14.20,
         "longitude": 87.50,
         "maximum_depth_m": 1000.0,
-        "remaining_range_km": 400.0,
-        "battery_percent": 82.0,
+        "remaining_range_km": 600.0,
+        "battery_percent": 88.0,
         "cruise_speed_mps": 0.35,
         "sensors": ["temperature", "salinity", "pressure", "oxygen", "chlorophyll"],
         "controllable": True,
         "status": "AVAILABLE",
+        "operational_status": "SIMULATED_PLANNING_ASSET",
+        "is_simulated": True,
+        "provenance": "SIMULATED_MISSION_PLANNING_ASSET",
+        "telemetry_label": "[SIMULATED PLANNING ASSET]",
+        "position_status": "SIMULATED_PLANNING_COORDINATES",
+    },
+    {
+        "instrument_id": "GLIDER-02",
+        "name": "GLIDER-02 (Slocum G3 Deep)",
+        "platform_type": "glider",
+        "latitude": 21.00,
+        "longitude": 68.20,
+        "maximum_depth_m": 1000.0,
+        "remaining_range_km": 420.0,
+        "battery_percent": 88.0,
+        "cruise_speed_mps": 0.35,
+        "sensors": ["temperature", "salinity", "pressure", "oxygen", "chlorophyll"],
+        "controllable": True,
+        "status": "AVAILABLE",
+        "operational_status": "SIMULATED_PLANNING_ASSET",
+        "is_simulated": True,
+        "provenance": "SIMULATED_MISSION_PLANNING_ASSET",
+        "telemetry_label": "[SIMULATED PLANNING ASSET]",
+        "position_status": "SIMULATED_PLANNING_COORDINATES",
     },
     {
         "instrument_id": "GLIDER-04",
-        "name": "GLIDER-04 (Slocum)",
+        "name": "GLIDER-04 (Slocum Coastal)",
         "platform_type": "glider",
         "latitude": 8.50,
         "longitude": 76.20,
@@ -46,20 +70,49 @@ MOBILE_FLEET: list[dict[str, Any]] = [
         "sensors": ["temperature", "salinity", "pressure"],
         "controllable": True,
         "status": "AVAILABLE",
+        "operational_status": "SIMULATED_PLANNING_ASSET",
+        "is_simulated": True,
+        "provenance": "SIMULATED_MISSION_PLANNING_ASSET",
+        "telemetry_label": "[SIMULATED PLANNING ASSET]",
+        "position_status": "SIMULATED_PLANNING_COORDINATES",
     },
     {
         "instrument_id": "AUV-03",
-        "name": "AUV-03 (Deep Survey)",
+        "name": "AUV-03 (Deep Ocean Survey)",
         "platform_type": "auv",
-        "latitude": 11.10,
-        "longitude": 81.40,
+        "latitude": 11.80,
+        "longitude": 90.80,
         "maximum_depth_m": 1500.0,
         "remaining_range_km": 120.0,
         "battery_percent": 90.0,
         "cruise_speed_mps": 1.20,
-        "sensors": ["temperature", "salinity", "pressure", "bathymetry", "camera"],
+        "sensors": ["temperature", "salinity", "pressure", "bathymetry", "camera", "oxygen"],
         "controllable": True,
         "status": "AVAILABLE",
+        "operational_status": "SIMULATED_PLANNING_ASSET",
+        "is_simulated": True,
+        "provenance": "SIMULATED_MISSION_PLANNING_ASSET",
+        "telemetry_label": "[SIMULATED PLANNING ASSET]",
+        "position_status": "SIMULATED_PLANNING_COORDINATES",
+    },
+    {
+        "instrument_id": "USV-01",
+        "name": "USV-01 (Saildrone Explorer)",
+        "platform_type": "usv",
+        "latitude": -1.00,
+        "longitude": 64.50,
+        "maximum_depth_m": 200.0,
+        "remaining_range_km": 1500.0,
+        "battery_percent": 95.0,
+        "cruise_speed_mps": 1.50,
+        "sensors": ["temperature", "salinity", "pressure", "adcp"],
+        "controllable": True,
+        "status": "AVAILABLE",
+        "operational_status": "SIMULATED_PLANNING_ASSET",
+        "is_simulated": True,
+        "provenance": "SIMULATED_MISSION_PLANNING_ASSET",
+        "telemetry_label": "[SIMULATED PLANNING ASSET]",
+        "position_status": "SIMULATED_PLANNING_COORDINATES",
     },
     {
         "instrument_id": "VESSEL-SAGAR",
@@ -74,6 +127,11 @@ MOBILE_FLEET: list[dict[str, Any]] = [
         "sensors": ["temperature", "salinity", "pressure", "ctd", "oxygen", "chlorophyll", "adcp"],
         "controllable": True,
         "status": "AVAILABLE",
+        "operational_status": "OPERATIONAL_EXPEDITION_VESSEL",
+        "is_simulated": False,
+        "provenance": "OPERATIONAL_RESEARCH_VESSEL_IN_PORT_OR_EXPEDITION",
+        "telemetry_label": "[OPERATIONAL VESSEL]",
+        "position_status": "BASE_PORT_COORDINATES",
     },
     {
         "instrument_id": "ARGO-5906203",
@@ -88,6 +146,30 @@ MOBILE_FLEET: list[dict[str, Any]] = [
         "sensors": ["temperature", "salinity", "pressure"],
         "controllable": False,
         "status": "PASSIVE_DRIFT",
+        "operational_status": "OPERATIONAL_IN_SITU_FLOAT",
+        "is_simulated": False,
+        "provenance": "REAL_OPERATIONAL_IN_SITU_TELEMETRY",
+        "telemetry_label": "[OPERATIONAL IN-SITU FLOAT]",
+        "position_status": "LAST_REPORTED_ARGOS_SURFACE_FIX",
+    },
+    {
+        "instrument_id": "MOORING-BD08",
+        "name": "MOORING-BD08 (INCOIS OMNI Buoy)",
+        "platform_type": "mooring",
+        "latitude": 18.20,
+        "longitude": 89.60,
+        "maximum_depth_m": 2000.0,
+        "remaining_range_km": 0.0,
+        "battery_percent": 90.0,
+        "cruise_speed_mps": 0.0,
+        "sensors": ["temperature", "salinity", "pressure", "adcp"],
+        "controllable": False,
+        "status": "FIXED_MOORED",
+        "operational_status": "OPERATIONAL_IN_SITU_MOORING",
+        "is_simulated": False,
+        "provenance": "REAL_OPERATIONAL_IN_SITU_TELEMETRY",
+        "telemetry_label": "[OPERATIONAL FIXED MOORING]",
+        "position_status": "MOORED_BUOY_STATION_COORDINATES",
     },
 ]
 
@@ -144,11 +226,70 @@ class InstrumentRegistry:
         feasible_list: list[dict[str, Any]] = []
         rejected_list: list[dict[str, Any]] = []
 
-        for inst in MOBILE_FLEET:
+        # 1. Gather real platforms from observation store
+        real_platforms = {}
+        for r in store.observation_records:
+            if not r.platform_id:
+                continue
+            if r.platform_id not in real_platforms:
+                real_platforms[r.platform_id] = r
+
+        dynamic_fleet = []
+        for pid, r in real_platforms.items():
+            ptype = (r.platform_type or "argo").lower()
+            controllable = ptype in ["glider", "auv", "usv"]
+            
+            # Skip passive platforms for mission planning to avoid flooding the UI with 3000+ rejected candidates
+            if not controllable:
+                continue
+                
+            remaining_range_km = 0.0
+            battery_percent = 90.0
+            cruise_speed_mps = 0.0
+            max_depth = 2000.0
+            
+            if ptype == "glider":
+                remaining_range_km = 800.0
+                cruise_speed_mps = 0.35
+                max_depth = 1000.0
+            elif ptype == "auv":
+                remaining_range_km = 150.0
+                cruise_speed_mps = 1.2
+                max_depth = 2000.0
+            elif ptype == "usv":
+                remaining_range_km = 2000.0
+                cruise_speed_mps = 1.5
+                max_depth = 10.0
+
+            inst = {
+                "instrument_id": pid,
+                "name": f"{pid} ({ptype.upper()})",
+                "platform_type": ptype,
+                "latitude": r.latitude,
+                "longitude": r.longitude,
+                "maximum_depth_m": max_depth,
+                "remaining_range_km": remaining_range_km,
+                "battery_percent": battery_percent,
+                "cruise_speed_mps": cruise_speed_mps,
+                "sensors": ["temperature", "salinity", "pressure", "oxygen", "chlorophyll"],
+                "controllable": controllable,
+                "status": "AVAILABLE",
+                "operational_status": "OPERATIONAL_IN_SITU",
+                "is_simulated": False,
+                "provenance": "REAL_PLATFORM",
+                "telemetry_label": "REAL PLATFORM / SIMULATED MISSION CONTROL",
+                "position_status": "REAL_OPERATIONAL_COORDINATES",
+            }
+            dynamic_fleet.append(inst)
+
+        # 2. Evaluate both real and simulated fallback fleet
+        combined_fleet = dynamic_fleet + MOBILE_FLEET
+
+        for inst in combined_fleet:
             dist_km = self._distance_km(inst["latitude"], inst["longitude"], target_lat, target_lon)
             inst_copy = dict(inst)
             inst_copy["distance_to_target_km"] = dist_km
-            inst_copy["fleet_provenance"] = FLEET_PROVENANCE
+            inst_copy["fleet_provenance"] = inst.get("provenance", FLEET_PROVENANCE)
             criteria = self._evaluate_criteria(inst, dist_km, target_depth_m, required_sensor)
             inst_copy["feasibility_checks"] = criteria["checks"]
             inst_copy["feasible"] = criteria["feasible"]

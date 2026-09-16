@@ -191,7 +191,7 @@ _ARGOVIS_TRACK_CACHE: dict[str, list[dict]] = {}
 
 @app.get("/api/observations")
 def query_observations(
-    platform_type: Optional[str] = Query(None, description="argo | glider | ctd | bgc | mooring | drifter | oceansites | auv | usv | rov | vessel"),
+    platform_type: Optional[str] = Query(None, description="argo | glider | ctd | bgc | mooring"),
     variable: Optional[str] = None,
     min_lat: float = -90, max_lat: float = 90,
     min_lon: float = -180, max_lon: float = 180,
@@ -610,17 +610,15 @@ def get_error_analysis_summary_api(
 
 @app.get("/api/adaptive/gaps")
 def get_adaptive_information_gaps(
-    min_lat: float = Query(-10.0), max_lat: float = Query(30.0),
-    min_lon: float = Query(50.0), max_lon: float = Query(100.0),
-    depth: float = Query(100.0), variable: str = Query("temperature")
+    min_lat: float = Query(-90.0), max_lat: float = Query(90.0),
+    min_lon: float = Query(-180.0), max_lon: float = Query(180.0),
+    depth: float = Query(500.0), variable: str = Query("temperature")
 ):
-    """Detect 3D ocean information gaps across spatial grid locations."""
-    targets = [
-        {"lat": 15.4, "lon": 88.7, "depth": depth},
-        {"lat": 9.8, "lon": 75.8, "depth": depth},
-        {"lat": 20.8, "lon": 70.2, "depth": depth}
-    ]
-    gaps = [gap_detector.detect_information_gap(t["lat"], t["lon"], t["depth"], variable) for t in targets]
+    """Detect 3D ocean information gaps across global and regional observation zones."""
+    gaps = gap_detector.detect_all_global_gaps(
+        variable=variable, depth=depth,
+        min_lat=min_lat, max_lat=max_lat, min_lon=min_lon, max_lon=max_lon
+    )
     return {"count": len(gaps), "variable": variable, "depth_m": depth, "gaps": gaps}
 
 
@@ -862,6 +860,24 @@ def get_adaptive_mission_html():
         if os.path.exists(candidate):
             return FileResponse(candidate)
     raise HTTPException(404, "adaptive-mission.html not found")
+
+
+@app.get("/adaptive-mission-globe.css")
+def get_adaptive_mission_globe_css():
+    """Serve frontend/adaptive-mission-globe.css with text/css MIME type."""
+    for candidate in ["frontend/adaptive-mission-globe.css", "../frontend/adaptive-mission-globe.css", os.path.join("..", "frontend", "adaptive-mission-globe.css")]:
+        if os.path.exists(candidate):
+            return FileResponse(candidate, media_type="text/css")
+    raise HTTPException(404, "adaptive-mission-globe.css not found")
+
+
+@app.get("/adaptive-mission-globe.js")
+def get_adaptive_mission_globe_js():
+    """Serve frontend/adaptive-mission-globe.js with application/javascript MIME type."""
+    for candidate in ["frontend/adaptive-mission-globe.js", "../frontend/adaptive-mission-globe.js", os.path.join("..", "frontend", "adaptive-mission-globe.js")]:
+        if os.path.exists(candidate):
+            return FileResponse(candidate, media_type="application/javascript")
+    raise HTTPException(404, "adaptive-mission-globe.js not found")
 
 
 @app.get("/config.js")

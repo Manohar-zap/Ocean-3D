@@ -335,6 +335,10 @@ class MissionSimulatorEngine:
             })
             frame_idx += 1
 
+        for f in frames:
+            f["is_simulated"] = True
+            f["provenance"] = "SIMULATED_TRAJECTORY_FRAME"
+
         return frames
 
     def simulate_mission(
@@ -353,9 +357,22 @@ class MissionSimulatorEngine:
         if not winner:
             return {
                 "status": "NO_FEASIBLE_MISSION",
+                "decision": "NO_FEASIBLE_PLATFORM",
+                "failure_reason": (
+                    f"No controllable observing platform in the active fleet possesses sufficient range, "
+                    f"depth rating, or energy reserve to reach this remote information gap ({latitude:.2f}°, {longitude:.2f}°)."
+                ),
+                "recommended_alternatives": [
+                    "Dispatch vessel-supported hydrographic expedition (ORV Sagar Kanya)",
+                    "Air-deploy autonomous deep-profiling BGC-Argo float",
+                    "Maintain remote monitoring via satellite altimetry & SST radiometry",
+                    "Monitor for future opportunistic mobile asset repositioning"
+                ],
                 "target_gap": target_gap,
                 "all_candidates": plan.get("all_candidates", []),
+                "rejected_candidates": plan.get("rejected_candidates", []),
                 "provenance": "CLOSED_LOOP_DECISION_SUPPORT_SIMULATION",
+                "is_simulated": True,
             }
 
         ptype = winner["platform_type"]
@@ -435,6 +452,8 @@ class MissionSimulatorEngine:
                 "energy_required_percent": energy["energy_required_percent"],
             },
             "provenance": "CLOSED_LOOP_DECISION_SUPPORT_SIMULATION",
+            "is_simulated": True,
+            "simulation_notice": "ALL TRAJECTORY COORDINATES, VELOCITIES, BATTERY LEVELS, AND SOUNDINGS ARE NUMERICALLY SIMULATED FOR MISSION PLANNING ONLY",
         }
 
 

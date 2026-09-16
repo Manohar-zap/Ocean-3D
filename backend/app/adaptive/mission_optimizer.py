@@ -84,26 +84,36 @@ class MissionOptimizerEngine:
             energy_margin_factor = energy["safety_reserve_percent"] / 100.0
             feasibility_score = 0.60 if route["direct_distance_km"] < inst["remaining_range_km"] * 0.5 else 0.40
 
+            distance_penalty = (route["direct_distance_km"] / 1000.0) * 5.0
+            simulation_penalty = 15.0 if inst.get("is_simulated", True) else 0.0
+
             mission_score = round(
                 (eig["expected_information_gain_percent"] * 0.50)
                 + (feasibility_score * 30.0)
                 + (sens_match * 10.0)
-                + (energy_margin_factor * 10.0),
+                + (energy_margin_factor * 10.0)
+                - distance_penalty
+                - simulation_penalty,
                 1,
             )
 
-            decision = "RECOMMEND" if mission_score >= 45.0 and p_score >= 50.0 else "MONITOR"
+            decision = "RECOMMEND" if mission_score >= 20.0 and p_score >= 20.0 else "MONITOR"
 
             ranked_candidates.append(
                 {
                     "instrument_id": pid,
                     "name": inst["name"],
                     "platform_type": ptype,
+                    "operational_status": inst.get("operational_status", "SIMULATED_PLANNING_ASSET"),
+                    "is_simulated": inst.get("is_simulated", True),
                     "mission_score": mission_score,
                     "decision": decision,
                     "distance_km": route["direct_distance_km"],
+                    "distance_label": f"{route['direct_distance_km']:.1f} km [SIMULATED ESTIMATE]",
                     "estimated_duration_hours": route["estimated_duration_hours"],
+                    "duration_label": f"{route['estimated_duration_hours']:.1f} hrs [SIMULATED ESTIMATE]",
                     "energy_required_percent": energy["energy_required_percent"],
+                    "energy_label": f"{energy['energy_required_percent']:.1f}% [SIMULATED DRAW]",
                     "remaining_battery_after_mission": energy["energy_remaining_percent"],
                     "expected_information_gain": eig["expected_information_gain_percent"],
                     "feasibility_checks": inst_eval["feasibility_checks"],
@@ -116,16 +126,20 @@ class MissionOptimizerEngine:
 
         ranked_candidates.sort(key=lambda c: c["mission_score"], reverse=True)
         selected_winner = ranked_candidates[0] if ranked_candidates else None
-        overall_decision = selected_winner["decision"] if selected_winner else "MONITOR"
+        overall_decision = selected_winner["decision"] if selected_winner else "NO_FEASIBLE_PLATFORM"
 
         if selected_winner and current_field is None:
             current_field = selected_winner["route_details"].get("current_field", [])
 
-        action_msg = (
-            f"Deploy/route {selected_winner['name']} toward target ({latitude:.2f}°, {longitude:.2f}°) at {depth_m:.0f}m depth"
-            if selected_winner and overall_decision == "RECOMMEND"
-            else "Continue monitoring; no feasible candidate platform meets the required information gain and energy margin."
-        )
+        if selected_winner and overall_decision == "RECOMMEND":
+            action_msg = f"Deploy/route {selected_winner['name']} toward target ({latitude:.2f}°, {longitude:.2f}°) at {depth_m:.0f}m depth [SIMULATED MISSION PLAN]"
+        elif not selected_winner:
+            action_msg = (
+                f"NO FEASIBLE PLATFORM: All fleet assets exceed range limits, depth rating, or energy constraints "
+                f"for target ({latitude:.2f}°, {longitude:.2f}°). Recommend vessel expedition or float air-deployment."
+            )
+        else:
+            action_msg = "Continue monitoring; candidate platforms do not meet the required information gain and energy margin."
 
         return {
             "decision": overall_decision,
@@ -138,7 +152,8 @@ class MissionOptimizerEngine:
             "current_field": current_field or [],
             "recommended_action": action_msg,
             "scoring_formula": "mission_score = (EIG * 0.50) + (Feasibility * 30) + (SensorMatch * 10) + (EnergyMargin * 10)",
-            "provenance": "DECISION_SUPPORT_SIMULATION",
+            "provenance": "SIMULATED_MISSION_DECISION_SUPPORT",
+            "planning_mode_notice": "ALL PLATFORM ASSIGNMENTS, TRAJECTORIES, AND ENERGY FIGURES ARE SIMULATED FOR MISSION PLANNING ONLY",
         }
 
 
