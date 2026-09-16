@@ -34,6 +34,10 @@ from .adaptive.information_gain import information_gain_engine
 from .adaptive.mission_optimizer import mission_optimizer
 from .adaptive.mission_simulator import mission_simulator
 from .ml import ocean_inference_engine, train_ocean_models
+from .noaa_glider_service import noaa_glider_service
+from .oceangliders_service import oceangliders_service
+from .noaa_ioos_glider_service import noaa_ioos_glider_service
+from .currents_service import currents_service
 
 app = FastAPI(
     title="OCEAN 3D API",
@@ -281,6 +285,10 @@ def query_observations(
             "value": latest_r.value,
             "unit": latest_r.unit,
             "quality_flag": latest_r.quality_flag,
+            "quality_reason": getattr(latest_r, "quality_reason", None),
+            "qc_summary": getattr(latest_r, "qc_summary", None),
+            "geolocation_argoqc": getattr(latest_r, "geolocation_argoqc", None),
+            "timestamp_argoqc": getattr(latest_r, "timestamp_argoqc", None),
             "data_status": ds,
             "source_organization": getattr(latest_r, "source_organization", "INCOIS / Argo GDAC (Operational)"),
         })
@@ -329,10 +337,37 @@ def latest_platforms():
                 "depth": r.depth,
                 "timestamp": r.time,
                 "status": "ACTIVE",
+                "quality_flag": getattr(r, "quality_flag", "unknown"),
+                "quality_reason": getattr(r, "quality_reason", None),
+                "qc_summary": getattr(r, "qc_summary", None),
+                "geolocation_argoqc": getattr(r, "geolocation_argoqc", None),
+                "timestamp_argoqc": getattr(r, "timestamp_argoqc", None),
                 "data_status": ds,
                 "source_organization": getattr(r, "source_organization", "INCOIS / Argo GDAC (Operational)"),
             }
     return {"count": len(by_platform), "platforms": list(by_platform.values())}
+
+
+# ---------------------------------------------------------------------------
+# External Glider APIs (Demo Features)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/external-gliders/noaa")
+def get_external_noaa_gliders(refresh: bool = False):
+    """Retrieve normalized latest-position markers for NOAA/AOML ERDDAP gliders (Test layer)."""
+    return noaa_glider_service.get_latest_gliders(force_refresh=refresh)
+
+
+@app.get("/api/external-gliders/oceangliders")
+def get_external_oceangliders(refresh: bool = False):
+    """Retrieve normalized latest-position markers for OceanGliders GDAC (Global Test layer)."""
+    return oceangliders_service.get_latest_gliders(force_refresh=refresh)
+
+
+@app.get("/api/external-gliders/noaa-ioos")
+def get_external_noaa_ioos_gliders(refresh: bool = False):
+    """Retrieve normalized latest-position markers for NOAA/IOOS Operational Gliders."""
+    return noaa_ioos_glider_service.get_latest_gliders(force_refresh=refresh)
 
 
 @app.get("/api/observations/{platform_id}/track")
@@ -492,12 +527,18 @@ def observation_profile(platform_id: str, variable: Optional[str] = None, time: 
         "latest_time": latest_time,
         "updated_date": getattr(cycle_rows[0], "retrieval_timestamp", None),
         "platform_status": status,
+        "quality_flag": getattr(cycle_rows[0], "quality_flag", "unknown"),
+        "quality_reason": getattr(cycle_rows[0], "quality_reason", None),
+        "qc_summary": getattr(cycle_rows[0], "qc_summary", None),
+        "geolocation_argoqc": getattr(cycle_rows[0], "geolocation_argoqc", None),
+        "timestamp_argoqc": getattr(cycle_rows[0], "timestamp_argoqc", None),
         "data_status": getattr(cycle_rows[0], "data_status", "OPERATIONAL REAL-TIME"),
         "source_organization": getattr(cycle_rows[0], "source_organization", "INCOIS / Argo GDAC (Operational)"),
         "profile": [
             {"depth": r.depth, "latitude": r.latitude, "longitude": r.longitude,
              "variable": r.variable, "value": r.value, "unit": r.unit,
              "time": r.time, "quality_flag": r.quality_flag,
+             "quality_reason": getattr(r, "quality_reason", None),
              "data_status": getattr(r, "data_status", "OPERATIONAL REAL-TIME")}
             for r in cycle_rows_sorted
         ],
@@ -963,6 +1004,73 @@ def get_config_js():
         if os.path.exists(candidate):
             return FileResponse(candidate, media_type="application/javascript")
     raise HTTPException(404, "config.js not found")
+
+
+# ---------------------------------------------------------------------------
+# Ocean Currents API (Copernicus Marine 3D Physical Model & NOAA Fallback)
+# ---------------------------------------------------------------------------
+@app.get("/api/currents")
+def get_currents(
+    depth: float = Query(0.0, description="Ocean depth in meters (e.g. 0, 10, 50, 100, 200, 500, 1000)"),
+    time: Optional[str] = Query(None, description="ISO timestamp (e.g. 2024-03-01T00:00:00Z)"),
+    min_lat: float = Query(-75.0),
+    max_lat: float = Query(75.0),
+    min_lon: float = Query(-180.0),
+    max_lon: float = Query(180.0),
+    stride: int = Query(4, ge=1, le=10, description="Downsampling stride for 60 FPS globe rendering")
+):
+    """Return 2D horizontal vector field for globe streamlines visualization at given depth and time."""
+    return currents_service.get_current_field(
+        depth=depth,
+        time_str=time,
+        min_lat=min_lat,
+        max_lat=max_lat,
+        min_lon=min_lon,
+        max_lon=max_lon,
+        stride=stride
+    )
+
+
+@app.get("/api/currents/grid")
+def get_currents_grid(
+    depth: float = Query(0.0, description="Ocean depth in meters (e.g. 0, 10, 50, 100, 200, 500, 1000)"),
+    time: Optional[str] = Query(None, description="ISO timestamp (e.g. 2024-03-01T00:00:00Z)")
+):
+    """Return full 2D regular velocity grid for continuous particle advection and interpolation."""
+    return currents_service.get_current_grid(depth=depth, time_str=time)
+
+
+@app.get("/api/currents/depths")
+def get_currents_depths():
+    """Return list of standard physical depth levels available in currents service."""
+    return {"depths": currents_service.get_available_depths()}
+
+
+@app.get("/api/currents/times")
+def get_currents_times():
+    """Return list of timestamps available in currents service."""
+    return {"times": currents_service.get_available_times()}
+
+
+@app.get("/api/currents/vector")
+def get_current_point_vector(
+    lat: float = Query(...),
+    lon: float = Query(...),
+    depth: float = Query(0.0),
+    time: Optional[str] = Query(None)
+):
+    """Return single O(1) current vector at exact lat/lon/depth/time with physical provenance."""
+    u, v, speed, direction, prov = currents_service.get_vector(lat, lon, depth, time)
+    return {
+        "latitude": lat,
+        "longitude": lon,
+        "depth_m": depth,
+        "u": u,
+        "v": v,
+        "speed_mps": speed,
+        "direction_deg": direction,
+        "provenance": prov
+    }
 
 
 @app.get("/service-worker.js", response_class=PlainTextResponse)

@@ -15,7 +15,10 @@
 
 <script src="config.js"></script>
 <script src="assets/ocean_mask_data.js"></script>
+<script src="assets/ocean_flow.js"></script>
 <script src="adaptive-mission-globe.js"></script>
+<link rel="stylesheet" href="assets/intro.css">
+<script src="assets/intro.js" defer></script>
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
@@ -326,7 +329,6 @@
     <div class="subtitle fisher-only" style="display:none;">Operational Marine Intelligence & Fishery Dashboard — INCOIS</div>
     <div class="modeswitch" id="mainViewSwitcher" style="margin-right:8px;">
       <button id="btnViewGIS" class="active" title="Cesium 3D Globe with live ARGO floats, Gliders, and CTD profiles">🌍 Satellite GIS View</button>
-      <button id="btnViewTerrain" title="3D Deformed Earth Without Water & Dynamic Water Level Terrain">🌐 3D Water Level & Geoid Terrain</button>
       <button id="btnNavAdaptiveMission" title="Open Closed-Loop Adaptive Mission Planner Workspace">🚀 Adaptive Mission</button>
     </div>
     <button id="btnOpenOceanStories" style="background:rgba(63, 224, 197, 0.15); border:1px solid var(--accent); color:var(--accent); font-family:inherit; font-size:12px; font-weight:600; padding:5px 11px; border-radius:var(--radius); cursor:pointer; display:flex; align-items:center; gap:6px; margin-right:8px;">
@@ -346,7 +348,6 @@
       <!-- Modern Navigation Tabs -->
       <div class="sidebar-tabs">
         <button class="sidebar-tab active" data-tab="tab-gis" id="tabBtnGis">🧭 3D GIS</button>
-        <button class="sidebar-tab" data-tab="tab-physics" id="tabBtnPhysics">🌊 Physics</button>
         <button class="sidebar-tab" data-tab="tab-fleet" id="tabBtnFleet">📡 Fleet Data</button>
       </div>
 
@@ -398,35 +399,8 @@
           <div class="toggle-row"><span>📍 Vertical Sounding Profiles</span>
             <label class="switch"><input type="checkbox" id="ovProfileLines"><span class="slider-toggle"></span></label></div>
         </div>
-      </div>
 
-      <!-- TAB 2: OCEAN PHYSICS & DRAIN SIMULATION -->
-      <div id="tab-physics" class="tab-pane" style="display:none;">
-        <div class="field" id="seaLevelPanel" style="background:var(--panel-2); padding:10px; border-radius:var(--radius); border:1px solid var(--line);">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <label style="margin:0; font-weight:600; color:var(--text); font-size:11.5px;">Water Level / Ocean Drain</label>
-            <span id="slDisplayValue" class="mono" style="color:var(--accent); font-weight:700; font-size:11.5px;">100% (Normal)</span>
-          </div>
-          <div style="font-size:9.5px; color:var(--text-dim); margin:3px 0 6px 0; line-height:1.3;">
-            Simulate global ocean drainage down to 0% to reveal the Potsdam Gravity Geoid ("Earth Without Water").
-          </div>
-          <input type="range" id="waterLevelSlider" min="0" max="100" step="1" value="100" aria-label="Water Level Slider">
-
-          <div style="display:flex; gap:4px; margin-top:6px;">
-            <button class="action" id="btnDrainOcean" style="flex:1; padding:4px; font-size:10px; background:rgba(239, 68, 68, 0.15); border-color:#ef4444; color:#ef4444; font-weight:600;">Drained (0%)</button>
-            <button class="action" id="btnNormalOcean" style="flex:1; padding:4px; font-size:10px;">Normal (100%)</button>
-          </div>
-          <div style="display:flex; gap:4px; margin-top:4px;">
-            <button class="action" id="btnSidebarDrainAnim" style="flex:1; padding:4px; font-size:10px; background:rgba(63, 224, 197, 0.15); border-color:#3fe0c5; color:#3fe0c5; font-weight:600;">▶ Play Drain Anim</button>
-            <button class="action" id="btnSidebarSwitchTerrain" style="flex:1; padding:4px; font-size:10px; background:rgba(142, 201, 224, 0.15); border-color:#8ec9e0; color:#8ec9e0; font-weight:600;">🌐 3D Terrain View</button>
-          </div>
-          <div id="waterLevelStats" style="font-size:9.5px; color:var(--text-dim); margin-top:6px; display:flex; justify-content:space-between;">
-            <span>State: <strong id="wlStateText" style="color:var(--text);">Normal Oceans</strong></span>
-            <span>Impact: <strong id="wlImpactText" style="color:var(--accent);">0 km²</strong></span>
-          </div>
-        </div>
-
-        <div class="field">
+        <div class="field" style="margin-top:8px;">
           <label for="exagSlider">Vertical Relief Exaggeration (<span id="exagValue">1.0x</span>)</label>
           <div style="font-size:10px; color:var(--text-dim); margin-top:1px; margin-bottom:4px;">Scale factor for bathymetry ridges, current vectors & sounding columns</div>
           <input type="range" id="exagSlider" min="0.5" max="4.0" step="0.1" value="1.0" aria-label="Vertical Relief Exaggeration">
@@ -447,6 +421,21 @@
             <label class="switch"><input type="checkbox" id="ovGlider" checked><span class="slider-toggle"></span></label></div>
           <div class="toggle-row"><span><img src="assets/icons/ctd.png" alt="Shipboard CTD Cast" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#c58ee0"></span>Shipboard CTD Casts</span>
             <label class="switch"><input type="checkbox" id="ovCtd" checked><span class="slider-toggle"></span></label></div>
+          <div class="toggle-row" style="margin-top:8px; border-top:1px solid var(--line); padding-top:6px;">
+            <span><span class="swatch" style="background:#ef4444"></span>Instrument Condition Inspection</span>
+            <label class="switch"><input type="checkbox" id="ovCondition"><span class="slider-toggle"></span></label></div>
+        </div>
+
+        <div id="conditionSummarySection" style="display:none;">
+          <div class="section-title">Instrument Condition Summary</div>
+          <div id="conditionSummaryCard" style="font-size:11px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); padding:8px 10px; display:flex; flex-direction:column; gap:4px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+              <div>TOTAL: <span id="condTotal" class="mono" style="color:var(--text); font-weight:600;">0</span></div>
+              <div>BAD/FAIL: <span id="condBad" class="mono" style="color:#ef4444; font-weight:600;">0</span></div>
+              <div>GOOD: <span id="condGood" class="mono" style="color:#22c55e; font-weight:600;">0</span></div>
+              <div>UNKNOWN: <span id="condUnknown" class="mono" style="color:#38bdf8; font-weight:600;">0</span></div>
+            </div>
+          </div>
         </div>
 
         <div>
@@ -864,39 +853,6 @@
 
   <main>
     <div id="cesiumContainer"></div>
-    <div id="terrainGlobeContainer" style="position:absolute; inset:0; display:none; z-index:3; background:radial-gradient(circle at 50% 50%, #081626 0%, #020710 100%);">
-      <!-- Floating HUD & Control bar for 3D Water Level & Earth Without Water -->
-      <div id="terrainHud" style="position:absolute; top:14px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:10px; background:rgba(8, 20, 32, 0.92); border:1px solid rgba(255,255,255,0.18); border-radius:6px; padding:6px 14px; box-shadow:0 4px 20px rgba(0,0,0,0.6); z-index:10; white-space:nowrap;">
-        <span id="terrainHudTitle" style="font-weight:700; font-size:12px; color:#3fe0c5; font-family:'IBM Plex Mono', monospace; letter-spacing:0.5px;">3D WATER LEVEL TERRAIN</span>
-        <span style="color:rgba(255,255,255,0.3);">|</span>
-        <span id="terrainHudSeaLevel" class="mono" style="font-size:12px; color:#ffffff; font-weight:600;">Sea Level: 0 m (100% Normal)</span>
-        <span style="color:rgba(255,255,255,0.3);">|</span>
-        <button id="btnTerrainAnim" class="action" style="padding:4px 8px; font-size:11px; width:auto; background:rgba(63, 224, 197, 0.2); border-color:#3fe0c5; color:#3fe0c5; font-weight:600;">▶ Play Drain</button>
-        <button id="btnTerrainAutoRotate" class="action" style="padding:4px 8px; font-size:11px; width:auto;">⟳ Rotate</button>
-      </div>
-
-      <!-- Quick viewpoint preset buttons -->
-      <div id="terrainCameraBar" style="position:absolute; bottom:16px; left:50%; transform:translateX(-50%); display:flex; gap:6px; z-index:10; background:rgba(8,20,32,0.85); padding:6px 10px; border-radius:6px; border:1px solid rgba(255,255,255,0.12); white-space:nowrap;">
-        <button id="btnCamIOGL" class="action" style="padding:4px 8px; font-size:11px; width:auto;">🇮🇳 Indian Ocean Low</button>
-        <button id="btnCamNA" class="action" style="padding:4px 8px; font-size:11px; width:auto;">🇪🇺 North Atlantic High</button>
-        <button id="btnCamMAR" class="action" style="padding:4px 8px; font-size:11px; width:auto;">🌊 Mid-Atlantic Ridge</button>
-        <button id="btnCamOverview" class="action" style="padding:4px 8px; font-size:11px; width:auto;">🌏 Reference Overview</button>
-      </div>
-
-      <!-- Informational callout box -->
-      <div id="terrainInfoCallout" style="position:absolute; top:60px; left:16px; width:270px; background:rgba(7, 16, 25, 0.90); border:1px solid rgba(255,255,255,0.14); border-radius:6px; padding:10px 12px; font-size:11px; z-index:10; pointer-events:none; box-shadow:0 4px 16px rgba(0,0,0,0.5);">
-        <div style="font-weight:700; color:#3fe0c5; margin-bottom:4px; font-size:11.5px; display:flex; justify-content:space-between; align-items:center;">
-          <span>EARTH WITHOUT WATER</span>
-          <span style="font-size:9px; background:rgba(242, 166, 90, 0.2); color:#f2a65a; padding:1px 4px; border-radius:2px;">GFZ POTSDAM GEOID</span>
-        </div>
-        <div id="terrainCalloutPhase" style="color:#ffffff; font-weight:600; margin-bottom:4px;">Phase: Normal Ocean Surface</div>
-        <div id="terrainCalloutDesc" style="color:#94a3b8; line-height:1.4;">Water surface is at normal sea level (0 m). Use the Water Level slider in the sidebar to physically sink the 3D ocean water surface and expose the deformed seabed bedrock underneath.</div>
-        <div style="margin-top:8px; border-top:1px solid rgba(255,255,255,0.08); padding-top:6px; display:flex; justify-content:space-between; font-size:10px;">
-          <span style="color:#94a3b8;">Exposed Seabed:</span>
-          <span id="terrainCalloutExposed" class="mono" style="color:#3fe0c5; font-weight:600;">0 km²</span>
-        </div>
-      </div>
-    </div>
     <div id="hint">Drag to orbit Earth globe · scroll to zoom · click an observation platform to inspect</div>
     <div id="depthDisplayBanner">Depth : -0 m</div>
     <div id="coordsReadout" class="mono">Position: 0.00°N, 20.00°E | Global 3D Ocean Globe Workspace</div>
@@ -1437,7 +1393,8 @@ var state = {
   etopoElevations: new Float32Array(1024),
   terrainProviderType: "Unknown",
   cesiumIonStatus: "FAIL",
-  worldTerrainLoaded: false
+  worldTerrainLoaded: false,
+  showCondition: false
 };
 window.state = state;
 
@@ -1547,14 +1504,41 @@ function drawColorbar(min, max, variable = state.variable){
   const canvas = document.getElementById("colorbar");
   if(!canvas) return;
   const ctx = canvas.getContext("2d");
+  const minEl = document.getElementById("cbMin");
+  const maxEl = document.getElementById("cbMax");
+
+  if(state.showVectors){
+    // Real Copernicus Current Speed Scale (0.0 to 1.0+ m/s)
+    for(let x=0; x<canvas.width; x++){
+      const t = x / canvas.width;
+      let r, g, b;
+      if (t < 0.25) {
+        const frac = t / 0.25;
+        r = (4 + frac * 8)|0; g = (22 + frac * 50)|0; b = (65 + frac * 45)|0;
+      } else if (t < 0.55) {
+        const frac = (t - 0.25) / 0.30;
+        r = (12 + frac * 10)|0; g = (72 + frac * 70)|0; b = (110 - frac * 50)|0;
+      } else if (t < 0.82) {
+        const frac = (t - 0.55) / 0.27;
+        r = (22 + frac * 170)|0; g = (142 + frac * 60)|0; b = (60 - frac * 35)|0;
+      } else {
+        const frac = (t - 0.82) / 0.18;
+        r = (192 + frac * 55)|0; g = (202 + frac * 20)|0; b = (25 + frac * 20)|0;
+      }
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.fillRect(x, 0, 1, canvas.height);
+    }
+    if(minEl) minEl.textContent = "0.0 m/s (Calm)";
+    if(maxEl) maxEl.textContent = "1.0+ m/s (Jet)";
+    return;
+  }
+
   for(let x=0; x<canvas.width; x++){
     const t = x / canvas.width;
     const [r,g,b] = colormap(t, variable);
     ctx.fillStyle = `rgb(${r*255|0},${g*255|0},${b*255|0})`;
     ctx.fillRect(x, 0, 1, canvas.height);
   }
-  const minEl = document.getElementById("cbMin");
-  const maxEl = document.getElementById("cbMax");
   if(minEl) minEl.textContent = min.toFixed(1);
   if(maxEl) maxEl.textContent = max.toFixed(1);
 }
@@ -3233,111 +3217,39 @@ try {
   }
 } catch(e) { console.warn("FlowLine material notice:", e); }
 
-// Current Vectors & Animated Flow Streamlines
+// ---------------------------------------------------------------------
+// Continuous Animated Ocean Flow (Genuine Copernicus Marine 3D Currents)
+// ---------------------------------------------------------------------
+let oceanFlow = null;
+
 async function loadVectors(){
-  vectorEntities.forEach(e => viewer.entities.remove(e));
-  vectorEntities = [];
-  if(!state.showVectors) return;
-
-  const depth = DEPTHS[state.depthIndex];
-  const time = state.times[state.timeIndex];
-
-  let dataU = null, dataV = null;
-  try {
-    const [resU, resV] = await Promise.all([
-      fetch(apiUrl(`/api/model?dataset_id=incois_las_model&variable=current_u&min_depth=${depth}&max_depth=${depth}&time=${encodeURIComponent(time||"")}&min_lat=-50&max_lat=30&min_lon=30&max_lon=120`)),
-      fetch(apiUrl(`/api/model?dataset_id=incois_las_model&variable=current_v&min_depth=${depth}&max_depth=${depth}&time=${encodeURIComponent(time||"")}&min_lat=-50&max_lat=30&min_lon=30&max_lon=120`))
-    ]);
-    if(resU.ok && resV.ok){
-      dataU = await resU.json();
-      dataV = await resV.json();
-    }
-  } catch(e) { console.warn("Currents fetch error:", e); }
-
-  const vMap = {};
-  if(dataV && dataV.points){
-    dataV.points.forEach(p => { vMap[`${p.lat.toFixed(2)}_${p.lon.toFixed(2)}`] = p.value; });
+  // Remove any legacy entities if present
+  if(vectorEntities && vectorEntities.length){
+    vectorEntities.forEach(e => viewer.entities.remove(e));
+    vectorEntities = [];
   }
 
-  // Altitude above sea surface for unobstructed orbit visibility
-  const alt = 10000.0 * state.verticalExaggeration;
-
-  // Render regional INCOIS model animated current streamlines
-  if(dataU && dataU.points){
-    dataU.points.forEach((pu, idx) => {
-      const u = pu.value;
-      const v = vMap[`${pu.lat.toFixed(2)}_${pu.lon.toFixed(2)}`] ?? 0.0;
-      const speed = Math.sqrt(u*u + v*v);
-      if(speed < 0.015) return;
-
-      const scaleDeg = 2.4;
-      const midLat = pu.lat + (v / Math.max(0.1, speed)) * Math.min(1.8, speed * scaleDeg * 0.5);
-      const midLon = pu.lon + (u / Math.max(0.1, speed)) * Math.min(1.8, speed * scaleDeg * 0.5);
-      const endLat = pu.lat + (v / Math.max(0.1, speed)) * Math.min(3.6, speed * scaleDeg);
-      const endLon = pu.lon + (u / Math.max(0.1, speed)) * Math.min(3.6, speed * scaleDeg);
-
-      const colorStr = speed > 0.4 ? '#38bdf8' : '#2dd4bf';
-      const flowEnt = viewer.entities.add({
-        polyline: {
-          positions: Cesium.Cartesian3.fromDegreesArrayHeights([
-            pu.lon, pu.lat, alt,
-            midLon, midLat, alt,
-            endLon, endLat, alt
-          ]),
-          width: 4.0,
-          material: new FlowLineMaterialProperty({
-            color: Cesium.Color.fromCssColorString(colorStr),
-            duration: 1800 + (idx % 5) * 200
-          })
-        }
-      });
-      vectorEntities.push(flowEnt);
-    });
+  if(!oceanFlow && viewer){
+    oceanFlow = new OceanFlowEngine();
+    oceanFlow.init(viewer);
+    window.oceanFlow = oceanFlow;
   }
 
-  // Major global ocean circulation gyres with multi-segment curved streamlines
-  const GLOBAL_CURRENTS = [
-    // Gulf Stream (North Atlantic)
-    { pts: [[-80.0, 25.0], [-76.0, 31.0], [-71.0, 36.0], [-60.0, 40.0], [-45.0, 44.0]], color: '#38bdf8', dur: 2200 },
-    // North Atlantic Drift
-    { pts: [[-45.0, 44.0], [-30.0, 48.0], [-18.0, 52.0], [-5.0, 56.0]], color: '#38bdf8', dur: 2500 },
-    // Kuroshio Current (Western Pacific)
-    { pts: [[122.0, 22.0], [126.0, 27.0], [132.0, 31.0], [140.0, 35.0], [152.0, 38.0]], color: '#38bdf8', dur: 2100 },
-    // Somali Current / Arabian Sea Monsoon Jet
-    { pts: [[44.0, -2.0], [48.0, 4.0], [52.0, 10.0], [58.0, 14.0], [66.0, 17.0]], color: '#2dd4bf', dur: 2000 },
-    // Bay of Bengal Coastal Jet & Plume
-    { pts: [[81.0, 7.0], [83.5, 12.0], [87.0, 16.0], [90.0, 19.5], [92.5, 15.0]], color: '#2dd4bf', dur: 2200 },
-    // Southwest Monsoon Current across Southern Tip of India / Sri Lanka
-    { pts: [[72.0, 4.5], [78.0, 5.0], [84.0, 5.5], [90.0, 6.0]], color: '#2dd4bf', dur: 2400 },
-    // Agulhas Current (South Africa)
-    { pts: [[36.0, -22.0], [33.0, -28.0], [28.0, -34.0], [20.0, -38.0], [15.0, -36.0]], color: '#38bdf8', dur: 2100 },
-    // Antarctic Circumpolar Current (Southern Ocean)
-    { pts: [[-140.0, -56.0], [-100.0, -57.0], [-65.0, -58.0], [-30.0, -56.0]], color: '#67e8f9', dur: 2800 },
-    { pts: [[-30.0, -56.0], [0.0, -55.0], [30.0, -54.0], [60.0, -55.0]], color: '#67e8f9', dur: 2800 },
-    { pts: [[60.0, -55.0], [90.0, -56.0], [120.0, -55.0], [150.0, -56.0]], color: '#67e8f9', dur: 2800 },
-    // Pacific Equatorial Current (Westward)
-    { pts: [[-90.0, 1.0], [-120.0, 0.0], [-150.0, -1.0], [-180.0, 0.0], [150.0, 1.0]], color: '#2dd4bf', dur: 3200 },
-    // Atlantic Equatorial Current (Westward)
-    { pts: [[5.0, 1.5], [-10.0, 0.5], [-25.0, -0.5], [-38.0, 0.0]], color: '#2dd4bf', dur: 2900 }
-  ];
+  if(!state.showVectors){
+    if(oceanFlow) oceanFlow.setVisible(false);
+    drawColorbar(state.vmin || 2.0, state.vmax || 28.0, state.variable);
+    return;
+  }
 
-  GLOBAL_CURRENTS.forEach(gc => {
-    const posHeights = [];
-    gc.pts.forEach(p => {
-      posHeights.push(p[0], p[1], alt);
-    });
-    const ent = viewer.entities.add({
-      polyline: {
-        positions: Cesium.Cartesian3.fromDegreesArrayHeights(posHeights),
-        width: 4.5,
-        material: new FlowLineMaterialProperty({
-          color: Cesium.Color.fromCssColorString(gc.color),
-          duration: gc.dur
-        })
-      }
-    });
-    vectorEntities.push(ent);
-  });
+  drawColorbar(0.0, 1.0, "currents");
+
+  const depth = DEPTHS[state.depthIndex] || 0.0;
+  const time = state.times[state.timeIndex] || "";
+
+  if(oceanFlow){
+    oceanFlow.setVisible(true);
+    await oceanFlow.loadGrid(depth, time, state.verticalExaggeration);
+  }
 }
 
 // ---------------------------------------------------------------------
@@ -3617,7 +3529,12 @@ async function loadObservations(){
       lon: m.lon,
       status: m.status,
       data_status: m.data_status,
-      time: m.time
+      time: m.time,
+      quality_flag: m.quality_flag || "unknown",
+      quality_reason: m.quality_reason || null,
+      qc_summary: m.qc_summary || null,
+      geolocation_argoqc: m.geolocation_argoqc !== undefined ? m.geolocation_argoqc : null,
+      timestamp_argoqc: m.timestamp_argoqc !== undefined ? m.timestamp_argoqc : null
     };
     profileEntities.push(entity);
     state.markers[m.platform_id] = entity;
@@ -3650,6 +3567,7 @@ async function loadObservations(){
       profileEntities.push(lineEntity);
     }
   }
+  restoreObservationMarkers();
 }
 
 async function refreshAll(){
@@ -3798,7 +3716,10 @@ function update3DDepthCursor(){
   wcCurrentSal = sNum;
   wcCurrentDensity = densityNum;
 
-  const qc = activeSample.quality_flag ?? "good";
+  const qc = activeSample.quality_flag || (state.selectedProfile && state.selectedProfile.quality_flag) || "unknown";
+  const qReason = activeSample.quality_reason || (state.selectedProfile && state.selectedProfile.quality_reason) || null;
+  const qcStyle = (qc === "bad" || qc === "suspect") ? "color:#f87171; font-weight:600; text-transform:uppercase;" : (qc === "good" ? "color:#34d399; font-weight:600; text-transform:uppercase;" : "color:#60a5fa; font-weight:600; text-transform:uppercase;");
+  const qcDetailRow = qReason ? renderObsRow("QC Detail", qReason, "color:#94a3b8; font-size:11px;") : "";
   const ds = state.selectedProfile.data_status || activeSample.data_status || "REAL DATA";
   const obsTime = activeSample.time || state.selectedProfile.latest_time;
   const platformStatus = state.selectedProfile.platform_status || (ptype === "GLIDER" ? "OPERATIONAL" : "OFFLINE");
@@ -3851,6 +3772,8 @@ function update3DDepthCursor(){
       ${renderObsRow("Speed", "0.35 m/s")}
 
       ${renderObsSection("QUALITY & STATUS")}
+      ${renderObsRow("Quality Status", qc.toUpperCase(), qcStyle)}
+      ${qcDetailRow}
       ${renderObsRow("Profile Date", profileDateStr)}
       ${renderObsRow("Updated Date", updatedDateStr)}
       ${renderObsRow("Platform Status", "OPERATIONAL", "color:#34d399; font-weight:600;")}
@@ -3887,7 +3810,8 @@ function update3DDepthCursor(){
       ${renderObsRow("Sound Speed", `${soundSpeedVal.toFixed(1)} m/s`)}
 
       ${renderObsSection("QUALITY & STATUS")}
-      ${renderObsRow("QC Status", qc, "color:var(--accent);")}
+      ${renderObsRow("Quality Status", qc.toUpperCase(), qcStyle)}
+      ${qcDetailRow}
       ${renderObsRow("Cast Date", profileDateStr)}
       ${renderObsRow("Updated Date", updatedDateStr)}
       ${renderObsRow("Station Status", "COMPLETED", "color:#34d399; font-weight:600;")}
@@ -3956,7 +3880,8 @@ function update3DDepthCursor(){
       ${renderObsRow("Trajectory Timespan", `${spanDays} days`)}
 
       ${renderObsSection("QUALITY & STATUS")}
-      ${renderObsRow("Quality Status", qc, "color:var(--accent);")}
+      ${renderObsRow("Quality Status", qc.toUpperCase(), qcStyle)}
+      ${qcDetailRow}
       ${renderObsRow("Profile Date", profileDateStr)}
       ${renderObsRow("Updated Date", updatedDateStr)}
       ${renderObsRow("Platform Status", platformStatus, "color:var(--accent); font-weight:600;")}
@@ -3990,7 +3915,8 @@ function update3DDepthCursor(){
       ${renderObsRow("Organization", sourceOrg)}
       ${renderObsRow("Mooring Status", "FIXED ANCHORED STATION", "color:#38bdf8; font-weight:600;")}
       ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
-      ${renderObsRow("Quality Status", qc, "color:var(--accent);")}
+      ${renderObsRow("Quality Status", qc.toUpperCase(), qcStyle)}
+      ${qcDetailRow}
       ${renderObsRow("Profile Date", profileDateStr)}
     `;
   } else if(ptype === "DRIFTER") {
@@ -4018,7 +3944,8 @@ function update3DDepthCursor(){
       ${renderObsRow("Organization", sourceOrg)}
       ${renderObsRow("Drifter Status", "SURFACE DRIFT ACTIVE", "color:#f43f5e; font-weight:600;")}
       ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
-      ${renderObsRow("Quality Status", qc, "color:var(--accent);")}
+      ${renderObsRow("Quality Status", qc.toUpperCase(), qcStyle)}
+      ${qcDetailRow}
       ${renderObsRow("Observation Date", profileDateStr)}
     `;
   } else if(ptype === "OCEANSITES") {
@@ -4050,7 +3977,8 @@ function update3DDepthCursor(){
       ${renderObsRow("Organization", sourceOrg)}
       ${renderObsRow("Observatory Status", "GLOBAL DEEP-OCEAN TIME-SERIES", "color:#a855f7; font-weight:600;")}
       ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
-      ${renderObsRow("Quality Status", qc, "color:var(--accent);")}
+      ${renderObsRow("Quality Status", qc.toUpperCase(), qcStyle)}
+      ${qcDetailRow}
       ${renderObsRow("Observation Date", profileDateStr)}
     `;
   } else if(ptype === "AUV") {
@@ -4082,7 +4010,8 @@ function update3DDepthCursor(){
       ${renderObsRow("Organization", sourceOrg)}
       ${renderObsRow("AUV Mission Status", "ACTIVE DIVE SURVEY", "color:#06b6d4; font-weight:600;")}
       ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
-      ${renderObsRow("Quality Status", qc, "color:var(--accent);")}
+      ${renderObsRow("Quality Status", qc.toUpperCase(), qcStyle)}
+      ${qcDetailRow}
       ${renderObsRow("Observation Date", profileDateStr)}
     `;
   } else if(ptype === "USV") {
@@ -4110,7 +4039,8 @@ function update3DDepthCursor(){
       ${renderObsRow("Organization", sourceOrg)}
       ${renderObsRow("USV Mission Status", "SURFACE TRANSECT ACTIVE", "color:#3b82f6; font-weight:600;")}
       ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
-      ${renderObsRow("Quality Status", qc, "color:var(--accent);")}
+      ${renderObsRow("Quality Status", qc.toUpperCase(), qcStyle)}
+      ${qcDetailRow}
       ${renderObsRow("Observation Date", profileDateStr)}
     `;
   } else if(ptype === "ROV") {
@@ -4142,7 +4072,8 @@ function update3DDepthCursor(){
       ${renderObsRow("Organization", sourceOrg)}
       ${renderObsRow("ROV Status", "DEEP TETHERED DIVE SURVEY", "color:#eab308; font-weight:600;")}
       ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
-      ${renderObsRow("Quality Status", qc, "color:var(--accent);")}
+      ${renderObsRow("Quality Status", qc.toUpperCase(), qcStyle)}
+      ${qcDetailRow}
       ${renderObsRow("Observation Date", profileDateStr)}
     `;
   } else if(ptype === "VESSEL") {
@@ -4172,7 +4103,8 @@ function update3DDepthCursor(){
       ${renderObsRow("Organization", sourceOrg)}
       ${renderObsRow("Vessel Status", "CRUISE UNDERWAY TRANSECT", "color:#f97316; font-weight:600;")}
       ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
-      ${renderObsRow("Quality Status", qc, "color:var(--accent);")}
+      ${renderObsRow("Quality Status", qc.toUpperCase(), qcStyle)}
+      ${qcDetailRow}
       ${renderObsRow("Observation Date", profileDateStr)}
     `;
   } else {
@@ -4212,7 +4144,8 @@ function update3DDepthCursor(){
       ${renderObsRow("Mean Drift Speed", `${speedCmS.toFixed(1)} cm/s`)}
 
       ${renderObsSection("QUALITY & STATUS")}
-      ${renderObsRow("Quality Status", qc, "color:var(--accent);")}
+      ${renderObsRow("Quality Status", qc.toUpperCase(), qcStyle)}
+      ${qcDetailRow}
       ${renderObsRow("Profile/Cycle", cycleNum)}
       ${renderObsRow("Profile Date", profileDateStr)}
       ${renderObsRow("Updated Date", updatedDateStr)}
@@ -5313,6 +5246,18 @@ async function openProfile(platform_id){
   }
 }
 
+function classifyInstrument(m){
+  const flag = (m.quality_flag || "").toLowerCase();
+  const status = (m.status || "").toUpperCase();
+  const isBadFlag = flag.includes("bad") || flag.includes("suspect") || flag.includes("faulty") || flag.includes("damaged") || flag.includes("fail");
+  const isBadStatus = status === "STALE" || status === "OFFLINE";
+  if(isBadFlag || isBadStatus) return "bad";
+  const isGoodFlag = flag === "good" || flag === "probably_good";
+  const isGoodStatus = status === "ACTIVE" || status === "RECENT" || !status;
+  if(isGoodFlag && isGoodStatus) return "good";
+  return "unknown";
+}
+
 function restoreObservationMarkers(){
   const toggles = {
     argo: document.getElementById("ovArgo") ? document.getElementById("ovArgo").checked : true,
@@ -5322,13 +5267,41 @@ function restoreObservationMarkers(){
     bgc: document.getElementById("ovBgc") ? document.getElementById("ovBgc").checked : true,
   };
 
+  let totalCount = 0;
+  let badCount = 0;
+  let goodCount = 0;
+  let unknownCount = 0;
+
   profileEntities.forEach(ent => {
     if(ent.userData){
       if(ent.userData.isPillar){
         ent.show = state.showProfileLines;
       } else if(ent.userData.platform_type){
         const ptype = ent.userData.platform_type.toLowerCase();
-        ent.show = toggles[ptype] !== false;
+        let show = toggles[ptype] !== false;
+
+        const cond = classifyInstrument(ent.userData);
+        totalCount++;
+        if(cond === "bad") badCount++;
+        else if(cond === "good") goodCount++;
+        else unknownCount++;
+
+        if(state.showCondition){
+          if(cond === "good"){
+            show = false;
+          } else {
+            show = true;
+          }
+          if(ent.billboard){
+            ent.billboard.color = (cond === "bad") ? Cesium.Color.RED : Cesium.Color.BLUE;
+          }
+        } else {
+          if(ent.billboard){
+            ent.billboard.color = Cesium.Color.WHITE;
+          }
+        }
+
+        ent.show = show;
         if(ent.billboard){
           ent.billboard.width = 22;
           ent.billboard.height = 22;
@@ -5340,6 +5313,21 @@ function restoreObservationMarkers(){
       }
     }
   });
+
+  const condSec = document.getElementById("conditionSummarySection");
+  if(condSec) condSec.style.display = state.showCondition ? "block" : "none";
+  if(document.getElementById("condTotal")) document.getElementById("condTotal").textContent = totalCount;
+  if(document.getElementById("condBad")) document.getElementById("condBad").textContent = badCount;
+  if(document.getElementById("condGood")) document.getElementById("condGood").textContent = goodCount;
+  if(document.getElementById("condUnknown")) document.getElementById("condUnknown").textContent = unknownCount;
+}
+
+const ovCond = document.getElementById("ovCondition");
+if(ovCond){
+  ovCond.onchange = (e) => {
+    state.showCondition = e.target.checked;
+    restoreObservationMarkers();
+  };
 }
 
 document.getElementById("closeProfile").onclick = () => {
@@ -5437,27 +5425,15 @@ document.getElementById("exagSlider").oninput = async (e) => {
   if(viewer && viewer.scene && 'verticalExaggeration' in viewer.scene){
     try { viewer.scene.verticalExaggeration = state.verticalExaggeration; } catch(err){}
   }
+  if(window.oceanFlow && state.showVectors){
+    window.oceanFlow.setAltitude(DEPTHS[state.depthIndex], state.verticalExaggeration);
+  }
   await refreshAll();
 };
 document.getElementById("btnViewGIS").onclick = () => switchMainView('gis');
-document.getElementById("btnViewTerrain").onclick = () => switchMainView('terrain');
 const btnAdaptiveNav = document.getElementById("btnNavAdaptiveMission");
 if(btnAdaptiveNav) btnAdaptiveNav.onclick = () => switchMainView('adaptive');
 
-document.getElementById("waterLevelSlider").oninput = (e) => {
-  const val = parseInt(e.target.value);
-  if(state.mainView !== 'terrain') switchMainView('terrain');
-  updateWaterLevelSimulation(val);
-};
-document.getElementById("btnDrainOcean").onclick = () => {
-  switchMainView('terrain');
-  updateWaterLevelSimulation(0);
-  setTerrainCameraView(20.0, 50.0);
-};
-document.getElementById("btnNormalOcean").onclick = () => {
-  switchMainView('terrain');
-  updateWaterLevelSimulation(100);
-};
 document.getElementById("depthSlider").oninput = async (e) => {
   state.depthIndex = parseInt(e.target.value);
   const d = DEPTHS[state.depthIndex];
@@ -5466,6 +5442,7 @@ document.getElementById("depthSlider").oninput = async (e) => {
   if(banner) banner.textContent = `Depth : -${d} m`;
   update3DDepthCursor();
   await loadModelData();
+  if(state.showVectors) await loadVectors();
 };
 document.getElementById("timeSlider").oninput = async (e) => {
   state.timeIndex = parseInt(e.target.value); await refreshAll();

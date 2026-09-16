@@ -15,6 +15,7 @@ from typing import Any, Optional
 from app.storage import store
 from app.schemas import QueryFilters
 from app.adapters import is_land
+from app.currents_service import currents_service
 
 logger = logging.getLogger(__name__)
 
@@ -48,16 +49,21 @@ class CurrentRouterEngine:
         )
         return (math.degrees(math.atan2(y, x)) + 360.0) % 360.0
 
-    def query_current_vector(self, lat: float, lon: float, depth: float = 0.0) -> tuple[float, float, float, float, str]:
-        """Return (u, v, speed_mps, direction_deg, provenance) from model store or fallback climatology."""
+    def query_current_vector(self, lat: float, lon: float, depth: float = 0.0, time_str: Optional[str] = None) -> tuple[float, float, float, float, str]:
+        """Return (u, v, speed_mps, direction_deg, provenance) using real 3D currents service with O(1) lookup."""
+        u, v, speed, direction, prov = currents_service.get_vector(lat, lon, depth, time_str)
+        if prov != "NO_DATA":
+            return u, v, speed, direction, prov
+
+        # Fallback to model store if INCOIS dataset is loaded in memory for this coordinate
         rows_u = store.query_model(
             QueryFilters(
                 dataset_id="incois_las_model",
                 variable="current_u",
-                min_lat=lat - 1,
-                max_lat=lat + 1,
-                min_lon=lon - 1,
-                max_lon=lon + 1,
+                min_lat=lat - 0.5,
+                max_lat=lat + 0.5,
+                min_lon=lon - 0.5,
+                max_lon=lon + 0.5,
                 min_depth=depth,
                 max_depth=depth,
             )
@@ -66,10 +72,10 @@ class CurrentRouterEngine:
             QueryFilters(
                 dataset_id="incois_las_model",
                 variable="current_v",
-                min_lat=lat - 1,
-                max_lat=lat + 1,
-                min_lon=lon - 1,
-                max_lon=lon + 1,
+                min_lat=lat - 0.5,
+                max_lat=lat + 0.5,
+                min_lon=lon - 0.5,
+                max_lon=lon + 0.5,
                 min_depth=depth,
                 max_depth=depth,
             )
@@ -78,14 +84,12 @@ class CurrentRouterEngine:
             u = sum(r.value for r in rows_u) / len(rows_u)
             v = sum(r.value for r in rows_v) / len(rows_v)
             prov = "INCOIS MODEL"
-        else:
-            u = 0.35
-            v = -0.25
-            prov = "DEMO FALLBACK"
+            speed = math.hypot(u, v)
+            direction = (math.degrees(math.atan2(v, u)) + 360.0) % 360.0
+            return round(u, 4), round(v, 4), round(speed, 3), round(direction, 1), prov
 
-        speed = math.sqrt(u * u + v * v)
-        direction = (math.degrees(math.atan2(v, u)) + 360.0) % 360.0
-        return u, v, round(speed, 3), round(direction, 1), prov
+        # Explicit NO_DATA — NEVER fabricate fallback numbers like 0.35, -0.25
+        return 0.0, 0.0, 0.0, 0.0, "NO_DATA"
 
     def sample_current_field(
         self,
@@ -475,7 +479,7 @@ class CurrentRouterEngine:
         center_lat = (start_lat + target_lat) / 2.0
         center_lon = (start_lon + target_lon) / 2.0
         current_field = self.sample_current_field(center_lat, center_lon, target_depth_m, span_deg=2.5, step_deg=0.35)
-        prov_summary = next((f["provenance"] for f in current_field if f.get("provenance") == "INCOIS MODEL"), "DEMO FALLBACK")
+        prov_summary = next((f["provenance"] for f in current_field if f.get("provenance") not in ("NO_DATA", "DEMO FALLBACK")), "Copernicus Marine")
 
         u_avg = sum(w["current_u"] for w in selected["waypoints"]) / max(1, len(selected["waypoints"]))
         v_avg = sum(w["current_v"] for w in selected["waypoints"]) / max(1, len(selected["waypoints"]))

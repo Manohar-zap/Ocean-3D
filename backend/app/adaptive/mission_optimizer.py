@@ -86,12 +86,14 @@ class MissionOptimizerEngine:
 
             distance_penalty = (route["direct_distance_km"] / 1000.0) * 5.0
             simulation_penalty = 15.0 if inst.get("is_simulated", True) else 0.0
+            platform_pref_bonus = 25.0 if preferred_platform and ptype.lower() == preferred_platform.lower() else 0.0
 
             mission_score = round(
                 (eig["expected_information_gain_percent"] * 0.50)
                 + (feasibility_score * 30.0)
                 + (sens_match * 10.0)
                 + (energy_margin_factor * 10.0)
+                + platform_pref_bonus
                 - distance_penalty
                 - simulation_penalty,
                 1,

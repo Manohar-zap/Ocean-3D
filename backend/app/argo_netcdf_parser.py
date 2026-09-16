@@ -164,6 +164,7 @@ def parse_argo_netcdf_file(
                             # Filter bad QC flags ('3', '4')
                             if qc_code not in ("3", "4", "9"):
                                 q_flag = "good" if qc_code in ("1", "2", "0") else "suspect"
+                                q_reason = f"Passed Argo NetCDF profile QC checks (QC {qc_code})" if q_flag == "good" else f"Flagged suspect in Argo NetCDF profile (QC {qc_code})"
                                 records.append(StandardRecord(
                                     kind="observation",
                                     dataset_id="argo_gdac",
@@ -177,6 +178,8 @@ def parse_argo_netcdf_file(
                                     platform_id=platform_id,
                                     platform_type="argo",
                                     quality_flag=q_flag,
+                                    quality_reason=q_reason,
+                                    qc_summary={"qc_1": 1} if q_flag == "good" else {"qc_3": 1},
                                     source_file=path.name,
                                     data_status=data_status,
                                     source_organization=source_org,
@@ -198,6 +201,7 @@ def parse_argo_netcdf_file(
 
                             if qc_code not in ("3", "4", "9"):
                                 q_flag = "good" if qc_code in ("1", "2", "0") else "suspect"
+                                q_reason = f"Passed Argo NetCDF profile QC checks (QC {qc_code})" if q_flag == "good" else f"Flagged suspect in Argo NetCDF profile (QC {qc_code})"
                                 records.append(StandardRecord(
                                     kind="observation",
                                     dataset_id="argo_gdac",
@@ -211,6 +215,8 @@ def parse_argo_netcdf_file(
                                     platform_id=platform_id,
                                     platform_type="argo",
                                     quality_flag=q_flag,
+                                    quality_reason=q_reason,
+                                    qc_summary={"qc_1": 1} if q_flag == "good" else {"qc_3": 1},
                                     source_file=path.name,
                                     data_status=data_status,
                                     source_organization=source_org,

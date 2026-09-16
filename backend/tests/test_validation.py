@@ -1,4 +1,4 @@
-﻿"""
+"""
 Tests for Model-Observation Co-Validation Service and INCOIS OMNI Moored Buoy Integration.
 """
 from fastapi.testclient import TestClient
@@ -22,7 +22,7 @@ def test_moored_buoys_present():
     bd08 = next(p for p in platforms if p["platform_id"] == "OMNI-BD08")
     assert bd08["platform_type"] == "mooring"
     assert bd08["source_organization"] == "INCOIS / NIOT (MoES, India)"
-    assert bd08["data_status"] == "CACHED REAL DATA"
+    assert bd08["data_status"] in ("CACHED REAL DATA", "OPERATIONAL REAL-TIME")
 
 
 def test_profile_validation_endpoint():
