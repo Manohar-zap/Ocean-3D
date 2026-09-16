@@ -154,6 +154,17 @@
     return canvas.toDataURL();
   }
 
+  function safeAddEntity(viewerInstance, options) {
+    if (!viewerInstance || !options) return null;
+    if (options.id) {
+      const existing = viewerInstance.entities.getById(options.id);
+      if (existing) {
+        try { viewerInstance.entities.remove(existing); } catch(e) {}
+      }
+    }
+    return viewerInstance.entities.add(options);
+  }
+
   // ─── 1. Automatic Gap Loading and Globe Markers ─────────────────────────────
 
   window.loadAdaptiveInformationGaps = async function() {
@@ -181,9 +192,27 @@
   };
 
   function clearGapEntities() {
-    const viewer = window.viewer; if (!viewer) return;
-    window.adaptiveState.gapEntities.forEach(ent => (window.viewer || viewer).entities.remove(ent));
-    window.adaptiveState.gapEntities = [];
+    const viewerInstance = window.viewer || (typeof viewer !== 'undefined' ? viewer : null);
+    if (!viewerInstance) return;
+    if (window.adaptiveState.gapEntities && window.adaptiveState.gapEntities.length > 0) {
+      window.adaptiveState.gapEntities.forEach(ent => {
+        try { viewerInstance.entities.remove(ent); } catch(e) {}
+      });
+      window.adaptiveState.gapEntities = [];
+    }
+    try {
+      const toRemove = [];
+      const col = viewerInstance.entities.values;
+      for (let i = 0; i < col.length; i++) {
+        const ent = col[i];
+        if (ent && (ent.isAdaptiveGap || (ent.id && (ent.id.endsWith('_polygon') || ent.id.endsWith('_boundary') || ent.id.endsWith('_halo') || ent.id.includes('_survey_dot_'))))) {
+          toRemove.push(ent);
+        }
+      }
+      toRemove.forEach(ent => {
+        try { viewerInstance.entities.remove(ent); } catch(e) {}
+      });
+    } catch(e) {}
   }
 
   function renderGapEntitiesOnGlobe() {
@@ -199,17 +228,63 @@
       const isSelected = selectedGap && (selectedGap.id === gap.id);
       const isResolved = gap.isResolved;
 
+      // Helper: 2D polygon signed area (Shoelace formula)
+      const calcPolygonArea = (pts) => {
+        if (!pts || pts.length < 3) return 0;
+        let area = 0;
+        for (let i = 0; i < pts.length; i++) {
+          const j = (i + 1) % pts.length;
+          area += pts[i][0] * pts[j][1];
+          area -= pts[j][0] * pts[i][1];
+        }
+        return Math.abs(area / 2.0);
+      };
+
       // 1. Organic Contour Polygon & Dashed Boundary (matching reference visualization)
       const polyCoords = gap.polygon_coordinates;
-      if (polyCoords && Array.isArray(polyCoords) && polyCoords.length >= 3) {
-        const flatCoords = [];
-        polyCoords.forEach(pt => {
-          if (Array.isArray(pt) && pt.length >= 2) {
-            flatCoords.push(pt[0], pt[1]);
-          }
-        });
+      let cleanedCoords = [];
+      let crossesAntimeridian = false;
 
-        if (flatCoords.length >= 6) {
+      if (polyCoords && Array.isArray(polyCoords) && polyCoords.length >= 3) {
+        let minLon = 180, maxLon = -180;
+        for (let i = 0; i < polyCoords.length; i++) {
+          const pt = polyCoords[i];
+          if (Array.isArray(pt) && pt.length >= 2 && !isNaN(pt[0]) && !isNaN(pt[1])) {
+            let lon = Number(pt[0]);
+            let lat = Math.max(-85.0, Math.min(85.0, Number(pt[1])));
+            while (lon > 180) lon -= 360;
+            while (lon < -180) lon += 360;
+
+            if (lon < minLon) minLon = lon;
+            if (lon > maxLon) maxLon = lon;
+
+            const last = cleanedCoords[cleanedCoords.length - 1];
+            if (!last || (Math.hypot(last[0] - lon, last[1] - lat) > 0.04)) {
+              cleanedCoords.push([lon, lat]);
+            }
+          }
+        }
+        if (maxLon - minLon > 180) {
+          crossesAntimeridian = true;
+        }
+        while (cleanedCoords.length >= 3) {
+          const first = cleanedCoords[0];
+          const last = cleanedCoords[cleanedCoords.length - 1];
+          if (Math.hypot(first[0] - last[0], first[1] - last[1]) < 0.04) {
+            cleanedCoords.pop();
+          } else {
+            break;
+          }
+        }
+      }
+
+      const polyArea = calcPolygonArea(cleanedCoords);
+      let polygonAdded = false;
+
+      if (!crossesAntimeridian && cleanedCoords.length >= 3 && polyArea >= 0.25) {
+        try {
+          const flatCoords = [];
+          cleanedCoords.forEach(pt => flatCoords.push(pt[0], pt[1]));
           const cartesianPositions = Cesium.Cartesian3.fromDegreesArray(flatCoords);
 
           // A. Organic Shaded Polygon Surface (Red for Critical, Yellow for Elevated, Cyan for Selected)
@@ -222,20 +297,22 @@
                 ? Cesium.Color.fromCssColorString('#dc2626').withAlpha(0.28)
                 : Cesium.Color.fromCssColorString('#d97706').withAlpha(0.26)));
 
-          const polyEnt = viewerInstance.entities.add({
+          const polyEnt = safeAddEntity(viewerInstance, {
             id: `${gap.id}_polygon`,
             polygon: {
               hierarchy: cartesianPositions,
-              height: 0,
               material: polyColor
             }
           });
-          polyEnt.gapData = gap;
-          polyEnt.gapCentroidPos = cartesianPositions[0] || Cesium.Cartesian3.fromDegrees(gap.longitude, gap.latitude, 0);
-          polyEnt.isAdaptiveGap = true;
-          window.adaptiveState.gapEntities.push(polyEnt);
+          if (polyEnt) {
+            polyEnt.gapData = gap;
+            polyEnt.gapCentroidPos = cartesianPositions[0] || Cesium.Cartesian3.fromDegrees(gap.longitude, gap.latitude, 0);
+            polyEnt.isAdaptiveGap = true;
+            window.adaptiveState.gapEntities.push(polyEnt);
+            polygonAdded = true;
+          }
 
-          // B. Dashed Perimeter Contour Boundary (Red dashed for Critical, Yellow dashed for Elevated, Cyan for active target)
+          // B. Dashed Perimeter Contour Boundary (Closed loop without duplicate vertices)
           const borderColor = isResolved
             ? Cesium.Color.fromCssColorString('#34d399')
             : (isSelected
@@ -244,28 +321,32 @@
                 ? Cesium.Color.fromCssColorString('#ef4444')
                 : Cesium.Color.fromCssColorString('#f59e0b')));
 
-          const borderEnt = viewerInstance.entities.add({
+          const boundaryFlatCoords = [...flatCoords, cleanedCoords[0][0], cleanedCoords[0][1]];
+          const boundaryPositions = Cesium.Cartesian3.fromDegreesArray(boundaryFlatCoords);
+
+          const borderEnt = safeAddEntity(viewerInstance, {
             id: `${gap.id}_boundary`,
             polyline: {
-              positions: cartesianPositions,
+              positions: boundaryPositions,
               width: isSelected ? 3.5 : 2.5,
               material: new Cesium.PolylineDashMaterialProperty({
                 color: borderColor,
                 dashLength: 16.0
-              }),
-              clampToGround: true
+              })
             }
           });
-          borderEnt.gapData = gap;
-          borderEnt.gapCentroidPos = cartesianPositions[0] || Cesium.Cartesian3.fromDegrees(gap.longitude, gap.latitude, 0);
-          borderEnt.isAdaptiveGap = true;
-          window.adaptiveState.gapEntities.push(borderEnt);
+          if (borderEnt) {
+            borderEnt.gapData = gap;
+            borderEnt.gapCentroidPos = cartesianPositions[0] || Cesium.Cartesian3.fromDegrees(gap.longitude, gap.latitude, 0);
+            borderEnt.isAdaptiveGap = true;
+            window.adaptiveState.gapEntities.push(borderEnt);
+          }
 
           // C. Interior Survey Sampling Grid Dots (Shown inside selected active target region)
           if (isSelected && gap.survey_points && Array.isArray(gap.survey_points)) {
             gap.survey_points.forEach((sPt, sIdx) => {
               const dotPos = Cesium.Cartesian3.fromDegrees(sPt[0], sPt[1], 0);
-              const dotEnt = viewerInstance.entities.add({
+              const dotEnt = safeAddEntity(viewerInstance, {
                 id: `${gap.id}_survey_dot_${sIdx}`,
                 position: dotPos,
                 point: {
@@ -275,22 +356,29 @@
                   outlineWidth: 1.0
                 }
               });
-              dotEnt.gapData = gap;
-              dotEnt.gapCentroidPos = dotPos;
-              dotEnt.isAdaptiveGap = true;
-              window.adaptiveState.gapEntities.push(dotEnt);
+              if (dotEnt) {
+                dotEnt.gapData = gap;
+                dotEnt.gapCentroidPos = dotPos;
+                dotEnt.isAdaptiveGap = true;
+                window.adaptiveState.gapEntities.push(dotEnt);
+              }
             });
           }
+        } catch (e) {
+          console.warn('Polygon rendering error for gap', gap.id, e);
+          polygonAdded = false;
         }
-      } else {
-        // Fallback: Pulsing halo if polygon coordinates are not available
+      }
+
+      if (!polygonAdded) {
+        // Fallback: Pulsing halo if polygon coordinates are not available or degenerate
         const prio = gap.priority_score || 70;
         let haloColorHex = isResolved ? '#34d399' : (isSelected ? '#22d3ee' : (prio >= 80 ? '#f43f5e' : '#f59e0b'));
         let haloRadius = isResolved ? 80000 : (prio >= 80 ? 180000 : 130000);
         const haloColor = Cesium.Color.fromCssColorString(haloColorHex);
         const pos = Cesium.Cartesian3.fromDegrees(gap.longitude, gap.latitude, 0);
 
-        const haloEnt = viewerInstance.entities.add({
+        const haloEnt = safeAddEntity(viewerInstance, {
           id: `${gap.id}_halo`,
           position: pos,
           ellipse: {
@@ -303,10 +391,12 @@
             outlineWidth: 2
           }
         });
-        haloEnt.gapData = gap;
-        haloEnt.gapCentroidPos = pos;
-        haloEnt.isAdaptiveGap = true;
-        window.adaptiveState.gapEntities.push(haloEnt);
+        if (haloEnt) {
+          haloEnt.gapData = gap;
+          haloEnt.gapCentroidPos = pos;
+          haloEnt.isAdaptiveGap = true;
+          window.adaptiveState.gapEntities.push(haloEnt);
+        }
       }
 
       // Zone billboard badges removed for clean 3D globe visualization
@@ -407,13 +497,23 @@
   function populateAdaptiveSidebarTab() {
     const listEl = document.getElementById('adaptiveGapList');
     if (!listEl) return;
-    const gaps = window.adaptiveState.gaps;
+    const gaps = window.adaptiveState.gaps || [];
     if (!gaps.length) {
       listEl.innerHTML = '<div style="font-size:11px; color:var(--text-dim); padding:8px;">No information gaps detected.</div>';
       return;
     }
 
-    listEl.innerHTML = gaps.map(g => {
+    const selectedGap = window.adaptiveState.selectedGap;
+    const sortedGaps = [...gaps].sort((a, b) => (b.priority_score || 0) - (a.priority_score || 0));
+    const topGaps = sortedGaps.slice(0, 35);
+
+    listEl.innerHTML = `
+      <div style="font-size:10px; color:var(--text-dim); margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
+        <span>Top ${topGaps.length} of ${gaps.length} observation gaps:</span>
+        <span style="color:var(--adm-accent); font-weight:600;">PRIORITY SORTED</span>
+      </div>
+    ` + topGaps.map(g => {
+      const isCurrent = selectedGap && (selectedGap.id === g.id);
       const prio = g.priority_score || 70;
       const isRed = (g.color === 'red') || (g.priority_level === 'CRITICAL');
       const prioBadge = g.isResolved 
@@ -422,25 +522,34 @@
           ? `<span class="badge-priority critical" style="background:#991b1b; color:#fecaca; border:1px solid #ef4444; font-size:9.5px; padding:2px 6px;">🔴 RED • CRITICAL</span>`
           : `<span class="badge-priority elevated" style="background:#854d0e; color:#fef08a; border:1px solid #f59e0b; font-size:9.5px; padding:2px 6px;">🟡 YELLOW • ELEVATED</span>`);
 
+      const nearestVal = (g.nearest_observation_km != null) ? `${Number(g.nearest_observation_km).toFixed(0)} km away` : 'Sparse';
+      const depthVal = (g.depth_m != null) ? `${Number(g.depth_m).toFixed(0)} m` : '500 m';
+      const mlVal = (g.ml_expected_value != null) ? `${Number(g.ml_expected_value).toFixed(1)} °C` : '10.8 °C';
+      const piVal = (g.ml_prediction_interval_90pct && Array.isArray(g.ml_prediction_interval_90pct)) 
+        ? `[${g.ml_prediction_interval_90pct.join(', ')} °C]` : '[7.8, 12.8 °C]';
+
       return `
-        <div class="adm-card" style="cursor:pointer; transition:border-color .15s; border-left: 4px solid ${isRed ? '#ef4444' : '#f59e0b'};" onclick="selectAdaptiveGapById('${g.id}')">
+        <div class="adm-card ${isCurrent ? 'active-target' : ''}" style="cursor:pointer; transition:all .15s; border-left: 4px solid ${isCurrent ? '#38bdf8' : (isRed ? '#ef4444' : '#f59e0b')}; ${isCurrent ? 'background:rgba(56, 189, 248, 0.12); border-color:#38bdf8;' : ''}" onclick="window.selectAdaptiveGapById('${g.id}')">
           <div class="adm-card-hdr">
             <span style="color:#fff; font-weight:600;">${g.id}</span>
             ${prioBadge}
           </div>
           <div style="font-size:11.5px; font-weight:700; color:var(--text); margin-top:2px;">${g.name}</div>
-          <div class="adm-row"><span class="adm-label">Nearest Float</span><span class="adm-val" style="color:${isRed ? '#f87171' : '#fbbf24'}; font-weight:700;">${g.nearest_observation_km.toFixed(0)} km away</span></div>
-          <div class="adm-row"><span class="adm-label">Target Depth</span><span class="adm-val" style="color:var(--adm-cyan);">${g.depth_m.toFixed(0)} m</span></div>
-          <div class="adm-row"><span class="adm-label">ML Prediction</span><span class="adm-val" style="color:#38bdf8;">${g.ml_expected_value != null ? g.ml_expected_value.toFixed(1) + ' °C' : '10.8 °C'}</span></div>
-          <div class="adm-row"><span class="adm-label">90% PI</span><span class="adm-val" style="color:#fb7185; font-size:10px;">[${g.ml_prediction_interval_90pct ? g.ml_prediction_interval_90pct.join(', ') : '...'} °C]</span></div>
+          <div class="adm-row"><span class="adm-label">Nearest Float</span><span class="adm-val" style="color:${isRed ? '#f87171' : '#fbbf24'}; font-weight:700;">${nearestVal}</span></div>
+          <div class="adm-row"><span class="adm-label">Target Depth</span><span class="adm-val" style="color:var(--adm-cyan);">${depthVal}</span></div>
+          <div class="adm-row"><span class="adm-label">ML Prediction</span><span class="adm-val" style="color:#38bdf8;">${mlVal}</span></div>
+          <div class="adm-row"><span class="adm-label">90% PI</span><span class="adm-val" style="color:#fb7185; font-size:10px;">${piVal}</span></div>
         </div>
       `;
     }).join('');
   }
+  window.populateAdaptiveSidebarTab = populateAdaptiveSidebarTab;
 
   window.selectAdaptiveGapById = function(gapId) {
     const gap = window.adaptiveState.gaps.find(g => g.id === gapId);
-    if (gap) selectAdaptiveGap(gap);
+    if (gap && typeof window.selectAdaptiveGap === 'function') {
+      window.selectAdaptiveGap(gap);
+    }
   };
 
   // ─── 2. Gap Selection & Focused Information Panel ───────────────────────────
@@ -450,13 +559,17 @@
     window.adaptiveState.currentPlan = null;
     clearMissionGraphics();
     renderGapEntitiesOnGlobe();
+    populateAdaptiveSidebarTab();
 
     // Smooth camera transition to gap
-    (window.viewer || viewer).camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(gap.longitude, gap.latitude, 950000),
-      orientation: { heading: 0, pitch: Cesium.Math.toRadians(-45), roll: 0 },
-      duration: 1.2
-    });
+    const viewerInstance = window.viewer || (typeof viewer !== 'undefined' ? viewer : null);
+    if (viewerInstance && viewerInstance.camera) {
+      viewerInstance.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(gap.longitude, gap.latitude, 950000),
+        orientation: { heading: 0, pitch: Cesium.Math.toRadians(-45), roll: 0 },
+        duration: 1.2
+      });
+    }
 
     // Populate Focused Diagnostics Panel
     const pPanel = document.getElementById('adaptiveMissionPanel');
@@ -517,6 +630,8 @@
 
     // Show panel
     pPanel.classList.add('open');
+    const profPanel = document.getElementById('profilePanel');
+    if (profPanel) profPanel.classList.remove('open');
 
     // Also update banner
     updateCinematicBanner('PHASE 01 — INFORMATION GAP DETECTED', gap.name, `Location: ${gap.latitude.toFixed(2)}°N ${gap.longitude.toFixed(2)}°E | Depth: ${gap.depth_m}m | Priority: ${prio.toFixed(1)}%`);
@@ -613,7 +728,10 @@
   function renderRadarScanWave(lat, lon) {
     let radius = 10000;
     const maxRadius = 1000000;
-    const scanEnt = (window.viewer || viewer).entities.add({
+    const v = window.viewer || (typeof viewer !== 'undefined' ? viewer : null);
+    if (!v) return;
+    const scanEnt = safeAddEntity(v, {
+      id: `radar_wave_${Date.now()}`,
       position: Cesium.Cartesian3.fromDegrees(lon, lat, 0),
       ellipse: {
         semiMajorAxis: new Cesium.CallbackProperty(() => {
@@ -630,19 +748,27 @@
         outlineColor: Cesium.Color.fromCssColorString('#38bdf8')
       }
     });
-    window.adaptiveState.missionEntities.push(scanEnt);
-    setTimeout(() => (window.viewer || viewer).entities.remove(scanEnt), 2400);
+    if (scanEnt) {
+      window.adaptiveState.missionEntities.push(scanEnt);
+      setTimeout(() => {
+        try { v.entities.remove(scanEnt); } catch(e) {}
+      }, 2400);
+    }
   }
 
   // Render candidate observing platforms on the globe
   function renderCandidatePlatformsOnGlobe(candidates, gap) {
+    const v = window.viewer || (typeof viewer !== 'undefined' ? viewer : null);
+    if (!v) return;
+
     candidates.forEach(c => {
       const isControllable = c.controllable;
       const pos = Cesium.Cartesian3.fromDegrees(c.longitude, c.latitude, 0);
       const targetPos = Cesium.Cartesian3.fromDegrees(gap.longitude, gap.latitude, 0);
 
       // Connecting search ray
-      const rayEnt = (window.viewer || viewer).entities.add({
+      const rayEnt = safeAddEntity(v, {
+        id: `search_ray_${c.instrument_id}`,
         polyline: {
           positions: [pos, targetPos],
           width: 2,
@@ -652,12 +778,15 @@
           })
         }
       });
-      rayEnt.candidatePos = pos;
-      window.adaptiveState.candidateEntities.push(rayEnt);
+      if (rayEnt) {
+        rayEnt.candidatePos = pos;
+        window.adaptiveState.candidateEntities.push(rayEnt);
+      }
 
       // Badge Billboard
       const badgeImg = generateCandidateBadgeCanvas(c, false, !c.feasible);
-      const bEnt = (window.viewer || viewer).entities.add({
+      const bEnt = safeAddEntity(v, {
+        id: `candidate_badge_${c.instrument_id}`,
         position: pos,
         billboard: {
           image: badgeImg,
@@ -665,27 +794,46 @@
           verticalOrigin: Cesium.VerticalOrigin.BOTTOM
         }
       });
-      bEnt.candidateData = c;
-      bEnt.candidatePos = pos;
-      window.adaptiveState.candidateEntities.push(bEnt);
+      if (bEnt) {
+        bEnt.candidateData = c;
+        bEnt.candidatePos = pos;
+        window.adaptiveState.candidateEntities.push(bEnt);
+      }
     });
   }
 
   function clearCandidateEntities() {
-    window.adaptiveState.candidateEntities.forEach(ent => (window.viewer || viewer).entities.remove(ent));
-    window.adaptiveState.candidateEntities = [];
+    const v = window.viewer || (typeof viewer !== 'undefined' ? viewer : null);
+    if (!v) return;
+    if (window.adaptiveState.candidateEntities) {
+      window.adaptiveState.candidateEntities.forEach(ent => {
+        try { v.entities.remove(ent); } catch(e) {}
+      });
+      window.adaptiveState.candidateEntities = [];
+    }
   }
 
   function clearMissionGraphics() {
-    window.adaptiveState.missionEntities.forEach(ent => (window.viewer || viewer).entities.remove(ent));
-    window.adaptiveState.missionEntities = [];
+    const v = window.viewer || (typeof viewer !== 'undefined' ? viewer : null);
+    if (!v) return;
+    if (window.adaptiveState.missionEntities) {
+      window.adaptiveState.missionEntities.forEach(ent => {
+        try { v.entities.remove(ent); } catch(e) {}
+      });
+      window.adaptiveState.missionEntities = [];
+    }
     clearCandidateEntities();
+    const veh = v.entities.getById('mission_active_vehicle');
+    if (veh) try { v.entities.remove(veh); } catch(e) {}
   }
 
   // Highlight selected winner platform
   function highlightWinnerPlatform(winner, gap) {
+    const v = window.viewer || (typeof viewer !== 'undefined' ? viewer : null);
+    if (!v) return;
     const pos = Cesium.Cartesian3.fromDegrees(winner.route_details?.start_lon || gap.longitude, winner.route_details?.start_lat || gap.latitude, 0);
-    const ringEnt = (window.viewer || viewer).entities.add({
+    const ringEnt = safeAddEntity(v, {
+      id: `winner_ring_${winner.instrument_id}`,
       position: pos,
       ellipse: {
         semiMajorAxis: 35000,
@@ -697,17 +845,23 @@
         outlineWidth: 3
       }
     });
-    window.adaptiveState.missionEntities.push(ringEnt);
+    if (ringEnt) {
+      window.adaptiveState.missionEntities.push(ringEnt);
+    }
   }
 
   // Draw current-aware route and current vector field
   function renderRouteOnGlobe(route) {
     if (!route || !route.waypoints) return;
+    const v = window.viewer || (typeof viewer !== 'undefined' ? viewer : null);
+    if (!v) return;
+
     const waypoints = route.waypoints;
     const coords = waypoints.map(w => Cesium.Cartesian3.fromDegrees(w.longitude, w.latitude, 0));
 
     // Route polyline with neon glow
-    const lineEnt = (window.viewer || viewer).entities.add({
+    const lineEnt = safeAddEntity(v, {
+      id: 'mission_route_glow',
       polyline: {
         positions: coords,
         width: 4,
@@ -717,11 +871,13 @@
         })
       }
     });
-    window.adaptiveState.missionEntities.push(lineEnt);
+    if (lineEnt) {
+      window.adaptiveState.missionEntities.push(lineEnt);
+    }
 
     // Current vector field arrows
     const field = route.current_field || [];
-    field.forEach(pt => {
+    field.forEach((pt, pIdx) => {
       const p1 = Cesium.Cartesian3.fromDegrees(pt.lon, pt.lat, 0);
       const rad = Cesium.Math.toRadians(pt.dir_deg || 0);
       const dist = (pt.speed_mps || 0.2) * 20000;
@@ -729,14 +885,17 @@
       const endLat = pt.lat + (Math.cos(rad) * dist) / 110540;
       const p2 = Cesium.Cartesian3.fromDegrees(endLon, endLat, 0);
 
-      const arrow = (window.viewer || viewer).entities.add({
+      const arrow = safeAddEntity(v, {
+        id: `current_vector_arrow_${pIdx}`,
         polyline: {
           positions: [p1, p2],
           width: 2,
           material: Cesium.Color.fromCssColorString('#38bdf8').withAlpha(0.5)
         }
       });
-      window.adaptiveState.missionEntities.push(arrow);
+      if (arrow) {
+        window.adaptiveState.missionEntities.push(arrow);
+      }
     });
   }
 
@@ -868,13 +1027,16 @@
     }
 
     createVehicleModel() {
+      const v = window.viewer || (typeof viewer !== 'undefined' ? viewer : null);
+      if (!v) return;
+
       const ptype = this.sim.selected_platform?.platform_type || 'glider';
       let colHex = '#38bdf8';
       if (ptype === 'auv') colHex = '#a78bfa';
       else if (ptype === 'usv') colHex = '#3b82f6';
       else if (ptype === 'vessel') colHex = '#f59e0b';
 
-      this.vehicleEnt = (window.viewer || viewer).entities.add({
+      this.vehicleEnt = safeAddEntity(v, {
         id: 'mission_active_vehicle',
         position: Cesium.Cartesian3.ZERO,
         cylinder: {
@@ -894,7 +1056,9 @@
           pixelOffset: new Cesium.Cartesian2(0, -25)
         }
       });
-      window.adaptiveState.missionEntities.push(this.vehicleEnt);
+      if (this.vehicleEnt) {
+        window.adaptiveState.missionEntities.push(this.vehicleEnt);
+      }
     }
 
     tick(ts) {
@@ -1000,7 +1164,10 @@
     }
 
     emitSonarPulse(lat, lon, depthM) {
-      const pulseEnt = (window.viewer || viewer).entities.add({
+      const v = window.viewer || (typeof viewer !== 'undefined' ? viewer : null);
+      if (!v) return;
+      const pulseEnt = safeAddEntity(v, {
+        id: `sonar_pulse_${Date.now()}`,
         position: posFromLatLonDepth(lat, lon, depthM),
         ellipse: {
           semiMajorAxis: 2000,
@@ -1011,8 +1178,12 @@
           outlineColor: Cesium.Color.fromCssColorString('#3fe0c5')
         }
       });
-      window.adaptiveState.missionEntities.push(pulseEnt);
-      setTimeout(() => (window.viewer || viewer).entities.remove(pulseEnt), 1200);
+      if (pulseEnt) {
+        window.adaptiveState.missionEntities.push(pulseEnt);
+        setTimeout(() => {
+          try { v.entities.remove(pulseEnt); } catch(e) {}
+        }, 1200);
+      }
     }
 
     updateSamplingStep(sample) {

@@ -463,10 +463,17 @@ class InstrumentRegistry:
             else:
                 feasible_list.append(inst_copy)
 
+        feasible_list.sort(key=lambda c: c["distance_to_target_km"])
+        rejected_list.sort(key=lambda c: c["distance_to_target_km"])
+        
+        # Display candidates: all feasible instruments + nearest rejected instruments
+        display_candidates = feasible_list + rejected_list[:25]
+        display_candidates.sort(key=lambda c: (not c["feasible"], c["distance_to_target_km"]))
+
         return {
             "fleet_provenance": FLEET_PROVENANCE,
             "target": {"latitude": target_lat, "longitude": target_lon, "depth_m": target_depth_m, "sensor": required_sensor},
-            "all_candidates": all_candidates,
+            "all_candidates": display_candidates,
             "feasible_count": len(feasible_list),
             "rejected_count": len(rejected_list),
             "feasible_instruments": feasible_list,

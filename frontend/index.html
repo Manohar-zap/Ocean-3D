@@ -506,7 +506,12 @@
 
       <!-- TAB 4: ADAPTIVE INFORMATION GAPS & MISSIONS -->
       <div id="tab-adaptive" class="tab-pane" style="display:none;">
-        <div class="section-title">Detected Ocean Information Gaps</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <div class="section-title" style="margin:0;">Ocean Information Gaps</div>
+          <button id="btnOpenMissionWorkspace" onclick="window.openFullMissionWorkspace()" style="font-size:11px; color:#f59e0b; font-weight:700; display:flex; align-items:center; gap:4px; padding:4px 8px; border:1px solid #f59e0b; border-radius:3px; background:rgba(245,158,11,0.18); cursor:pointer;" title="Activate Full 3D Mission Control on Same Page">
+            <span>🚀 3D Workspace</span>
+          </button>
+        </div>
         <div style="font-size:10px; color:var(--text-dim); line-height:1.4;">
           Regions where observational density, staleness, depth coverage, or model disagreement warrant autonomous sampling missions. Click any gap to inspect & plan.
         </div>
@@ -1763,10 +1768,30 @@ function switchMainView(mode){
     if(sidebarTabs) sidebarTabs.style.display = "none";
     tabPanes.forEach(p => p.style.display = (p.id === "tab-adaptive" ? "flex" : "none"));
 
-    if (window.adaptiveState && window.adaptiveState.gaps && window.adaptiveState.gaps.length > 0) {
-      if (typeof window.selectAdaptiveGap === 'function') {
-        window.selectAdaptiveGap(window.adaptiveState.gaps[0]);
+    if(typeof window.populateAdaptiveSidebarTab === 'function') {
+      window.populateAdaptiveSidebarTab();
+    }
+
+    const selectBestGap = () => {
+      if(typeof window.populateAdaptiveSidebarTab === 'function') {
+        window.populateAdaptiveSidebarTab();
       }
+      const gaps = (window.adaptiveState && window.adaptiveState.gaps) || [];
+      if (!gaps.length) return;
+      // Prioritize an active gap with controllable vehicles nearby (Arabian Sea, Bay of Bengal)
+      const target = gaps.find(g => (g.name && (g.name.includes('Arabian Sea') || g.name.includes('Bay of Bengal'))) && g.latitude >= 5 && g.latitude <= 23 && g.longitude >= 65 && g.longitude <= 92)
+                  || gaps.find(g => 5 <= g.latitude && g.latitude <= 23 && 65 <= g.longitude && g.longitude <= 92)
+                  || gaps.find(g => g.name && (g.name.includes('Arabian Sea') || g.name.includes('Bay of Bengal') || g.name.includes('Indian Ocean')))
+                  || gaps[0];
+      if (target && typeof window.selectAdaptiveGap === 'function') {
+        window.selectAdaptiveGap(target);
+      }
+    };
+
+    if (window.adaptiveState && window.adaptiveState.gaps && window.adaptiveState.gaps.length > 0) {
+      selectBestGap();
+    } else if (typeof window.loadAdaptiveInformationGaps === 'function') {
+      window.loadAdaptiveInformationGaps().then(selectBestGap).catch(e => console.warn(e));
     }
   } else {
     // GIS Mode
@@ -1782,6 +1807,36 @@ function switchMainView(mode){
     tabPanes.forEach(p => p.style.display = (p.id === activeTabId ? "flex" : "none"));
   }
 }
+
+window.openFullMissionWorkspace = async function() {
+  if (state.mainView !== 'adaptive') {
+    switchMainView('adaptive');
+  }
+  if ((!window.adaptiveState || !window.adaptiveState.gaps || window.adaptiveState.gaps.length === 0) && typeof window.loadAdaptiveInformationGaps === 'function') {
+    try {
+      await window.loadAdaptiveInformationGaps();
+    } catch(e) {
+      console.warn('Failed loading gaps in openFullMissionWorkspace:', e);
+    }
+  }
+  const gaps = (window.adaptiveState && window.adaptiveState.gaps) || [];
+  let target = window.adaptiveState?.selectedGap;
+  if (!target || !((target.name && (target.name.includes('Arabian Sea') || target.name.includes('Bay of Bengal'))) && target.latitude >= 5 && target.latitude <= 23 && target.longitude >= 65 && target.longitude <= 92)) {
+    if (gaps.length > 0) {
+      target = gaps.find(g => (g.name && (g.name.includes('Arabian Sea') || g.name.includes('Bay of Bengal'))) && g.latitude >= 5 && g.latitude <= 23 && g.longitude >= 65 && g.longitude <= 92)
+            || gaps.find(g => 5 <= g.latitude && g.latitude <= 23 && 65 <= g.longitude && g.longitude <= 92)
+            || gaps[0];
+      if (target && typeof window.selectAdaptiveGap === 'function') {
+        window.selectAdaptiveGap(target);
+      }
+    }
+  }
+  const pPanel = document.getElementById('adaptiveMissionPanel');
+  if (pPanel) pPanel.classList.add('open');
+  if (typeof window.startAdaptiveMissionPlanning === 'function') {
+    window.startAdaptiveMissionPlanning();
+  }
+};
 
 function updateTerrainCamera(){
   if(!terrainCamera) return;
@@ -2594,6 +2649,13 @@ async function initCesiumGlobe(){
   viewer.scene.screenSpaceCameraController.maximumZoomDistance = 22000000.0; // 22,000 km max distance from Earth
   viewer.scene.screenSpaceCameraController.minimumZoomDistance = 100.0;     // 100 meters min distance
 
+  // Suppress Cesium modal error overlay from blocking UI interactions
+  if (viewer.cesiumWidget && viewer.cesiumWidget.showErrorPanel) {
+    viewer.cesiumWidget.showErrorPanel = function(title, message, error) {
+      console.warn("Cesium worker geometry notice:", title, message);
+    };
+  }
+
   // Log Provider Type for Verification
   console.log("Active Terrain Provider Class:", viewer.terrainProvider.constructor.name);
   console.log("Cesium Ion Token Status:", state.cesiumIonStatus);
@@ -2641,11 +2703,14 @@ async function initCesiumGlobe(){
   handler.setInputAction(async (click) => {
     const pickedObject = viewer.scene.pick(click.position);
     if(Cesium.defined(pickedObject) && pickedObject.id){
-      if(pickedObject.id.gapData && typeof selectAdaptiveGap === 'function'){
-        selectAdaptiveGap(pickedObject.id.gapData);
+      if(pickedObject.id.gapData && (typeof window.selectAdaptiveGap === 'function' || typeof selectAdaptiveGap === 'function')){
+        const fn = window.selectAdaptiveGap || selectAdaptiveGap;
+        fn(pickedObject.id.gapData);
         return;
       }
       if(pickedObject.id.userData && pickedObject.id.userData.platform_id){
+        const admPanel = document.getElementById('adaptiveMissionPanel');
+        if (admPanel) admPanel.classList.remove('open');
         const platform_id = pickedObject.id.userData.platform_id;
         if(platform_id) openProfile(platform_id);
         return;

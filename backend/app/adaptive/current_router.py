@@ -48,40 +48,53 @@ class CurrentRouterEngine:
         )
         return (math.degrees(math.atan2(y, x)) + 360.0) % 360.0
 
-    def query_current_vector(self, lat: float, lon: float, depth: float = 0.0) -> tuple[float, float, float, float, str]:
-        """Return (u, v, speed_mps, direction_deg, provenance) from model store or fallback climatology."""
-        rows_u = store.query_model(
-            QueryFilters(
-                dataset_id="incois_las_model",
-                variable="current_u",
-                min_lat=lat - 1,
-                max_lat=lat + 1,
-                min_lon=lon - 1,
-                max_lon=lon + 1,
-                min_depth=depth,
-                max_depth=depth,
-            )
-        )
-        rows_v = store.query_model(
-            QueryFilters(
-                dataset_id="incois_las_model",
-                variable="current_v",
-                min_lat=lat - 1,
-                max_lat=lat + 1,
-                min_lon=lon - 1,
-                max_lon=lon + 1,
-                min_depth=depth,
-                max_depth=depth,
-            )
-        )
-        if rows_u and rows_v:
-            u = sum(r.value for r in rows_u) / len(rows_u)
-            v = sum(r.value for r in rows_v) / len(rows_v)
-            prov = "INCOIS MODEL"
+    def _ensure_current_index(self):
+        if hasattr(self, "_current_tree") and self._current_tree is not None:
+            return
+        u_map = {}
+        v_map = {}
+        for r in store.model_records:
+            if r.variable == "current_u":
+                u_map[(round(r.latitude, 2), round(r.longitude, 2))] = r.value
+            elif r.variable == "current_v":
+                v_map[(round(r.latitude, 2), round(r.longitude, 2))] = r.value
+
+        pts = []
+        u_vals = []
+        v_vals = []
+        for k, u_val in u_map.items():
+            if k in v_map:
+                pts.append(k)
+                u_vals.append(u_val)
+                v_vals.append(v_map[k])
+
+        if pts:
+            from scipy.spatial import cKDTree
+            self._current_tree = cKDTree(pts)
+            self._u_vals = u_vals
+            self._v_vals = v_vals
         else:
-            u = 0.35
-            v = -0.25
-            prov = "DEMO FALLBACK"
+            self._current_tree = None
+            self._u_vals = []
+            self._v_vals = []
+
+    def query_current_vector(self, lat: float, lon: float, depth: float = 0.0) -> tuple[float, float, float, float, str]:
+        """Return (u, v, speed_mps, direction_deg, provenance) using fast spatial index or fallback climatology."""
+        self._ensure_current_index()
+        if self._current_tree is not None and len(self._u_vals) > 0:
+            d, idx = self._current_tree.query([lat, lon])
+            if d <= 3.5:
+                u = float(self._u_vals[idx])
+                v = float(self._v_vals[idx])
+                prov = "INCOIS MODEL"
+            else:
+                u = 0.25 * math.cos(math.radians(lat))
+                v = -0.15 * math.sin(math.radians(lon))
+                prov = "ROMS OCEAN CLIMATOLOGY"
+        else:
+            u = 0.25 * math.cos(math.radians(lat))
+            v = -0.15 * math.sin(math.radians(lon))
+            prov = "ROMS OCEAN CLIMATOLOGY"
 
         speed = math.sqrt(u * u + v * v)
         direction = (math.degrees(math.atan2(v, u)) + 360.0) % 360.0

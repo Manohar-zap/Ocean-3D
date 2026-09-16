@@ -119,6 +119,16 @@ function createInstrumentModel(viewer, cData, isSelected, isRejected, targetGap)
 
   const col = Cesium.Color.fromCssColorString(mainColorHex);
 
+  const removeIfExists = (entId) => {
+    try {
+      const ex = viewer.entities.getById(entId);
+      if (ex) viewer.entities.remove(ex);
+    } catch (_) {}
+  };
+  ['anchor', 'label', 'body', 'nose', 'wings', 'tail', 'sensor', 'fin_v', 'fin_h', 'hull', 'bridge', 'mast', 'float', 'disc', 'antenna', 'target_line'].forEach(suffix => {
+    removeIfExists(`${id}_${suffix}`);
+  });
+
   // 1. High-contrast Overview Badge Billboard (Unmissable at overview scale)
   const badgeUrl = generateInstrumentBadgeCanvas(
     id, ptype, cData.name, cData.battery_percent, cData.max_range_km, isSelected, isRejected, isPassive
@@ -626,7 +636,15 @@ function renderRoutePolyline(waypoints, color, width, glow, id) {
 
 // ─── Render All Fleet Instruments ───────────────────────────────────────────
 
+function clearFleetInstruments() {
+  Object.keys(instrumentEntities).forEach(k => {
+    removeEntityGroup(instrumentEntities[k]);
+    delete instrumentEntities[k];
+  });
+}
+
 function renderFleetInstruments(candidates, selectedId, targetGap) {
+  clearFleetInstruments();
   candidates.forEach(c => {
     const id = c.instrument_id;
     const isRejected = !c.feasible;
@@ -836,20 +854,26 @@ function renderMissionGlobeOverlay(plan) {
     renderRoutePolyline(route.waypoints, '#3fe0c5', 5, true, 'selected_route');
   }
 
-  // Camera framing: Zoom so ALL candidate instruments and target gap are visible on page load!
-  if (candidates.length > 0 && gap.latitude) {
+  // Camera framing: Zoom so target gap and assigned platform/route are framed cleanly
+  if (winner && winner.latitude && gap.latitude) {
     const pts = [
-      Cesium.Cartesian3.fromDegrees(gap.longitude, gap.latitude),
-      ...candidates.map(c => Cesium.Cartesian3.fromDegrees(c.longitude, c.latitude))
+      Cesium.Cartesian3.fromDegrees(gap.longitude, gap.latitude, 0),
+      Cesium.Cartesian3.fromDegrees(winner.longitude, winner.latitude, 0)
     ];
     const bs = Cesium.BoundingSphere.fromPoints(pts);
     viewer.camera.flyToBoundingSphere(bs, {
       duration: 1.5,
       offset: new Cesium.HeadingPitchRange(
         Cesium.Math.toRadians(0),
-        Cesium.Math.toRadians(-50),
-        Math.max(bs.radius * 2.8, 500000)
+        Cesium.Math.toRadians(-45),
+        Math.max(bs.radius * 2.2, 350000)
       )
+    });
+  } else if (gap.latitude) {
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(gap.longitude, gap.latitude, 650000),
+      orientation: { heading: 0, pitch: Cesium.Math.toRadians(-45), roll: 0 },
+      duration: 1.5
     });
   }
 }
@@ -1135,12 +1159,12 @@ class MissionPlayback {
     // Highlight rejections then selection
     const selId = winner.instrument_id;
     Object.keys(instrumentEntities).forEach(id => {
-      if (id !== selId) {
+      if (id !== selId && Array.isArray(instrumentEntities[id])) {
         const c = (this.sim.all_candidates || []).find(x => x.instrument_id === id);
         if (c && !c.feasible) {
           instrumentEntities[id].forEach(p => {
-            if (p.box) p.box.material = Cesium.Color.fromCssColorString('#ef4444').withAlpha(0.3);
-            if (p.cylinder) p.cylinder.material = Cesium.Color.fromCssColorString('#ef4444').withAlpha(0.3);
+            if (p && p.box) p.box.material = Cesium.Color.fromCssColorString('#ef4444').withAlpha(0.3);
+            if (p && p.cylinder) p.cylinder.material = Cesium.Color.fromCssColorString('#ef4444').withAlpha(0.3);
           });
         }
       }
@@ -1464,6 +1488,27 @@ class MissionPlayback {
     document.getElementById('btnPlayPause').textContent = '▶';
     setActivePhase(13);
     updateCinematicBanner('PHASE 14 — MISSION COMPLETE', 'OCEAN ADAPTIVE MISSION EXECUTED & DATA ACQUIRED', 'All CTD sampling sequences completed. Bayesian posterior uncertainty updated.');
+    
+    // Ingest sampled observations into backend Digital Twin store
+    if (this.sim && this.sim.selected_platform) {
+      fetch(apiUrl('/api/adaptive/ingest'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mission_id: this.sim.mission_id || 'MIS-AUTO',
+          platform_id: this.sim.selected_platform.instrument_id,
+          platform_type: this.sim.selected_platform.platform_type || 'glider',
+          latitude: this.sim.target?.latitude || 0.0,
+          longitude: this.sim.target?.longitude || 0.0,
+          sampling_sequence: this.sim.depth_sampling_sequence || []
+        })
+      }).then(r => r.json()).then(res => {
+        console.log('[AdaptiveMission] In-situ observations ingested into digital twin store:', res);
+      }).catch(err => {
+        console.warn('[AdaptiveMission] Ingestion notice:', err);
+      });
+    }
+
     showFinalSummaryModal(this.sim);
   }
 

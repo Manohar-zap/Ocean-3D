@@ -11,6 +11,14 @@
   --adm-red: #f43f5e;
 }
 
+/* Suppress Cesium modal error overlay from intercepting clicks */
+.cesium-widget-errorPanel {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  z-index: -9999 !important;
+}
+
 /* 1. Right-side Slide-in Adaptive Mission Panel */
 #adaptiveMissionPanel {
   position: absolute;
