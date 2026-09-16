@@ -2257,11 +2257,12 @@ async function initCesiumGlobe(){
   // Fixed high-resolution satellite imagery base layer for the Earth globe
   let baseLayer = null;
   try {
-    const satelliteProvider = new Cesium.UrlTemplateImageryProvider({
-      url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      maximumLevel: 19,
-      credit: 'Esri, Maxar, Earthstar Geographics'
-    });
+    const satelliteProvider = await Cesium.ArcGisMapServerImageryProvider.fromUrl(
+      'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer',
+      {
+        enablePickFeatures: false
+      }
+    );
     baseLayer = new Cesium.ImageryLayer(satelliteProvider);
   } catch(e) {
     console.warn("Satellite base imagery layer notice:", e);
