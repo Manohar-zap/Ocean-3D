@@ -391,8 +391,6 @@
             <label class="switch"><input type="checkbox" id="ovVectors"><span class="slider-toggle"></span></label></div>
           <div class="toggle-row"><span>🏔️ Seabed Bathymetry (GEBCO 2024)</span>
             <label class="switch"><input type="checkbox" id="ovBathymetry"><span class="slider-toggle"></span></label></div>
-          <div class="toggle-row"><span>🧊 3D Isosurface Preview</span>
-            <label class="switch"><input type="checkbox" id="ovIsosurface"><span class="slider-toggle"></span></label></div>
           <div class="toggle-row"><span>📍 Vertical Sounding Profiles</span>
             <label class="switch"><input type="checkbox" id="ovProfileLines"><span class="slider-toggle"></span></label></div>
         </div>
@@ -1186,7 +1184,6 @@ var state = {
   verticalExaggeration: 1.0,
   showVectors: false,
   showBathymetry: false,
-  showIsosurface: false,
   showProfileLines: false,
   markers: {},          // platform_id -> entity
   selectedProfile: null,
@@ -2722,46 +2719,6 @@ async function loadBathymetry(){
   });
 }
 
-let isosurfaceEntities = [];
-
-async function loadIsosurface(){
-  isosurfaceEntities.forEach(e => viewer.entities.remove(e));
-  isosurfaceEntities = [];
-  if(!state.showIsosurface) return;
-
-  // 20°C Isotherm / Thermocline depth surface (Z20)
-  // Generates 3D undulating thermocline shell across ocean basins
-  const ISO_PTS = [
-    // Indian Ocean Warm Pool (Z20 ~120-160m)
-    { lat: 0.0, lon: 60.0, z20: 120 }, { lat: 0.0, lon: 75.0, z20: 140 }, { lat: 0.0, lon: 90.0, z20: 150 },
-    { lat: 8.0, lon: 65.0, z20: 110 }, { lat: 8.0, lon: 78.0, z20: 130 }, { lat: 8.0, lon: 88.0, z20: 135 },
-    { lat: 15.0, lon: 68.0, z20: 95 }, { lat: 15.0, lon: 85.0, z20: 115 },
-    // Western Pacific Warm Pool (Z20 ~160-200m)
-    { lat: 5.0, lon: 140.0, z20: 190 }, { lat: 0.0, lon: 160.0, z20: 180 }, { lat: -5.0, lon: 170.0, z20: 170 },
-    // Eastern Pacific Upwelling Cold Tongue (Z20 ~30-50m)
-    { lat: 0.0, lon: -110.0, z20: 60 }, { lat: 0.0, lon: -90.0, z20: 35 }, { lat: -5.0, lon: -85.0, z20: 30 },
-    // Atlantic
-    { lat: 15.0, lon: -40.0, z20: 130 }, { lat: 0.0, lon: -25.0, z20: 110 }, { lat: -15.0, lon: -20.0, z20: 125 }
-  ];
-
-  ISO_PTS.forEach(pt => {
-    // Height represents the 20°C thermocline depth layer scaled by vertical exaggeration
-    const isoAlt = 2000.0 + (250.0 - pt.z20) * 120.0 * state.verticalExaggeration;
-    const isoEnt = viewer.entities.add({
-      ellipse: {
-        semiMajorAxis: 480000.0,
-        semiMinorAxis: 480000.0,
-        height: isoAlt,
-        material: Cesium.Color.fromCssColorString('#f59e0b').withAlpha(0.42),
-        outline: true,
-        outlineColor: Cesium.Color.fromCssColorString('#fde047').withAlpha(0.85)
-      },
-      position: Cesium.Cartesian3.fromDegrees(pt.lon, pt.lat, isoAlt)
-    });
-    isosurfaceEntities.push(isoEnt);
-  });
-}
-
 function globalModelBounds(){
   return {
     min_lat: -75.0,
@@ -3517,7 +3474,6 @@ async function refreshAll(){
       loadModelData().catch(e => console.error("loadModelData error:", e)),
       state.showBathymetry ? loadBathymetry().catch(e => console.error("loadBathymetry error:", e)) : Promise.resolve(),
       state.showVectors ? loadVectors().catch(e => console.error("loadVectors error:", e)) : Promise.resolve(),
-      state.showIsosurface ? loadIsosurface().catch(e => console.error("loadIsosurface error:", e)) : Promise.resolve(),
       loadObservations().catch(e => console.error("loadObservations error:", e))
     ]);
   } catch(e) {
@@ -5101,10 +5057,6 @@ document.getElementById("ovVectors").onchange = (e) => {
 document.getElementById("ovBathymetry").onchange = (e) => {
   state.showBathymetry = e.target.checked;
   loadBathymetry();
-};
-document.getElementById("ovIsosurface").onchange = (e) => {
-  state.showIsosurface = e.target.checked;
-  loadIsosurface();
 };
 document.getElementById("ovProfileLines").onchange = (e) => {
   state.showProfileLines = e.target.checked;
