@@ -24,6 +24,7 @@ from .adapters import is_land
 from .noaa_service import noaa_service
 from .fisher_engine import fisher_engine
 from .prediction_engine import prediction_engine
+from .noaa_glider_service import noaa_glider_service
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -276,9 +277,14 @@ def query_observations(
             latest_update = time_str
 
         status = "ACTIVE"
-        if recency and recency == "recent" and time_str < "2026-01-01T00:00:00Z":
+        if time_str < "2026-01-01T00:00:00Z":
             status = "RECENT"
-        summary_counts["active"] += 1
+            summary_counts["recent"] += 1
+        else:
+            summary_counts["active"] += 1
+
+        if recency and recency != "all" and status.lower() != recency.lower():
+            continue
 
         ptype = latest_r.platform_type.lower() if latest_r.platform_type else "argo"
         if ptype in summary_counts:
@@ -296,6 +302,10 @@ def query_observations(
             "value": latest_r.value,
             "unit": latest_r.unit,
             "quality_flag": latest_r.quality_flag,
+            "quality_reason": getattr(latest_r, "quality_reason", None),
+            "qc_summary": getattr(latest_r, "qc_summary", None),
+            "geolocation_argoqc": getattr(latest_r, "geolocation_argoqc", None),
+            "timestamp_argoqc": getattr(latest_r, "timestamp_argoqc", None),
             "data_status": ds,
             "source_organization": getattr(latest_r, "source_organization", "INCOIS / Argo GDAC (Operational)"),
         })
@@ -326,6 +336,9 @@ def latest_platforms():
         cur = by_platform.get(r.platform_id)
         if cur is None or r.time > cur["timestamp"]:
             ds = getattr(r, "data_status", "OPERATIONAL REAL-TIME")
+            status = "ACTIVE"
+            if r.time < "2026-01-01T00:00:00Z":
+                status = "RECENT"
             by_platform[r.platform_id] = {
                 "platform_id": r.platform_id,
                 "platform_type": r.platform_type,
@@ -333,11 +346,26 @@ def latest_platforms():
                 "longitude": r.longitude,
                 "depth": r.depth,
                 "timestamp": r.time,
-                "status": "ACTIVE",
+                "status": status,
+                "quality_flag": getattr(r, "quality_flag", "unknown"),
+                "quality_reason": getattr(r, "quality_reason", None),
+                "qc_summary": getattr(r, "qc_summary", None),
+                "geolocation_argoqc": getattr(r, "geolocation_argoqc", None),
+                "timestamp_argoqc": getattr(r, "timestamp_argoqc", None),
                 "data_status": ds,
                 "source_organization": getattr(r, "source_organization", "INCOIS / Argo GDAC (Operational)"),
             }
     return {"count": len(by_platform), "platforms": list(by_platform.values())}
+
+
+# ---------------------------------------------------------------------------
+# External NOAA Gliders (Test Integration)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/external-gliders/noaa")
+def get_external_noaa_gliders(refresh: bool = False):
+    """Retrieve normalized latest-position markers for NOAA/AOML ERDDAP gliders (Test layer)."""
+    return noaa_glider_service.get_latest_gliders(force_refresh=refresh)
 
 
 @app.get("/api/observations/{platform_id}/track")
@@ -471,6 +499,8 @@ def observation_profile(platform_id: str, variable: Optional[str] = None, time: 
     cycle_rows = [r for r in rows if r.time == latest_time]
     cycle_rows_sorted = sorted(cycle_rows, key=lambda r: r.depth)
     status = "ACTIVE"
+    if latest_time < "2026-01-01T00:00:00Z":
+        status = "RECENT"
 
     return {
         "platform_id": platform_id,
@@ -480,12 +510,19 @@ def observation_profile(platform_id: str, variable: Optional[str] = None, time: 
         "latest_time": latest_time,
         "updated_date": getattr(cycle_rows[0], "retrieval_timestamp", None),
         "platform_status": status,
+        "status": status,
+        "quality_flag": getattr(cycle_rows[0], "quality_flag", "unknown"),
+        "quality_reason": getattr(cycle_rows[0], "quality_reason", None),
+        "qc_summary": getattr(cycle_rows[0], "qc_summary", None),
+        "geolocation_argoqc": getattr(cycle_rows[0], "geolocation_argoqc", None),
+        "timestamp_argoqc": getattr(cycle_rows[0], "timestamp_argoqc", None),
         "data_status": getattr(cycle_rows[0], "data_status", "OPERATIONAL REAL-TIME"),
         "source_organization": getattr(cycle_rows[0], "source_organization", "INCOIS / Argo GDAC (Operational)"),
         "profile": [
             {"depth": r.depth, "latitude": r.latitude, "longitude": r.longitude,
              "variable": r.variable, "value": r.value, "unit": r.unit,
              "time": r.time, "quality_flag": r.quality_flag,
+             "quality_reason": getattr(r, "quality_reason", None),
              "data_status": getattr(r, "data_status", "OPERATIONAL REAL-TIME")}
             for r in cycle_rows_sorted
         ],

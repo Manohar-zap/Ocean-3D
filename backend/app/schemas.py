@@ -28,7 +28,11 @@ class StandardRecord(BaseModel):
     source_model: Optional[str] = None      # for kind == "model"
     platform_id: Optional[str] = None       # for kind == "observation"
     platform_type: Optional[str] = None     # argo | glider | ctd | bgc
-    quality_flag: Optional[str] = "good"
+    quality_flag: Optional[str] = "unknown"
+    quality_reason: Optional[str] = None
+    qc_summary: Optional[dict[str, Any]] = None
+    geolocation_argoqc: Optional[int] = None
+    timestamp_argoqc: Optional[int] = None
     source_file: Optional[str] = None
     ingestion_ts: Optional[str] = None
     data_status: Literal["OPERATIONAL REAL-TIME", "OPERATIONAL DATA", "REAL DATA", "CACHED REAL DATA", "DEMONSTRATION DATA"] = "OPERATIONAL REAL-TIME"

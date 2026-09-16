@@ -439,7 +439,7 @@
           <div class="toggle-row"><span><img src="assets/icons/bgc.png" alt="BGC-Argo Float" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#8ee0a4"></span>BGC-Argo Floats</span>
             <label class="switch"><input type="checkbox" id="ovBgc" checked><span class="slider-toggle"></span></label></div>
           <div class="toggle-row" style="margin-top:4px; border-top:1px solid var(--line); padding-top:8px;">
-            <span style="color:var(--danger); font-weight:600;">⚠️ Instrument Condition</span>
+            <span><span style="color:#ef4444;">🔴</span>/<span style="color:#38bdf8;">🔵</span> Instrument Condition</span>
             <label class="switch"><input type="checkbox" id="ovCondition"><span class="slider-toggle"></span></label>
           </div>
         </div>
@@ -471,21 +471,21 @@
         <div id="conditionSummarySection" style="display:none;">
           <div class="section-title">Instrument Condition Analysis</div>
           <div id="conditionSummaryCard" style="font-size:11px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); padding:8px 10px; display:flex; flex-direction:column; gap:4px;">
-             <div style="display:flex; justify-content:space-between;">
+             <div style="display:flex; justify-content:space-between;" id="condRowTotal">
                <span>Total Analyzed</span>
                <span id="condTotal" class="mono">0</span>
              </div>
-             <div style="display:flex; justify-content:space-between; color:var(--danger);">
-               <span>Bad / Inactive</span>
-               <span id="condBad" class="mono" style="font-weight:700;">0</span>
+             <div style="display:flex; justify-content:space-between; color:var(--danger);" id="condRowBad">
+               <span>🔴 Bad / Inactive</span>
+               <span id="condBad" class="mono" style="font-weight:700; color:var(--danger);">0</span>
              </div>
              <div style="display:flex; justify-content:space-between; color:#34d399;">
                <span>Good / Active</span>
                <span id="condGood" class="mono">0</span>
              </div>
-             <div style="display:flex; justify-content:space-between; color:var(--text-dim);">
-               <span>Unknown Condition</span>
-               <span id="condUnknown" class="mono">0</span>
+             <div style="display:flex; justify-content:space-between; color:#38bdf8;" id="condRowUnknown">
+               <span>🔵 Unknown Condition</span>
+               <span id="condUnknown" class="mono" style="color:#38bdf8; font-weight:600;">0</span>
              </div>
              <div id="condNoDataMsg" style="display:none; font-size:10px; color:var(--obs); margin-top:4px; text-align:center; border-top:1px solid var(--line); padding-top:4px;">
                Instrument condition data is not available in the current dataset.
@@ -3299,26 +3299,26 @@ async function loadPlatformTrack(platform_id){
 }
 
 function classifyInstrument(m) {
+  if (!m) return "unknown";
   // Logic:
-  // - Bad: quality_flag in ["suspect", "bad", "faulty", "damaged", "fail"]
+  // - Bad / Suspect: quality_flag in ["suspect", "bad", "faulty", "damaged", "fail"]
   //        OR status in ["STALE", "OFFLINE"]
-  // - Good: quality_flag == "good" AND status in ["ACTIVE", "RECENT"]
-  // - Unknown: If condition data is missing or ambiguous.
+  // - Good: quality_flag in ["good", "probably_good"] AND status in ["ACTIVE", "RECENT"]
+  // - Unknown: If condition data is missing or ambiguous (e.g. glider, ctd, mooring without QC).
 
-  const qf = (m.quality_flag || "").toLowerCase();
-  const st = (m.status || "").toUpperCase();
+  const qf = (m.quality_flag || "").trim().toLowerCase();
+  const st = (m.status || m.platform_status || "").trim().toUpperCase();
 
   const badFlags = ["suspect", "bad", "faulty", "damaged", "fail"];
   const badStatus = ["STALE", "OFFLINE"];
+  const goodFlags = ["good", "probably_good"];
   const goodStatus = ["ACTIVE", "RECENT"];
-
-  if (!qf && !st) return "unknown";
 
   if (badFlags.includes(qf) || badStatus.includes(st)) {
     return "bad";
   }
 
-  if (qf === "good" && goodStatus.includes(st)) {
+  if (goodFlags.includes(qf) && goodStatus.includes(st)) {
     return "good";
   }
 
@@ -3369,6 +3369,18 @@ async function loadObservations(){
     if(!res.ok) return;
     data = await res.json();
   }
+
+  // Defensive deduplication: ensure strictly 1 marker per unique physical platform_id
+  const seenPids = new Set();
+  const dedupedMarkers = [];
+  for (const m of (data.markers || [])) {
+    if (m && m.platform_id && !seenPids.has(m.platform_id)) {
+      seenPids.add(m.platform_id);
+      dedupedMarkers.push(m);
+    }
+  }
+  data.markers = dedupedMarkers;
+  data.count = dedupedMarkers.length;
 
   // Update Condition Summary (Counts calculated from REAL observation data)
   const condStats = { total: 0, bad: 0, good: 0, unknown: 0 };
@@ -3474,22 +3486,38 @@ async function loadObservations(){
       lat: m.lat,
       lon: m.lon,
       status: m.status,
+      quality_flag: m.quality_flag,
+      quality_reason: m.quality_reason,
+      qc_summary: m.qc_summary,
+      geolocation_argoqc: m.geolocation_argoqc,
       data_status: m.data_status,
       time: m.time
     };
     profileEntities.push(entity);
     state.markers[m.platform_id] = entity;
 
-    // Apply condition highlighting if ON
-    if (state.showCondition && classifyInstrument(m) === 'bad') {
-      entity.billboard.color = Cesium.Color.RED;
-      entity.billboard.width = 34;
-      entity.billboard.height = 34;
-      entity.label.show = true;
-      entity.label.text = `FAULTY: ${m.platform_id}`;
-      entity.label.fillColor = Cesium.Color.RED;
-    } else if (state.showCondition) {
-      entity.show = false; // Hide non-bad when condition mode is ON
+    // Apply condition visualization if ON:
+    // 🔴 BAD / SUSPECT -> RED
+    // 🔵 UNKNOWN -> BLUE
+    // ⚪ GOOD / ACTIVE -> HIDDEN
+    if (state.showCondition) {
+      const cat = classifyInstrument(m);
+      if (cat === 'bad') {
+        entity.billboard.color = Cesium.Color.RED;
+        entity.show = true;
+      } else if (cat === 'unknown') {
+        entity.billboard.color = Cesium.Color.BLUE;
+        entity.show = true;
+      } else {
+        // GOOD / ACTIVE instruments must be completely HIDDEN when toggle is ON
+        entity.show = isSelected; // Hidden unless actively selected
+        entity.billboard.color = Cesium.Color.WHITE;
+      }
+      entity.billboard.width = isSelected ? 34 : 22;
+      entity.billboard.height = isSelected ? 34 : 22;
+      entity.label.show = isSelected;
+      entity.label.text = m.platform_id;
+      entity.label.fillColor = Cesium.Color.WHITE;
     }
 
     // 3D Vertical Water-Column Depth Sounding Pillar descending down into the ocean
@@ -3671,10 +3699,66 @@ function update3DDepthCursor(){
   wcCurrentDensity = densityNum;
 
   // Use actual data fields for condition reporting
-  const qc = activeSample.quality_flag || state.selectedProfile.quality_flag || "unknown";
+  const qc = (activeSample.quality_flag || state.selectedProfile.quality_flag || "unknown").toLowerCase();
+  const qcReason = state.selectedProfile.quality_reason || activeSample.quality_reason || null;
   const ds = state.selectedProfile.data_status || activeSample.data_status || "REAL DATA";
   const obsTime = activeSample.time || state.selectedProfile.latest_time;
   const platformStatus = state.selectedProfile.platform_status || state.selectedProfile.status || "ACTIVE";
+
+  const renderQualityAndStatus = () => {
+    let qcColor = "color:#38bdf8; font-weight:600;";
+    let qcLabel = "UNKNOWN";
+    let defaultReason = "No upstream QC flags available for this platform";
+
+    if (qc === "good") {
+      qcColor = "color:#34d399; font-weight:600;";
+      qcLabel = "GOOD";
+      defaultReason = "All sensor measurements and platform coordinates passed Argo GDAC QC checks (QC 1/2)";
+    } else if (qc === "probably_good") {
+      qcColor = "color:#34d399; font-weight:600;";
+      qcLabel = "PROBABLY GOOD";
+      defaultReason = "Passed preliminary quality checks";
+    } else if (qc === "suspect") {
+      qcColor = "color:var(--danger); font-weight:700;";
+      qcLabel = "SUSPECT";
+      defaultReason = "Sensor measurements flagged suspect (QC 3)";
+    } else if (qc === "bad") {
+      qcColor = "color:var(--danger); font-weight:700;";
+      qcLabel = "BAD";
+      defaultReason = "Sensor measurements flagged bad (QC 4)";
+    }
+
+    const displayReason = qcReason || (qc === "unknown" ? defaultReason : null);
+    const reasonColor = (qc === "bad" || qc === "suspect") ? "color:var(--danger);" : (qc === "unknown" ? "color:#38bdf8;" : "color:var(--text-dim);");
+
+    // Format QC Summary if available (e.g. for Argo floats)
+    let qcSummaryStr = null;
+    const qcS = state.selectedProfile.qc_summary || activeSample.qc_summary || null;
+    if (qcS) {
+      if (typeof qcS === 'string') {
+        qcSummaryStr = qcS;
+      } else {
+        const parts = [];
+        if (qcS.geo_qc !== undefined) parts.push(`Geo: QC${qcS.geo_qc}`);
+        if (qcS.time_qc !== undefined) parts.push(`Time: QC${qcS.time_qc}`);
+        if (qcS.pres_counts) parts.push(`Pres: ${Object.entries(qcS.pres_counts).map(([k,v])=>`QC${k}:${v}`).join(',')}`);
+        if (qcS.temp_counts) parts.push(`Temp: ${Object.entries(qcS.temp_counts).map(([k,v])=>`QC${k}:${v}`).join(',')}`);
+        if (qcS.sal_counts) parts.push(`Sal: ${Object.entries(qcS.sal_counts).map(([k,v])=>`QC${k}:${v}`).join(',')}`);
+        qcSummaryStr = parts.join(" · ") || JSON.stringify(qcS);
+      }
+    }
+
+    return `
+      ${renderObsSection("QUALITY & STATUS")}
+      ${renderObsRow("Quality Status", qcLabel, qcColor)}
+      ${displayReason ? renderObsRow("Quality Reason", displayReason, reasonColor) : ""}
+      ${qcSummaryStr ? renderObsRow("QC Summary", qcSummaryStr, "color:var(--text-dim); font-size:10px;") : ""}
+      ${renderObsRow("Status", platformStatus, (platformStatus === "ACTIVE" || platformStatus === "RECENT" ? "color:#34d399;" : "color:var(--danger);"))}
+      ${renderObsRow("Profile Date", profileDateStr)}
+      ${renderObsRow("Updated Date", updatedDateStr)}
+      ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
+    `;
+  };
 
   // Format common values
   const depthStr = `${dM.toFixed(1)} m`;
@@ -3723,12 +3807,7 @@ function update3DDepthCursor(){
       ${renderObsRow("Direction", direction)}
       ${renderObsRow("Speed", "0.35 m/s")}
 
-      ${renderObsSection("QUALITY & STATUS")}
-      ${renderObsRow("Quality Status", qc, (qc === "good" ? "color:#34d399;" : "color:var(--danger);"))}
-      ${renderObsRow("Status", platformStatus, (platformStatus === "ACTIVE" || platformStatus === "RECENT" ? "color:#34d399;" : "color:var(--danger);"))}
-      ${renderObsRow("Profile Date", profileDateStr)}
-      ${renderObsRow("Updated Date", updatedDateStr)}
-      ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
+      ${renderQualityAndStatus()}
     `;
   } else if(ptype === "CTD") {
     // 3. CTD — SHIPBOARD CAST
@@ -3760,12 +3839,7 @@ function update3DDepthCursor(){
       ${renderObsRow("Conductivity", `${condVal.toFixed(2)} S/m`)}
       ${renderObsRow("Sound Speed", `${soundSpeedVal.toFixed(1)} m/s`)}
 
-      ${renderObsSection("QUALITY & STATUS")}
-      ${renderObsRow("Quality Status", qc, (qc === "good" ? "color:#34d399;" : "color:var(--danger);"))}
-      ${renderObsRow("Status", platformStatus, (platformStatus === "ACTIVE" || platformStatus === "RECENT" ? "color:#34d399;" : "color:var(--danger);"))}
-      ${renderObsRow("Cast Date", profileDateStr)}
-      ${renderObsRow("Updated Date", updatedDateStr)}
-      ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
+      ${renderQualityAndStatus()}
     `;
   } else if(ptype === "BGC" || ptype === "BGC-ARGO") {
     // 4. BGC-ARGO — BIOGEOCHEMICAL FLOAT
@@ -3828,12 +3902,7 @@ function update3DDepthCursor(){
       ${renderObsRow("Total Drift Distance", `${distKm.toFixed(1)} km`)}
       ${renderObsRow("Trajectory Timespan", `${spanDays} days`)}
 
-      ${renderObsSection("QUALITY & STATUS")}
-      ${renderObsRow("Quality Status", qc, (qc === "good" ? "color:#34d399;" : "color:var(--danger);"))}
-      ${renderObsRow("Status", platformStatus, (platformStatus === "ACTIVE" || platformStatus === "RECENT" ? "color:#34d399;" : "color:var(--danger);"))}
-      ${renderObsRow("Profile Date", profileDateStr)}
-      ${renderObsRow("Updated Date", updatedDateStr)}
-      ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
+      ${renderQualityAndStatus()}
     `;
   } else {
     // 1. ARGO — CORE FLOAT
@@ -3871,12 +3940,7 @@ function update3DDepthCursor(){
       ${renderObsRow("Trajectory Timespan", `${spanDays} days`)}
       ${renderObsRow("Mean Drift Speed", `${speedCmS.toFixed(1)} cm/s`)}
 
-      ${renderObsSection("QUALITY & STATUS")}
-      ${renderObsRow("Quality Status", qc, (qc === "good" ? "color:#34d399;" : "color:var(--danger);"))}
-      ${renderObsRow("Status", platformStatus, (platformStatus === "ACTIVE" || platformStatus === "RECENT" ? "color:#34d399;" : "color:var(--danger);"))}
-      ${renderObsRow("Profile Date", profileDateStr)}
-      ${renderObsRow("Updated Date", updatedDateStr)}
-      ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
+      ${renderQualityAndStatus()}
     `;
   }
 
@@ -4985,30 +5049,34 @@ function restoreObservationMarkers(){
         const isSelected = !!(state.selectedProfile && state.selectedProfile.platform_id === ent.userData.platform_id);
 
         let conditionShow = true;
+        const cat = classifyInstrument(ent.userData);
+
         if (showCondition) {
-          const cat = classifyInstrument(ent.userData);
-          conditionShow = (cat === 'bad');
+          // Show ONLY BAD/SUSPECT and UNKNOWN instruments; GOOD instruments must be completely HIDDEN
+          conditionShow = (cat === 'bad' || cat === 'unknown');
         }
 
         ent.show = (isSelected || (toggles[ptype] !== false && conditionShow));
 
         if(ent.billboard){
-          const isBad = classifyInstrument(ent.userData) === 'bad';
-          const highlight = (showCondition && isBad);
-          ent.billboard.width = (isSelected || highlight) ? 34 : 22;
-          ent.billboard.height = (isSelected || highlight) ? 34 : 22;
-          ent.billboard.color = highlight ? Cesium.Color.RED : Cesium.Color.WHITE;
+          if(showCondition){
+            if(cat === 'bad'){
+              ent.billboard.color = Cesium.Color.RED;
+            } else if(cat === 'unknown'){
+              ent.billboard.color = Cesium.Color.BLUE;
+            } else {
+              ent.billboard.color = Cesium.Color.WHITE; // GOOD is hidden anyway
+            }
+          } else {
+            ent.billboard.color = Cesium.Color.WHITE; // Normal appearance when condition visualization is OFF
+          }
+          ent.billboard.width = isSelected ? 34 : 22;
+          ent.billboard.height = isSelected ? 34 : 22;
         }
         if(ent.label){
-          const isBad = classifyInstrument(ent.userData) === 'bad';
-          ent.label.show = isSelected || (showCondition && isBad);
-          if (showCondition && isBad) {
-            ent.label.text = `FAULTY: ${ent.userData.platform_id}`;
-            ent.label.fillColor = Cesium.Color.RED;
-          } else {
-            ent.label.text = ent.userData.platform_id;
-            ent.label.fillColor = Cesium.Color.WHITE;
-          }
+          ent.label.show = isSelected;
+          ent.label.text = ent.userData.platform_id;
+          ent.label.fillColor = Cesium.Color.WHITE;
         }
       }
     }

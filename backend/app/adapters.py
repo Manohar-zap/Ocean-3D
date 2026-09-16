@@ -425,6 +425,73 @@ class BGCFieldAdapter:
 ARGOVIS_BASE_URL = os.getenv("ARGOVIS_BASE_URL", "https://argovis-api.colorado.edu")
 ARGOVIS_CACHE_FILE = "sample_argovis_cached.json"
 
+ARGO_QC_MAP = {
+    0: "no_qc",
+    1: "good",
+    2: "probably_good",
+    3: "suspect",
+    4: "bad",
+    5: "value_changed",
+    8: "estimated",
+    9: "missing",
+}
+
+
+def evaluate_argo_qc(
+    geo_qc: Optional[int],
+    time_qc: Optional[int],
+    pres_qcs: list[Optional[int]],
+    temp_qcs: list[Optional[int]],
+    sal_qcs: list[Optional[int]],
+) -> tuple[str, str, dict[str, Any]]:
+    """
+    Evaluates Argo float profile condition according to Argo GDAC quality flags.
+    Distinguishes:
+    - 'bad': Severe sensor failure (>=10% or >=5 bad points QC 4) or geolocation QC in (3, 4)
+    - 'suspect': Suspect points (QC 3) without systematic bad points
+    - 'good': Passes all QC checks (predominantly QC 1 or 2)
+    Returns: (quality_flag, quality_reason, qc_summary)
+    """
+    from collections import Counter
+    p_valid = [q for q in pres_qcs if q is not None]
+    t_valid = [q for q in temp_qcs if q is not None]
+    s_valid = [q for q in sal_qcs if q is not None]
+
+    qc_summary = {
+        "geo_qc": geo_qc,
+        "time_qc": time_qc,
+        "pres_counts": dict(Counter(p_valid)),
+        "temp_counts": dict(Counter(t_valid)),
+        "sal_counts": dict(Counter(s_valid)),
+    }
+
+    if geo_qc in (3, 4):
+        return "bad", f"Platform geolocation flagged invalid/bad by Argo GDAC (QC {geo_qc})", qc_summary
+
+    reasons_bad = []
+    reasons_suspect = []
+
+    for name, qcs in [("Salinity", s_valid), ("Temperature", t_valid), ("Pressure", p_valid)]:
+        if not qcs:
+            continue
+        total = len(qcs)
+        n_bad = sum(1 for q in qcs if q == 4)
+        n_suspect = sum(1 for q in qcs if q == 3)
+        pct_bad = (n_bad / total) * 100.0
+        pct_suspect = (n_suspect / total) * 100.0
+
+        if n_bad > 0 and (pct_bad >= 10.0 or n_bad >= 5):
+            reasons_bad.append(f"{name} sensor issue: {n_bad}/{total} ({pct_bad:.1f}%) measurements flagged bad (QC 4)")
+        elif n_suspect > 0 and (pct_suspect >= 10.0 or n_suspect >= 5):
+            reasons_suspect.append(f"{name} sensor data-quality concern: {n_suspect}/{total} ({pct_suspect:.1f}%) measurements flagged suspect (QC 3)")
+
+    if reasons_bad:
+        return "bad", "; ".join(reasons_bad), qc_summary
+    if reasons_suspect:
+        return "suspect", "; ".join(reasons_suspect), qc_summary
+
+    return "good", "All sensor measurements and platform coordinates passed Argo GDAC QC checks (QC 1/2)", qc_summary
+
 
 class ArgoGliderAdapter:
     """Argo GDAC / Argovis API v2 adapter."""
@@ -467,7 +534,7 @@ class ArgoGliderAdapter:
         platform_type = "argo" if source in ("argo_gdac", "argovis") else "glider"
 
         if platform_type == "argo":
-            # 1. First load local real GDAC Argovis dataset (139 real floats, instant <0.1s startup)
+            # 1. First load local real GDAC Argovis dataset (3873 real profiles, instant startup)
             cached_records = self._parse_argovis_cached()
             if cached_records:
                 return cached_records
@@ -483,10 +550,11 @@ class ArgoGliderAdapter:
 
     def _fetch_and_parse_argovis_live(self, api_key: str) -> list[StandardRecord]:
         polygon_env = os.getenv("ARGOVIS_POLYGON", "").strip()
+        data_fields = "pressure,pressure_argoqc,temperature,temperature_argoqc,salinity,salinity_argoqc"
         if polygon_env:
-            url = f"{ARGOVIS_BASE_URL}/argo?polygon={urllib.parse.quote(polygon_env)}&startDate=2026-03-01T00:00:00Z&endDate=2026-03-08T00:00:00Z&data=pressure,temperature,salinity"
+            url = f"{ARGOVIS_BASE_URL}/argo?polygon={urllib.parse.quote(polygon_env)}&startDate=2026-03-01T00:00:00Z&endDate=2026-03-08T00:00:00Z&data={data_fields}"
         else:
-            url = f"{ARGOVIS_BASE_URL}/argo?startDate=2026-03-01T00:00:00Z&endDate=2026-03-08T00:00:00Z&data=pressure,temperature,salinity"
+            url = f"{ARGOVIS_BASE_URL}/argo?startDate=2026-03-01T00:00:00Z&endDate=2026-03-08T00:00:00Z&data={data_fields}"
 
         headers = {"User-Agent": "OCEAN3D-FastAPI/1.0"}
         if api_key and api_key != "your_argovis_api_key_here":
@@ -542,22 +610,35 @@ class ArgoGliderAdapter:
             if not doc_updated:
                 doc_updated = datetime.now(timezone.utc).isoformat()
 
+            geo_qc = doc.get("geolocation_argoqc")
+            time_qc = doc.get("timestamp_argoqc")
+
             data_info = doc.get("data_info", [])
-            keys = data_info[0] if (data_info and isinstance(data_info, list) and isinstance(data_info[0], list)) else ["pressure", "salinity", "temperature"]
+            keys = [str(k).lower() for k in data_info[0]] if (data_info and isinstance(data_info, list) and isinstance(data_info[0], list)) else ["pressure", "salinity", "temperature"]
             data = doc.get("data", [])
 
             if not isinstance(data, list) or not data:
                 continue
 
-            # Format A: data = [pressures_list, temperatures_list, salinities_list]
+            # Format A: data = [pressures_list, pres_qc_list, temperatures_list, temp_qc_list, salinities_list, sal_qc_list]
             if len(data) >= 2 and isinstance(data[0], list) and isinstance(data[1], list):
-                pres_idx = next((i for i, k in enumerate(keys) if "pres" in str(k).lower() or "depth" in str(k).lower()), 0)
-                temp_idx = next((i for i, k in enumerate(keys) if "temp" in str(k).lower()), None)
-                sal_idx = next((i for i, k in enumerate(keys) if "psal" in str(k).lower() or "sal" in str(k).lower()), None)
+                pres_idx = next((i for i, k in enumerate(keys) if ("pres" in k or "depth" in k) and "qc" not in k), None)
+                pres_qc_idx = next((i for i, k in enumerate(keys) if ("pres" in k or "depth" in k) and "qc" in k), None)
+                temp_idx = next((i for i, k in enumerate(keys) if "temp" in k and "qc" not in k), None)
+                temp_qc_idx = next((i for i, k in enumerate(keys) if "temp" in k and "qc" in k), None)
+                sal_idx = next((i for i, k in enumerate(keys) if ("psal" in k or "sal" in k) and "qc" not in k), None)
+                sal_qc_idx = next((i for i, k in enumerate(keys) if ("psal" in k or "sal" in k) and "qc" in k), None)
 
-                pressures = data[pres_idx] if pres_idx < len(data) and isinstance(data[pres_idx], list) else []
+                pressures = data[pres_idx] if pres_idx is not None and pres_idx < len(data) and isinstance(data[pres_idx], list) else []
+                pres_qcs = data[pres_qc_idx] if pres_qc_idx is not None and pres_qc_idx < len(data) and isinstance(data[pres_qc_idx], list) else []
                 temperatures = data[temp_idx] if temp_idx is not None and temp_idx < len(data) and isinstance(data[temp_idx], list) else []
+                temp_qcs = data[temp_qc_idx] if temp_qc_idx is not None and temp_qc_idx < len(data) and isinstance(data[temp_qc_idx], list) else []
                 salinities = data[sal_idx] if sal_idx is not None and sal_idx < len(data) and isinstance(data[sal_idx], list) else []
+                sal_qcs = data[sal_qc_idx] if sal_qc_idx is not None and sal_qc_idx < len(data) and isinstance(data[sal_qc_idx], list) else []
+
+                plat_condition, plat_reason, plat_qc_summary = evaluate_argo_qc(
+                    geo_qc, time_qc, pres_qcs, temp_qcs, sal_qcs
+                )
 
                 n_levels = min(len(pressures), max(len(temperatures), len(salinities)))
                 stride = max(1, n_levels // 8)
@@ -575,7 +656,12 @@ class ArgoGliderAdapter:
                             kind="observation", dataset_id="argo_gdac", variable="temperature",
                             latitude=round(lat, 4), longitude=round(lon, 4), depth=round(depth, 1),
                             time=timestamp, value=round(float(t_val), 3), unit="degC",
-                            platform_id=platform_id, platform_type="argo", quality_flag="good",
+                            platform_id=platform_id, platform_type="argo",
+                            quality_flag=plat_condition,
+                            quality_reason=plat_reason,
+                            qc_summary=plat_qc_summary,
+                            geolocation_argoqc=geo_qc,
+                            timestamp_argoqc=time_qc,
                             source_file=f"{platform_id}_argovis.json", data_status=data_status,
                             source_organization="Argo GDAC / Argovis", product_id="ARGOVIS-V2-ARGO-IN-SITU",
                             retrieval_timestamp=doc_updated,
@@ -586,16 +672,32 @@ class ArgoGliderAdapter:
                             kind="observation", dataset_id="argo_gdac", variable="salinity",
                             latitude=round(lat, 4), longitude=round(lon, 4), depth=round(depth, 1),
                             time=timestamp, value=round(float(s_val), 3), unit="psu",
-                            platform_id=platform_id, platform_type="argo", quality_flag="good",
+                            platform_id=platform_id, platform_type="argo",
+                            quality_flag=plat_condition,
+                            quality_reason=plat_reason,
+                            qc_summary=plat_qc_summary,
+                            geolocation_argoqc=geo_qc,
+                            timestamp_argoqc=time_qc,
                             source_file=f"{platform_id}_argovis.json", data_status=data_status,
                             source_organization="Argo GDAC / Argovis", product_id="ARGOVIS-V2-ARGO-IN-SITU",
                             retrieval_timestamp=doc_updated,
                         ))
             # Format B: data = [[p1, t1, s1], [p2, t2, s2], ...]
             else:
-                pres_idx = next((i for i, k in enumerate(keys) if "pres" in str(k).lower() or "depth" in str(k).lower()), 0)
-                temp_idx = next((i for i, k in enumerate(keys) if "temp" in str(k).lower()), 1 if len(keys) > 1 else None)
-                sal_idx = next((i for i, k in enumerate(keys) if "psal" in str(k).lower() or "sal" in str(k).lower()), 2 if len(keys) > 2 else None)
+                pres_idx = next((i for i, k in enumerate(keys) if ("pres" in k or "depth" in k) and "qc" not in k), 0)
+                pres_qc_idx = next((i for i, k in enumerate(keys) if ("pres" in k or "depth" in k) and "qc" in k), None)
+                temp_idx = next((i for i, k in enumerate(keys) if "temp" in k and "qc" not in k), 1 if len(keys) > 1 else None)
+                temp_qc_idx = next((i for i, k in enumerate(keys) if "temp" in k and "qc" in k), None)
+                sal_idx = next((i for i, k in enumerate(keys) if ("psal" in k or "sal" in k) and "qc" not in k), 2 if len(keys) > 2 else None)
+                sal_qc_idx = next((i for i, k in enumerate(keys) if ("psal" in k or "sal" in k) and "qc" in k), None)
+
+                pres_qcs = [row[pres_qc_idx] for row in data if isinstance(row, list) and pres_qc_idx is not None and len(row) > pres_qc_idx]
+                temp_qcs = [row[temp_qc_idx] for row in data if isinstance(row, list) and temp_qc_idx is not None and len(row) > temp_qc_idx]
+                sal_qcs = [row[sal_qc_idx] for row in data if isinstance(row, list) and sal_qc_idx is not None and len(row) > sal_qc_idx]
+
+                plat_condition, plat_reason, plat_qc_summary = evaluate_argo_qc(
+                    geo_qc, time_qc, pres_qcs, temp_qcs, sal_qcs
+                )
 
                 stride = max(1, len(data) // 8)
                 for row in data[::stride]:
@@ -611,7 +713,12 @@ class ArgoGliderAdapter:
                             kind="observation", dataset_id="argo_gdac", variable="temperature",
                             latitude=round(lat, 4), longitude=round(lon, 4), depth=round(depth, 1),
                             time=timestamp, value=round(float(row[temp_idx]), 3), unit="degC",
-                            platform_id=platform_id, platform_type="argo", quality_flag="good",
+                            platform_id=platform_id, platform_type="argo",
+                            quality_flag=plat_condition,
+                            quality_reason=plat_reason,
+                            qc_summary=plat_qc_summary,
+                            geolocation_argoqc=geo_qc,
+                            timestamp_argoqc=time_qc,
                             source_file=f"{platform_id}_argovis.json", data_status=data_status,
                             source_organization="Argo GDAC / Argovis", product_id="ARGOVIS-V2-ARGO-IN-SITU",
                             retrieval_timestamp=doc_updated,
@@ -622,7 +729,12 @@ class ArgoGliderAdapter:
                             kind="observation", dataset_id="argo_gdac", variable="salinity",
                             latitude=round(lat, 4), longitude=round(lon, 4), depth=round(depth, 1),
                             time=timestamp, value=round(float(row[sal_idx]), 3), unit="psu",
-                            platform_id=platform_id, platform_type="argo", quality_flag="good",
+                            platform_id=platform_id, platform_type="argo",
+                            quality_flag=plat_condition,
+                            quality_reason=plat_reason,
+                            qc_summary=plat_qc_summary,
+                            geolocation_argoqc=geo_qc,
+                            timestamp_argoqc=time_qc,
                             source_file=f"{platform_id}_argovis.json", data_status=data_status,
                             source_organization="Argo GDAC / Argovis", product_id="ARGOVIS-V2-ARGO-IN-SITU",
                             retrieval_timestamp=doc_updated,
@@ -815,7 +927,8 @@ class IOOSGliderAdapter:
                         kind="observation", dataset_id="glider_dac", variable="temperature",
                         latitude=round(pt_lat, 4), longitude=round(pt_lon, 4), depth=d,
                         time=timestamp, value=t_val, unit="degC",
-                        platform_id=pid, platform_type="glider", quality_flag="good",
+                        platform_id=pid, platform_type="glider", quality_flag="unknown",
+                        quality_reason="No upstream QC flags available for glider track",
                         source_file=f"{pid}_ioos.json", data_status="REAL DATA",
                         source_organization=org, product_id="IOOS-GLIDER-DAC-V2",
                         retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
@@ -824,7 +937,8 @@ class IOOSGliderAdapter:
                         kind="observation", dataset_id="glider_dac", variable="salinity",
                         latitude=round(pt_lat, 4), longitude=round(pt_lon, 4), depth=d,
                         time=timestamp, value=s_val, unit="psu",
-                        platform_id=pid, platform_type="glider", quality_flag="good",
+                        platform_id=pid, platform_type="glider", quality_flag="unknown",
+                        quality_reason="No upstream QC flags available for glider track",
                         source_file=f"{pid}_ioos.json", data_status="REAL DATA",
                         source_organization=org, product_id="IOOS-GLIDER-DAC-V2",
                         retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
@@ -931,7 +1045,8 @@ class CTD_ERDDAP_Adapter:
                         kind="observation", dataset_id="ctd_cast", variable=var,
                         latitude=round(lat, 4), longitude=round(lon, 4), depth=float(depth),
                         time=timestamp, value=val, unit=unit,
-                        platform_id=pid, platform_type="ctd", quality_flag="good",
+                        platform_id=pid, platform_type="ctd", quality_flag="unknown",
+                        quality_reason="No upstream QC flags available for shipboard CTD cast",
                         source_file=f"{pid}_{cruise}.json", data_status="REAL DATA",
                         source_organization="NOAA / IOOS ERDDAP", product_id="NOAA-ERDDAP-CTD-V1",
                         retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
@@ -954,7 +1069,8 @@ class CTD_ERDDAP_Adapter:
                         kind="observation", dataset_id="ctd_cast", variable="temperature",
                         latitude=round(lat, 4), longitude=round(lon, 4), depth=round(depth, 1),
                         time=timestamp, value=round(float(p["temperature"]), 3), unit="degC",
-                        platform_id=pid, platform_type="ctd", quality_flag="good",
+                        platform_id=pid, platform_type="ctd", quality_flag="unknown",
+                        quality_reason="No upstream QC flags available for shipboard CTD cast",
                         source_file=f"{pid}_erddap.json", data_status=data_status,
                         source_organization="NOAA / IOOS ERDDAP", product_id="NOAA-ERDDAP-CTD-V1",
                         retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
@@ -964,7 +1080,8 @@ class CTD_ERDDAP_Adapter:
                         kind="observation", dataset_id="ctd_cast", variable="salinity",
                         latitude=round(lat, 4), longitude=round(lon, 4), depth=round(depth, 1),
                         time=timestamp, value=round(float(p["salinity"]), 3), unit="psu",
-                        platform_id=pid, platform_type="ctd", quality_flag="good",
+                        platform_id=pid, platform_type="ctd", quality_flag="unknown",
+                        quality_reason="No upstream QC flags available for shipboard CTD cast",
                         source_file=f"{pid}_erddap.json", data_status=data_status,
                         source_organization="NOAA / IOOS ERDDAP", product_id="NOAA-ERDDAP-CTD-V1",
                         retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
@@ -1092,7 +1209,8 @@ class BGCArgoAdapter:
                         kind="observation", dataset_id="bgc_argo", variable="oxygen",
                         latitude=round(lat, 4), longitude=round(lon, 4), depth=round(depth, 1),
                         time=ts, value=round(float(doxys[idx]), 2), unit="umol/kg",
-                        platform_id=pid, platform_type="bgc", quality_flag="good",
+                        platform_id=pid, platform_type="bgc", quality_flag="unknown",
+                        quality_reason="No upstream QC flags available for BGC profile",
                         source_file=f"{pid}_bgc_live.json", data_status=data_status,
                         source_organization="Argo GDAC / Argovis BGC", product_id="ARGOVIS-V2-BGC-ARGO",
                         retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
@@ -1102,7 +1220,8 @@ class BGCArgoAdapter:
                         kind="observation", dataset_id="bgc_argo", variable="chlorophyll",
                         latitude=round(lat, 4), longitude=round(lon, 4), depth=round(depth, 1),
                         time=ts, value=round(max(0, float(chlas[idx])), 4), unit="mg/m3",
-                        platform_id=pid, platform_type="bgc", quality_flag="good",
+                        platform_id=pid, platform_type="bgc", quality_flag="unknown",
+                        quality_reason="No upstream QC flags available for BGC profile",
                         source_file=f"{pid}_bgc_live.json", data_status=data_status,
                         source_organization="Argo GDAC / Argovis BGC", product_id="ARGOVIS-V2-BGC-ARGO",
                         retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
@@ -1112,7 +1231,8 @@ class BGCArgoAdapter:
                         kind="observation", dataset_id="bgc_argo", variable="temperature",
                         latitude=round(lat, 4), longitude=round(lon, 4), depth=round(depth, 1),
                         time=ts, value=round(float(temps[idx]), 3), unit="degC",
-                        platform_id=pid, platform_type="bgc", quality_flag="good",
+                        platform_id=pid, platform_type="bgc", quality_flag="unknown",
+                        quality_reason="No upstream QC flags available for BGC profile",
                         source_file=f"{pid}_bgc_live.json", data_status=data_status,
                         source_organization="Argo GDAC / Argovis BGC", product_id="ARGOVIS-V2-BGC-ARGO",
                         retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
@@ -1122,7 +1242,8 @@ class BGCArgoAdapter:
                         kind="observation", dataset_id="bgc_argo", variable="salinity",
                         latitude=round(lat, 4), longitude=round(lon, 4), depth=round(depth, 1),
                         time=ts, value=round(float(sals[idx]), 3), unit="psu",
-                        platform_id=pid, platform_type="bgc", quality_flag="good",
+                        platform_id=pid, platform_type="bgc", quality_flag="unknown",
+                        quality_reason="No upstream QC flags available for BGC profile",
                         source_file=f"{pid}_bgc_live.json", data_status=data_status,
                         source_organization="Argo GDAC / Argovis BGC", product_id="ARGOVIS-V2-BGC-ARGO",
                         retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
@@ -1170,7 +1291,8 @@ class BGCArgoAdapter:
                         kind="observation", dataset_id="bgc_argo", variable=var,
                         latitude=round(lat, 4), longitude=round(lon, 4), depth=float(depth),
                         time=timestamp, value=val, unit=unit,
-                        platform_id=pid, platform_type="bgc", quality_flag="good",
+                        platform_id=pid, platform_type="bgc", quality_flag="unknown",
+                        quality_reason="No upstream QC flags available for BGC profile",
                         source_file=f"{pid}_bgc_global.json", data_status="REAL DATA",
                         source_organization="Argo GDAC / Argovis BGC", product_id="ARGOVIS-V2-BGC-ARGO",
                         retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
@@ -1195,7 +1317,8 @@ class BGCArgoAdapter:
                             kind="observation", dataset_id="bgc_argo", variable=var,
                             latitude=round(lat, 4), longitude=round(lon, 4), depth=round(depth, 1),
                             time=timestamp, value=round(float(p[var]), 3), unit=unit,
-                            platform_id=pid, platform_type="bgc", quality_flag="good",
+                            platform_id=pid, platform_type="bgc", quality_flag="unknown",
+                            quality_reason="No upstream QC flags available for BGC profile",
                             source_file=f"{pid}_bgc.json", data_status=data_status,
                             source_organization="Argo GDAC / Argovis BGC", product_id="ARGOVIS-V2-BGC-ARGO",
                             retrieval_timestamp=datetime.now(timezone.utc).isoformat(),
@@ -1282,7 +1405,8 @@ class INCOISMooredBuoyAdapter:
                         unit="degC",
                         platform_id=pid,
                         platform_type="mooring",
-                        quality_flag="good",
+                        quality_flag="unknown",
+                        quality_reason="No upstream QC flags available for moored buoy",
                         source_file=f"{pid}_mooring.nc",
                         data_status="CACHED REAL DATA",
                         source_organization="INCOIS / NIOT (MoES, India)",
@@ -1301,7 +1425,8 @@ class INCOISMooredBuoyAdapter:
                         unit="psu",
                         platform_id=pid,
                         platform_type="mooring",
-                        quality_flag="good",
+                        quality_flag="unknown",
+                        quality_reason="No upstream QC flags available for moored buoy",
                         source_file=f"{pid}_mooring.nc",
                         data_status="CACHED REAL DATA",
                         source_organization="INCOIS / NIOT (MoES, India)",
