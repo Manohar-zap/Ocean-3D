@@ -2827,42 +2827,7 @@ function setupIndiaEEZLayer(){
     }
   }));
 
-  // Sector Labels
-  indiaEEZEntities.push(viewer.entities.add({
-    position: Cesium.Cartesian3.fromDegrees(66.5, 15.0, 1000),
-    label: {
-      text: "ARABIAN SEA EEZ (200 NM)",
-      font: "bold 11px IBM Plex Mono",
-      fillColor: Cesium.Color.fromCssColorString('#3fe0c5'),
-      outlineColor: Cesium.Color.BLACK,
-      outlineWidth: 3,
-      style: Cesium.LabelStyle.FILL_AND_OUTLINE
-    }
-  }));
-
-  indiaEEZEntities.push(viewer.entities.add({
-    position: Cesium.Cartesian3.fromDegrees(86.5, 14.0, 1000),
-    label: {
-      text: "BAY OF BENGAL EEZ (200 NM)",
-      font: "bold 11px IBM Plex Mono",
-      fillColor: Cesium.Color.fromCssColorString('#3fe0c5'),
-      outlineColor: Cesium.Color.BLACK,
-      outlineWidth: 3,
-      style: Cesium.LabelStyle.FILL_AND_OUTLINE
-    }
-  }));
-
-  indiaEEZEntities.push(viewer.entities.add({
-    position: Cesium.Cartesian3.fromDegrees(93.0, 10.0, 1000),
-    label: {
-      text: "ANDAMAN & NICOBAR EEZ (200 NM)",
-      font: "bold 11px IBM Plex Mono",
-      fillColor: Cesium.Color.fromCssColorString('#3fe0c5'),
-      outlineColor: Cesium.Color.BLACK,
-      outlineWidth: 3,
-      style: Cesium.LabelStyle.FILL_AND_OUTLINE
-    }
-  }));
+  // Sector lines rendered cleanly without text overlays
 }
 
 function toggleIndiaEEZ(show){
@@ -3694,7 +3659,8 @@ async function refreshAll(){
     state.showBathymetry ? loadBathymetry() : Promise.resolve(),
     state.showVectors ? loadVectors() : Promise.resolve(),
     state.showIsosurface ? loadIsosurface() : Promise.resolve(),
-    loadObservations()
+    loadObservations(),
+    (typeof loadAdaptiveInformationGaps === 'function') ? loadAdaptiveInformationGaps() : Promise.resolve()
   ]);
 }
 

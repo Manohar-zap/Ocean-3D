@@ -19,8 +19,6 @@ import joblib
 import lightgbm as lgb
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
-from app.storage import store
-
 logger = logging.getLogger(__name__)
 
 FEATURE_NAMES = [
@@ -82,6 +80,7 @@ class MLTrainingPipeline:
 
     def extract_training_dataset(self, variable: str = "temperature") -> tuple[np.ndarray, np.ndarray, list[str], dict[str, Any]]:
         """Extracts and sanitizes genuine in-situ observation records into feature matrix X, targets y, and platform groups."""
+        from app.storage import store
         var_clean = "salinity" if "sal" in variable.lower() else "temperature"
         min_val, max_val = PHYSICAL_LIMITS.get(var_clean, (-2.5, 42.0))
 

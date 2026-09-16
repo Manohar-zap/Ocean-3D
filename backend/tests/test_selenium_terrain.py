@@ -27,15 +27,9 @@ class TestCesiumWorldTerrainRuntime(unittest.TestCase):
                 driver.get('http://localhost:8000')
             time.sleep(6)
 
-            driver.save_screenshot('screenshot_A_india_ocean.png')
-            print('Saved SCREENSHOT A: screenshot_A_india_ocean.png')
-
             himalaya_btn = driver.find_element(By.ID, 'btnFlyHimalayas')
             himalaya_btn.click()
             time.sleep(5)
-
-            driver.save_screenshot('screenshot_B_himalayas.png')
-            print('Saved SCREENSHOT B: screenshot_B_himalayas.png')
 
             print('Browser console log:', driver.get_log('browser'))
             is_cesium_terrain = driver.execute_script('return (window.viewer && window.viewer.terrainProvider) ? true : false;')

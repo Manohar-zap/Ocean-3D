@@ -39,6 +39,35 @@ def haversine_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) ->
 class CollocationEngine:
     """Collocation Engine matching real Argo observations with Ocean Model predictions."""
 
+    def __init__(self):
+        self._grid_cache = {}
+        self._last_records_count = 0
+
+    def _get_grid_cells(self, dataset_id: Optional[str], variable: str):
+        if len(store.model_records) != self._last_records_count:
+            self._grid_cache.clear()
+            self._last_records_count = len(store.model_records)
+
+        target_ds = dataset_id or "incois_las_model"
+        cache_key = (target_ds, variable)
+        if cache_key in self._grid_cache:
+            return self._grid_cache[cache_key]
+
+        model_rows = [r for r in store.model_records if r.dataset_id == target_ds and r.variable == variable]
+        if not model_rows:
+            model_rows = [r for r in store.model_records if r.variable == variable]
+            if model_rows:
+                target_ds = model_rows[0].dataset_id
+
+        grid_cells = {}
+        for r in model_rows:
+            key = (r.latitude, r.longitude)
+            grid_cells.setdefault(key, []).append(r)
+
+        result = (target_ds, model_rows, grid_cells)
+        self._grid_cache[cache_key] = result
+        return result
+
     def collocate_point(
         self,
         platform_id: str,
@@ -91,17 +120,12 @@ class CollocationEngine:
             )
 
         # 2. Select matching model dataset
-        dataset_id = model_dataset_id or "incois_las_model"
-        model_rows = [r for r in store.model_records if r.dataset_id == dataset_id and r.variable == variable]
-        if not model_rows:
-            model_rows = [r for r in store.model_records if r.variable == variable]
-            if model_rows:
-                dataset_id = model_rows[0].dataset_id
+        dataset_id, model_rows, grid_cells = self._get_grid_cells(model_dataset_id, variable)
 
         meta = store.catalog.get(dataset_id)
         model_source_label = meta.label if meta else "INCOIS Ocean Circulation Model (ROMS)"
 
-        if not model_rows:
+        if not model_rows or not grid_cells:
             return CollocationRecord(
                 platform_id=obs.platform_id or platform_id,
                 platform_type=obs.platform_type or "argo",
@@ -127,13 +151,16 @@ class CollocationEngine:
                 rejection_reason=f"No model prediction data available for variable '{variable}'"
             )
 
-        # 3. Spatial Matching
-        grid_cells = {}
-        for r in model_rows:
-            key = (r.latitude, r.longitude)
-            grid_cells.setdefault(key, []).append(r)
-
-        best_cell = min(grid_cells.keys(), key=lambda c: haversine_distance_km(obs.latitude, obs.longitude, c[0], c[1]))
+        # 3. Spatial Matching (Fast Euclidean pre-filter + exact haversine on top candidates)
+        cos_lat = math.cos(math.radians(obs.latitude))
+        candidate_cells = sorted(
+            grid_cells.keys(),
+            key=lambda c: (c[0] - obs.latitude) ** 2 + ((c[1] - obs.longitude) * cos_lat) ** 2
+        )[:10]
+        best_cell = min(
+            candidate_cells,
+            key=lambda c: haversine_distance_km(obs.latitude, obs.longitude, c[0], c[1])
+        )
         cell_rows = grid_cells[best_cell]
         spatial_dist = haversine_distance_km(obs.latitude, obs.longitude, best_cell[0], best_cell[1])
 

@@ -1,0 +1,947 @@
+[
+  {
+    "dataset_id": "sd1034_ecmwf_ags_2021",
+    "usv_id": "SAILDRONE-SD1034_ECMWF_AGS_2021",
+    "name": "ECMWF Atlantic Gulf Stream 2021 NRT Saildrone 1034",
+    "institution": "European Centre for Medium-Range Weather Forecasts",
+    "latitude": 37.832,
+    "longitude": -69.9907,
+    "timestamp": "2022-07-14T05:59:00Z"
+  },
+  {
+    "dataset_id": "sd1091_ecmwf_ags_2021",
+    "usv_id": "SAILDRONE-SD1091_ECMWF_AGS_2021",
+    "name": "ECMWF Atlantic Gulf Stream 2021 NRT Saildrone 1091",
+    "institution": "European Centre for Medium-Range Weather Forecasts",
+    "latitude": 38.3659,
+    "longitude": -60.9524,
+    "timestamp": "2022-09-13T19:59:00Z"
+  },
+  {
+    "dataset_id": "sd1043",
+    "usv_id": "SAILDRONE-SD1043",
+    "name": "NOAA AFSC Bering Fisheries Pollock Survey 2020 NRT Saildrone 1043",
+    "institution": "NOAA Alaska Fisheries Science Center",
+    "latitude": 49.4469,
+    "longitude": -147.922,
+    "timestamp": "2020-10-29T04:45:00Z"
+  },
+  {
+    "dataset_id": "sd1046",
+    "usv_id": "SAILDRONE-SD1046",
+    "name": "NOAA AFSC Bering Fisheries Pollock Survey 2020 NRT Saildrone 1046",
+    "institution": "NOAA Alaska Fisheries Science Center",
+    "latitude": 47.9628,
+    "longitude": -145.041,
+    "timestamp": "2020-10-28T17:45:00Z"
+  },
+  {
+    "dataset_id": "sd1049",
+    "usv_id": "SAILDRONE-SD1049",
+    "name": "NOAA AFSC Bering Fisheries Pollock Survey 2020 NRT Saildrone 1049",
+    "institution": "NOAA Alaska Fisheries Science Center",
+    "latitude": 50.0576,
+    "longitude": -150.5527,
+    "timestamp": "2020-10-29T04:45:00Z"
+  },
+  {
+    "dataset_id": "sd1054",
+    "usv_id": "SAILDRONE-SD1054",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2020 NRT Saildrone 1054",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 46.3882,
+    "longitude": -127.7204,
+    "timestamp": "2021-03-20T14:45:00Z"
+  },
+  {
+    "dataset_id": "sd1031_hurricane_2021",
+    "usv_id": "SAILDRONE-SD1031_HURRICANE_2021",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2021 NRT Saildrone 1031",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 32.0598,
+    "longitude": -74.5281,
+    "timestamp": "2021-11-05T21:59:00Z"
+  },
+  {
+    "dataset_id": "sd1045_hurricane_2021",
+    "usv_id": "SAILDRONE-SD1045_HURRICANE_2021",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2021 NRT Saildrone 1045",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 22.827,
+    "longitude": -62.5021,
+    "timestamp": "2021-10-28T13:59:00Z"
+  },
+  {
+    "dataset_id": "sd1048_hurricane_2021",
+    "usv_id": "SAILDRONE-SD1048_HURRICANE_2021",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2021 NRT Saildrone 1048",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 16.732,
+    "longitude": -66.5491,
+    "timestamp": "2021-11-16T21:59:00Z"
+  },
+  {
+    "dataset_id": "sd1060_hurricane_2021",
+    "usv_id": "SAILDRONE-SD1060_HURRICANE_2021",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2021 NRT Saildrone 1060",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 20.0344,
+    "longitude": -65.9086,
+    "timestamp": "2021-11-16T21:59:00Z"
+  },
+  {
+    "dataset_id": "sd1031_hurricane_2022",
+    "usv_id": "SAILDRONE-SD1031_HURRICANE_2022",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2022 Saildrone 1031",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 16.4199,
+    "longitude": -67.2006,
+    "timestamp": "2022-10-30T21:59:00Z"
+  },
+  {
+    "dataset_id": "sd1040_hurricane_2022",
+    "usv_id": "SAILDRONE-SD1040_HURRICANE_2022",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2022 Saildrone 1040",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 21.2506,
+    "longitude": -67.2684,
+    "timestamp": "2022-11-06T15:59:00Z"
+  },
+  {
+    "dataset_id": "sd1078_hurricane_2022",
+    "usv_id": "SAILDRONE-SD1078_HURRICANE_2022",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2022 Saildrone 1078",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 29.4187,
+    "longitude": -68.8897,
+    "timestamp": "2022-10-24T13:59:00Z"
+  },
+  {
+    "dataset_id": "sd1083_hurricane_2022",
+    "usv_id": "SAILDRONE-SD1083_HURRICANE_2022",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2022 Saildrone 1083",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 19.4396,
+    "longitude": -55.8098,
+    "timestamp": "2022-10-30T21:59:00Z"
+  },
+  {
+    "dataset_id": "sd1031_hurricane_2023",
+    "usv_id": "SAILDRONE-SD1031_HURRICANE_2023",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2023 Saildrone 1031",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 19.2085,
+    "longitude": -66.0461,
+    "timestamp": "2023-10-23T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1036_hurricane_2023",
+    "usv_id": "SAILDRONE-SD1036_HURRICANE_2023",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2023 Saildrone 1036",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 22.1158,
+    "longitude": -66.2267,
+    "timestamp": "2023-10-26T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1040_hurricane_2023",
+    "usv_id": "SAILDRONE-SD1040_HURRICANE_2023",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2023 Saildrone 1040",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 17.2367,
+    "longitude": -61.08,
+    "timestamp": "2023-11-05T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1041_hurricane_2023",
+    "usv_id": "SAILDRONE-SD1041_HURRICANE_2023",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2023 Saildrone 1041",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 22.2536,
+    "longitude": -64.0532,
+    "timestamp": "2023-11-01T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1057_hurricane_2023",
+    "usv_id": "SAILDRONE-SD1057_HURRICANE_2023",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2023 Saildrone 1057",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 31.6933,
+    "longitude": -75.289,
+    "timestamp": "2023-11-03T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1064_hurricane_2023",
+    "usv_id": "SAILDRONE-SD1064_HURRICANE_2023",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2023 Saildrone 1064",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 21.0469,
+    "longitude": -64.8735,
+    "timestamp": "2023-09-13T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1065_hurricane_2023",
+    "usv_id": "SAILDRONE-SD1065_HURRICANE_2023",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2023 Saildrone 1065",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 29.0063,
+    "longitude": -65.0695,
+    "timestamp": "2023-09-14T19:59:00Z"
+  },
+  {
+    "dataset_id": "sd1068_hurricane_2023",
+    "usv_id": "SAILDRONE-SD1068_HURRICANE_2023",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2023 Saildrone 1068",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 20.181,
+    "longitude": -65.1676,
+    "timestamp": "2023-11-01T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1069_hurricane_2023",
+    "usv_id": "SAILDRONE-SD1069_HURRICANE_2023",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2023 Saildrone 1069",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 19.8366,
+    "longitude": -57.1573,
+    "timestamp": "2023-11-05T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1030_hurricane_2024",
+    "usv_id": "SAILDRONE-SD1030_HURRICANE_2024",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2024 Saildrone 1030",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 17.7823,
+    "longitude": -65.9773,
+    "timestamp": "2024-12-30T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1031_hurricane_2024",
+    "usv_id": "SAILDRONE-SD1031_HURRICANE_2024",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2024 Saildrone 1031",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 25.4184,
+    "longitude": -66.2042,
+    "timestamp": "2024-10-23T17:59:00Z"
+  },
+  {
+    "dataset_id": "sd1036_hurricane_2024",
+    "usv_id": "SAILDRONE-SD1036_HURRICANE_2024",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2024 Saildrone 1036",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 22.222,
+    "longitude": -57.1769,
+    "timestamp": "2024-10-24T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1040_hurricane_2024",
+    "usv_id": "SAILDRONE-SD1040_HURRICANE_2024",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2024 Saildrone 1040",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 22.4862,
+    "longitude": -57.6643,
+    "timestamp": "2025-01-13T19:59:00Z"
+  },
+  {
+    "dataset_id": "sd1041_hurricane_2024",
+    "usv_id": "SAILDRONE-SD1041_HURRICANE_2024",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2024 Saildrone 1041",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 21.928,
+    "longitude": -68.1449,
+    "timestamp": "2025-02-05T17:59:00Z"
+  },
+  {
+    "dataset_id": "sd1068_hurricane_2024",
+    "usv_id": "SAILDRONE-SD1068_HURRICANE_2024",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2024 Saildrone 1068",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 30.5322,
+    "longitude": -68.7604,
+    "timestamp": "2024-10-25T01:59:00Z"
+  },
+  {
+    "dataset_id": "sd1069_hurricane_2024",
+    "usv_id": "SAILDRONE-SD1069_HURRICANE_2024",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2024 Saildrone 1069",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 21.619,
+    "longitude": -66.1771,
+    "timestamp": "2024-10-23T17:59:00Z"
+  },
+  {
+    "dataset_id": "sd1091_hurricane_2024",
+    "usv_id": "SAILDRONE-SD1091_HURRICANE_2024",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2024 Saildrone 1091",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 30.5251,
+    "longitude": -68.4797,
+    "timestamp": "2024-12-31T21:59:00Z"
+  },
+  {
+    "dataset_id": "sd1030_hurricane_2026",
+    "usv_id": "SAILDRONE-SD1030_HURRICANE_2026",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2026 Saildrone 1030",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 22.575,
+    "longitude": -64.9762,
+    "timestamp": "2026-09-16T12:00:00Z"
+  },
+  {
+    "dataset_id": "sd1040_hurricane_2026",
+    "usv_id": "SAILDRONE-SD1040_HURRICANE_2026",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2026 Saildrone 1040",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 26.68,
+    "longitude": -64.6178,
+    "timestamp": "2026-09-16T12:00:00Z"
+  },
+  {
+    "dataset_id": "sd1069_hurricane_2026",
+    "usv_id": "SAILDRONE-SD1069_HURRICANE_2026",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2026 Saildrone 1069",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 33.0891,
+    "longitude": -73.7941,
+    "timestamp": "2026-09-14T12:00:00Z"
+  },
+  {
+    "dataset_id": "sd1074_hurricane_2026",
+    "usv_id": "SAILDRONE-SD1074_HURRICANE_2026",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2026 Saildrone 1074",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 26.6244,
+    "longitude": -67.1111,
+    "timestamp": "2026-09-16T12:00:00Z"
+  },
+  {
+    "dataset_id": "sd1083_hurricane_2026",
+    "usv_id": "SAILDRONE-SD1083_HURRICANE_2026",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2026 Saildrone 1083",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA Pacific Marine Environmental Laboratory",
+    "latitude": 24.7967,
+    "longitude": -63.1183,
+    "timestamp": "2026-09-16T12:00:00Z"
+  },
+  {
+    "dataset_id": "sd1084_hurricane_2026",
+    "usv_id": "SAILDRONE-SD1084_HURRICANE_2026",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2026 Saildrone 1084",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 16.6792,
+    "longitude": -66.6557,
+    "timestamp": "2026-09-16T12:00:00Z"
+  },
+  {
+    "dataset_id": "sd1091_hurricane_2026",
+    "usv_id": "SAILDRONE-SD1091_HURRICANE_2026",
+    "name": "NOAA AOML PMEL Hurricane Monitoring 2026 Saildrone 1091",
+    "institution": "NOAA Atlantic Oceanographic and Meteorological Laboratory, NOAA PMEL",
+    "latitude": 20.0863,
+    "longitude": -66.4979,
+    "timestamp": "2026-09-16T12:00:00Z"
+  },
+  {
+    "dataset_id": "sd1055",
+    "usv_id": "SAILDRONE-SD1055",
+    "name": "NOAA NOS Arctic Single Beam 2020 NRT Saildrone 1055",
+    "institution": "NOAA National Ocean Service",
+    "latitude": 70.3551,
+    "longitude": -154.7957,
+    "timestamp": "2020-09-19T04:59:00Z"
+  },
+  {
+    "dataset_id": "sd1069",
+    "usv_id": "SAILDRONE-SD1069",
+    "name": "NOAA NOS Arctic Single Beam 2020 NRT Saildrone 1069",
+    "institution": "NOAA National Ocean Service",
+    "latitude": 62.5332,
+    "longitude": -166.3308,
+    "timestamp": "2020-10-26T18:59:00Z"
+  },
+  {
+    "dataset_id": "sd1030_arctic_2021",
+    "usv_id": "SAILDRONE-SD1030_ARCTIC_2021",
+    "name": "NOAA NOS Arctic Single Beam 2021 NRT Saildrone 1030",
+    "institution": "NOAA National Ocean Service",
+    "latitude": 60.5411,
+    "longitude": -167.5765,
+    "timestamp": "2021-10-19T19:59:00Z"
+  },
+  {
+    "dataset_id": "sd1033_arctic_2021",
+    "usv_id": "SAILDRONE-SD1033_ARCTIC_2021",
+    "name": "NOAA NOS Arctic Single Beam 2021 NRT Saildrone 1033",
+    "institution": "NOAA National Ocean Service",
+    "latitude": 59.0102,
+    "longitude": -166.9594,
+    "timestamp": "2021-10-20T15:59:00Z"
+  },
+  {
+    "dataset_id": "sd1034_arctic_2021",
+    "usv_id": "SAILDRONE-SD1034_ARCTIC_2021",
+    "name": "NOAA NOS Arctic Single Beam 2021 NRT Saildrone 1034",
+    "institution": "NOAA National Ocean Service",
+    "latitude": 59.0654,
+    "longitude": -167.5496,
+    "timestamp": "2021-10-20T15:59:00Z"
+  },
+  {
+    "dataset_id": "sd1067_arctic_2021",
+    "usv_id": "SAILDRONE-SD1067_ARCTIC_2021",
+    "name": "NOAA NOS Arctic Single Beam 2021 NRT Saildrone 1067",
+    "institution": "NOAA National Ocean Service",
+    "latitude": 59.0452,
+    "longitude": -166.9474,
+    "timestamp": "2021-10-19T21:59:00Z"
+  },
+  {
+    "dataset_id": "sd1063_hake_2021",
+    "usv_id": "SAILDRONE-SD1063_HAKE_2021",
+    "name": "NOAA NWFSC Hake Survey 2021 NRT Saildrone 1063",
+    "institution": "NOAA Northwest Fisheries Science Center",
+    "latitude": 40.1863,
+    "longitude": -125.7107,
+    "timestamp": "2021-10-02T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1064_hake_2021",
+    "usv_id": "SAILDRONE-SD1064_HAKE_2021",
+    "name": "NOAA NWFSC Hake Survey 2021 NRT Saildrone 1064",
+    "institution": "NOAA Northwest Fisheries Science Center",
+    "latitude": 40.554,
+    "longitude": -125.6757,
+    "timestamp": "2021-10-02T23:59:00Z"
+  },
+  {
+    "dataset_id": "saildrone_west_coast_survey_2018",
+    "usv_id": "SAILDRONE-SAILDRONE_WEST_COAST_SURVEY_2018",
+    "name": "NOAA NWFSC West Coast Survey 2018 NRT Collection Saildrone",
+    "institution": "NOAA Fisheries",
+    "latitude": 25.3333,
+    "longitude": -64.5029,
+    "timestamp": "2018-11-27T19:59:00Z"
+  },
+  {
+    "dataset_id": "sd1024_west_coast_survey_2018",
+    "usv_id": "SAILDRONE-SD1024_WEST_COAST_SURVEY_2018",
+    "name": "NOAA NWFSC West Coast Survey 2018 NRT Saildrone 1024",
+    "institution": "NOAA Fisheries",
+    "latitude": 36.9351,
+    "longitude": -122.7086,
+    "timestamp": "2018-11-27T19:59:00Z"
+  },
+  {
+    "dataset_id": "sd1025_west_coast_survey_2018",
+    "usv_id": "SAILDRONE-SD1025_WEST_COAST_SURVEY_2018",
+    "name": "NOAA NWFSC West Coast Survey 2018 NRT Saildrone 1025",
+    "institution": "NOAA Fisheries",
+    "latitude": 19.2781,
+    "longitude": -62.4255,
+    "timestamp": "2018-10-26T17:59:00Z"
+  },
+  {
+    "dataset_id": "sd1026_west_coast_survey_2018",
+    "usv_id": "SAILDRONE-SD1026_WEST_COAST_SURVEY_2018",
+    "name": "NOAA NWFSC West Coast Survey 2018 NRT Saildrone 1026",
+    "institution": "NOAA Fisheries",
+    "latitude": 36.5341,
+    "longitude": -121.2822,
+    "timestamp": "2018-10-26T17:59:00Z"
+  },
+  {
+    "dataset_id": "sd1027_west_coast_survey_2018",
+    "usv_id": "SAILDRONE-SD1027_WEST_COAST_SURVEY_2018",
+    "name": "NOAA NWFSC West Coast Survey 2018 NRT Saildrone 1027",
+    "institution": "NOAA Fisheries",
+    "latitude": 44.2283,
+    "longitude": -125.7797,
+    "timestamp": "2018-10-05T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1028_west_coast_survey_2018",
+    "usv_id": "SAILDRONE-SD1028_WEST_COAST_SURVEY_2018",
+    "name": "NOAA NWFSC West Coast Survey 2018 NRT Saildrone 1028",
+    "institution": "NOAA Fisheries",
+    "latitude": 44.1364,
+    "longitude": -125.56,
+    "timestamp": "2018-10-05T23:59:00Z"
+  },
+  {
+    "dataset_id": "saildrone_west_coast_survey_2019",
+    "usv_id": "SAILDRONE-SAILDRONE_WEST_COAST_SURVEY_2019",
+    "name": "NOAA NWFSC West Coast Survey 2019 NRT Collection Saildrone",
+    "institution": "NOAA Fisheries",
+    "latitude": 40.1357,
+    "longitude": -122.9905,
+    "timestamp": "2019-09-16T19:57:00Z"
+  },
+  {
+    "dataset_id": "sd1038_west_coast_survey_2019",
+    "usv_id": "SAILDRONE-SD1038_WEST_COAST_SURVEY_2019",
+    "name": "NOAA NWFSC West Coast Survey 2019 NRT Saildrone 1038",
+    "institution": "NOAA Fisheries",
+    "latitude": 42.8645,
+    "longitude": -123.9731,
+    "timestamp": "2019-09-09T15:59:00Z"
+  },
+  {
+    "dataset_id": "sd1039_west_coast_survey_2019",
+    "usv_id": "SAILDRONE-SD1039_WEST_COAST_SURVEY_2019",
+    "name": "NOAA NWFSC West Coast Survey 2019 NRT Saildrone 1039",
+    "institution": "NOAA Fisheries",
+    "latitude": 41.5603,
+    "longitude": -123.7767,
+    "timestamp": "2019-09-14T13:59:00Z"
+  },
+  {
+    "dataset_id": "sd1040_west_coast_survey_2019",
+    "usv_id": "SAILDRONE-SD1040_WEST_COAST_SURVEY_2019",
+    "name": "NOAA NWFSC West Coast Survey 2019 NRT Saildrone 1040",
+    "institution": "NOAA Fisheries",
+    "latitude": 40.2303,
+    "longitude": -123.1543,
+    "timestamp": "2019-08-02T01:59:00Z"
+  },
+  {
+    "dataset_id": "sd1043_west_coast_survey_2019",
+    "usv_id": "SAILDRONE-SD1043_WEST_COAST_SURVEY_2019",
+    "name": "NOAA NWFSC West Coast Survey 2019 NRT Saildrone 1043",
+    "institution": "NOAA Fisheries",
+    "latitude": 39.686,
+    "longitude": -124.0553,
+    "timestamp": "2019-08-02T19:59:00Z"
+  },
+  {
+    "dataset_id": "sd1044_west_coast_survey_2019",
+    "usv_id": "SAILDRONE-SD1044_WEST_COAST_SURVEY_2019",
+    "name": "NOAA NWFSC West Coast Survey 2019 NRT Saildrone 1044",
+    "institution": "NOAA Fisheries",
+    "latitude": 42.151,
+    "longitude": -123.7609,
+    "timestamp": "2019-09-16T19:57:00Z"
+  },
+  {
+    "dataset_id": "sd1045_west_coast_survey_2019",
+    "usv_id": "SAILDRONE-SD1045_WEST_COAST_SURVEY_2019",
+    "name": "NOAA NWFSC West Coast Survey 2019 NRT Saildrone 1045",
+    "institution": "NOAA Fisheries",
+    "latitude": 38.4387,
+    "longitude": -123.9522,
+    "timestamp": "2019-08-16T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1046_west_coast_survey_2019",
+    "usv_id": "SAILDRONE-SD1046_WEST_COAST_SURVEY_2019",
+    "name": "NOAA NWFSC West Coast Survey 2019 NRT Saildrone 1046",
+    "institution": "NOAA Fisheries",
+    "latitude": 37.9701,
+    "longitude": -122.7484,
+    "timestamp": "2019-08-28T17:59:00Z"
+  },
+  {
+    "dataset_id": "sd1047_west_coast_survey_2019",
+    "usv_id": "SAILDRONE-SD1047_WEST_COAST_SURVEY_2019",
+    "name": "NOAA NWFSC West Coast Survey 2019 NRT Saildrone 1047",
+    "institution": "NOAA Fisheries",
+    "latitude": 41.5316,
+    "longitude": -122.8219,
+    "timestamp": "2019-09-03T19:57:00Z"
+  },
+  {
+    "dataset_id": "sd1005_2017",
+    "usv_id": "SAILDRONE-SD1005_2017",
+    "name": "NOAA PMEL TPOS 2017 NRT Saildrone 1005",
+    "institution": "NOAA PMEL",
+    "latitude": 18.2399,
+    "longitude": -127.8535,
+    "timestamp": "2018-05-15T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1006_2017",
+    "usv_id": "SAILDRONE-SD1006_2017",
+    "name": "NOAA PMEL TPOS 2017 NRT Saildrone 1006",
+    "institution": "NOAA PMEL",
+    "latitude": 17.0051,
+    "longitude": -132.3742,
+    "timestamp": "2018-05-15T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1005_2018",
+    "usv_id": "SAILDRONE-SD1005_2018",
+    "name": "NOAA PMEL TPOS 2018 NRT Saildrone 1005",
+    "institution": "NOAA PMEL",
+    "latitude": 10.646,
+    "longitude": -148.6192,
+    "timestamp": "2019-01-31T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1006_2018",
+    "usv_id": "SAILDRONE-SD1006_2018",
+    "name": "NOAA PMEL TPOS 2018 NRT Saildrone 1006",
+    "institution": "NOAA PMEL",
+    "latitude": 10.1322,
+    "longitude": -149.8548,
+    "timestamp": "2019-01-31T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1029_2018",
+    "usv_id": "SAILDRONE-SD1029_2018",
+    "name": "NOAA PMEL TPOS 2018 NRT Saildrone 1029",
+    "institution": "NOAA PMEL",
+    "latitude": 11.2809,
+    "longitude": -151.113,
+    "timestamp": "2019-01-31T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1030_2018",
+    "usv_id": "SAILDRONE-SD1030_2018",
+    "name": "NOAA PMEL TPOS 2018 NRT Saildrone 1030",
+    "institution": "NOAA PMEL",
+    "latitude": 11.2262,
+    "longitude": -148.5275,
+    "timestamp": "2019-01-31T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1066_2019",
+    "usv_id": "SAILDRONE-SD1066_2019",
+    "name": "NOAA PMEL TPOS 2019 NRT Saildrone 1066",
+    "institution": "NOAA PMEL",
+    "latitude": 10.9944,
+    "longitude": -148.4538,
+    "timestamp": "2020-01-07T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1067_2019",
+    "usv_id": "SAILDRONE-SD1067_2019",
+    "name": "NOAA PMEL TPOS 2019 NRT Saildrone 1067",
+    "institution": "NOAA PMEL",
+    "latitude": 22.5919,
+    "longitude": -148.1506,
+    "timestamp": "2020-01-07T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1068_2019",
+    "usv_id": "SAILDRONE-SD1068_2019",
+    "name": "NOAA PMEL TPOS 2019 NRT Saildrone 1068",
+    "institution": "NOAA PMEL",
+    "latitude": 8.7495,
+    "longitude": -148.2545,
+    "timestamp": "2020-01-07T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1069_2019",
+    "usv_id": "SAILDRONE-SD1069_2019",
+    "name": "NOAA PMEL TPOS 2019 NRT Saildrone 1069",
+    "institution": "NOAA PMEL",
+    "latitude": 10.7251,
+    "longitude": -149.1145,
+    "timestamp": "2020-01-07T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1065_tpos_2021",
+    "usv_id": "SAILDRONE-SD1065_TPOS_2021",
+    "name": "NOAA PMEL TPOS 2021 Saildrone 1065",
+    "institution": "NOAA PMEL",
+    "latitude": 14.3751,
+    "longitude": -127.7658,
+    "timestamp": "2022-09-24T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1066_tpos_2021",
+    "usv_id": "SAILDRONE-SD1066_TPOS_2021",
+    "name": "NOAA PMEL TPOS 2021 Saildrone 1066",
+    "institution": "NOAA PMEL",
+    "latitude": 19.477,
+    "longitude": -122.3345,
+    "timestamp": "2022-09-18T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1033_tpos_2022",
+    "usv_id": "SAILDRONE-SD1033_TPOS_2022",
+    "name": "NOAA PMEL TPOS 2022 Saildrone 1033",
+    "institution": "NOAA PMEL",
+    "latitude": 5.9723,
+    "longitude": -127.4769,
+    "timestamp": "2022-09-27T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1052_tpos_2022",
+    "usv_id": "SAILDRONE-SD1052_TPOS_2022",
+    "name": "NOAA PMEL TPOS 2022 Saildrone 1052",
+    "institution": "NOAA PMEL",
+    "latitude": 5.2475,
+    "longitude": -128.6417,
+    "timestamp": "2022-09-27T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1033_tpos_2022_LWR",
+    "usv_id": "SAILDRONE-SD1033_TPOS_2022_LWR",
+    "name": "NOAA PMEL TPOS 2022 Saildrone SD1033 1-minute Kipp and Zonen LWR",
+    "institution": "NOAA/PMEL",
+    "latitude": 5.9723,
+    "longitude": -127.4769,
+    "timestamp": "2022-09-27T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1052_tpos_2022_LWR",
+    "usv_id": "SAILDRONE-SD1052_TPOS_2022_LWR",
+    "name": "NOAA PMEL TPOS 2022 Saildrone SD1052 1-minute Kipp and Zonen LWR",
+    "institution": "NOAA/PMEL",
+    "latitude": 5.2475,
+    "longitude": -128.6416,
+    "timestamp": "2022-09-27T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1030_tpos_2023",
+    "usv_id": "SAILDRONE-SD1030_TPOS_2023",
+    "name": "NOAA PMEL TPOS 2023 Saildrone 1030",
+    "institution": "NOAA PMEL",
+    "latitude": 10.6912,
+    "longitude": -156.0121,
+    "timestamp": "2023-11-13T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1033_tpos_2023",
+    "usv_id": "SAILDRONE-SD1033_TPOS_2023",
+    "name": "NOAA PMEL TPOS 2023 Saildrone 1033",
+    "institution": "NOAA PMEL",
+    "latitude": 8.997,
+    "longitude": -162.0183,
+    "timestamp": "2023-11-13T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1079_tpos_2023",
+    "usv_id": "SAILDRONE-SD1079_TPOS_2023",
+    "name": "NOAA PMEL TPOS 2023 Saildrone 1079",
+    "institution": "NOAA PMEL",
+    "latitude": 8.9802,
+    "longitude": -162.0818,
+    "timestamp": "2023-11-13T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1030_tpos_2023_LWR",
+    "usv_id": "SAILDRONE-SD1030_TPOS_2023_LWR",
+    "name": "NOAA PMEL TPOS 2023 Saildrone SD1030 1-minute Kipp and Zonen LWR",
+    "institution": "NOAA/PMEL",
+    "latitude": 10.6912,
+    "longitude": -155.9615,
+    "timestamp": "2023-11-12T15:59:00Z"
+  },
+  {
+    "dataset_id": "sd1079_tpos_2023_LWR",
+    "usv_id": "SAILDRONE-SD1079_TPOS_2023_LWR",
+    "name": "NOAA PMEL TPOS 2023 Saildrone SD1079 1-minute Kipp and Zonen LWR",
+    "institution": "NOAA/PMEL",
+    "latitude": 8.9802,
+    "longitude": -162.0818,
+    "timestamp": "2023-11-04T17:53:00Z"
+  },
+  {
+    "dataset_id": "sd1033_tpos_2024",
+    "usv_id": "SAILDRONE-SD1033_TPOS_2024",
+    "name": "NOAA PMEL TPOS 2024 Saildrone 1033",
+    "institution": "NOAA/PMEL",
+    "latitude": 4.7942,
+    "longitude": -138.4294,
+    "timestamp": "2025-02-04T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1090_tpos_2024",
+    "usv_id": "SAILDRONE-SD1090_TPOS_2024",
+    "name": "NOAA PMEL TPOS 2024 Saildrone 1090",
+    "institution": "NOAA/PMEL",
+    "latitude": 4.7647,
+    "longitude": -137.2398,
+    "timestamp": "2025-02-04T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1033_tpos_2026",
+    "usv_id": "SAILDRONE-SD1033_TPOS_2026",
+    "name": "NOAA PMEL TPOS 2026 Nino 3.4 Saildrone 1033",
+    "institution": "NOAA PMEL",
+    "latitude": 16.2144,
+    "longitude": -155.9683,
+    "timestamp": "2026-09-16T09:00:00Z"
+  },
+  {
+    "dataset_id": "sd1077_tpos_2026",
+    "usv_id": "SAILDRONE-SD1077_TPOS_2026",
+    "name": "NOAA PMEL TPOS 2026 Nino 3.4 Saildrone 1077",
+    "institution": "NOAA PMEL",
+    "latitude": 16.195,
+    "longitude": -156.0906,
+    "timestamp": "2026-09-16T12:00:00Z"
+  },
+  {
+    "dataset_id": "sd1080_tpos_2026",
+    "usv_id": "SAILDRONE-SD1080_TPOS_2026",
+    "name": "NOAA PMEL TPOS 2026 Nino 3.4 Saildrone 1080",
+    "institution": "NOAA PMEL",
+    "latitude": 17.0668,
+    "longitude": -156.0941,
+    "timestamp": "2026-09-16T12:00:00Z"
+  },
+  {
+    "dataset_id": "sd1090_tpos_2026",
+    "usv_id": "SAILDRONE-SD1090_TPOS_2026",
+    "name": "NOAA PMEL TPOS 2026 Nino 3.4 Saildrone 1090",
+    "institution": "NOAA PMEL",
+    "latitude": 17.1173,
+    "longitude": -155.9686,
+    "timestamp": "2026-09-16T12:00:00Z"
+  },
+  {
+    "dataset_id": "sd1055_swfsc_2021",
+    "usv_id": "SAILDRONE-SD1055_SWFSC_2021",
+    "name": "NOAA SWFSC 2021 NRT Saildrone 1055",
+    "institution": "NOAA Southwest Fisheries Science Center",
+    "latitude": 40.9704,
+    "longitude": -122.9353,
+    "timestamp": "2021-09-27T21:59:00Z"
+  },
+  {
+    "dataset_id": "sd1059_swfsc_2021",
+    "usv_id": "SAILDRONE-SD1059_SWFSC_2021",
+    "name": "NOAA SWFSC 2021 NRT Saildrone 1059",
+    "institution": "NOAA Southwest Fisheries Science Center",
+    "latitude": 40.3594,
+    "longitude": -122.6375,
+    "timestamp": "2021-09-27T21:59:00Z"
+  },
+  {
+    "dataset_id": "sd1076_swfsc_2022",
+    "usv_id": "SAILDRONE-SD1076_SWFSC_2022",
+    "name": "NOAA SWFSC 2022 Saildrone 1076",
+    "institution": "NOAA Southwest Fisheries Science Center",
+    "latitude": 42.995,
+    "longitude": -124.7716,
+    "timestamp": "2022-08-31T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1077_swfsc_2022",
+    "usv_id": "SAILDRONE-SD1077_SWFSC_2022",
+    "name": "NOAA SWFSC 2022 Saildrone 1077",
+    "institution": "NOAA Southwest Fisheries Science Center",
+    "latitude": 43.0509,
+    "longitude": -124.9609,
+    "timestamp": "2022-08-31T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1048_swfsc_2023",
+    "usv_id": "SAILDRONE-SD1048_SWFSC_2023",
+    "name": "NOAA SWFSC 2023 Saildrone 1048",
+    "institution": "NOAA Southwest Fisheries Science Center",
+    "latitude": 40.6765,
+    "longitude": -124.1788,
+    "timestamp": "2023-09-18T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1060_swfsc_2023",
+    "usv_id": "SAILDRONE-SD1060_SWFSC_2023",
+    "name": "NOAA SWFSC 2023 Saildrone 1060",
+    "institution": "NOAA Southwest Fisheries Science Center",
+    "latitude": 39.5842,
+    "longitude": -123.2187,
+    "timestamp": "2023-09-25T03:59:00Z"
+  },
+  {
+    "dataset_id": "sd1096_swfsc_2023",
+    "usv_id": "SAILDRONE-SD1096_SWFSC_2023",
+    "name": "NOAA SWFSC 2023 Saildrone 1096",
+    "institution": "NOAA Southwest Fisheries Science Center",
+    "latitude": 41.5574,
+    "longitude": -123.428,
+    "timestamp": "2023-09-30T12:59:00Z"
+  },
+  {
+    "dataset_id": "sd1033_2019",
+    "usv_id": "SAILDRONE-SD1033_2019",
+    "name": "NOAA/PMEL 2019 Arctic Saildrone Mission, drone 1033",
+    "institution": "NOAA/PMEL; NOAA/AFSC; University of Washington",
+    "latitude": 63.4525,
+    "longitude": -163.352,
+    "timestamp": "2019-10-12T01:59:00Z"
+  },
+  {
+    "dataset_id": "sd1041_2019",
+    "usv_id": "SAILDRONE-SD1041_2019",
+    "name": "NOAA/PMEL 2019 Arctic Saildrone Mission, drone 1041",
+    "institution": "NOAA/PMEL; NOAA/AFSC; University of Washington",
+    "latitude": 59.5763,
+    "longitude": -172.4674,
+    "timestamp": "2019-10-11T11:51:00Z"
+  },
+  {
+    "dataset_id": "saildrone_2018_arctic_flux",
+    "usv_id": "SAILDRONE-SAILDRONE_2018_ARCTIC_FLUX",
+    "name": "Saildrone 2018 Arctic Flux Data",
+    "institution": "NOAA PMEL",
+    "latitude": 63.4211,
+    "longitude": -163.8138,
+    "timestamp": "2018-10-06T23:50:00Z"
+  },
+  {
+    "dataset_id": "saildrone_arctic_2018",
+    "usv_id": "SAILDRONE-SAILDRONE_ARCTIC_2018",
+    "name": "Saildrone Arctic 2018 data",
+    "institution": "NOAA/PMEL; NOAA/AFSC; University of Washington CICOES",
+    "latitude": 63.4212,
+    "longitude": -163.8131,
+    "timestamp": "2018-10-06T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd_tpos_2023_sbe56",
+    "usv_id": "SAILDRONE-SD_TPOS_2023_SBE56",
+    "name": "Saildrone SBE56 strap-on data averaged to 1-min resolution (from 0.25Hz)",
+    "institution": "NOAA PMEL",
+    "latitude": 10.6912,
+    "longitude": -155.9616,
+    "timestamp": "2024-01-02T22:24:00Z"
+  },
+  {
+    "dataset_id": "sd_tpos_2024_sbe56",
+    "usv_id": "SAILDRONE-SD_TPOS_2024_SBE56",
+    "name": "Saildrone SBE56 strap-on data averaged to 1-min resolution (from 0.25Hz)",
+    "institution": "NOAA PMEL",
+    "latitude": 4.7942,
+    "longitude": -138.4294,
+    "timestamp": "2025-02-04T23:59:00Z"
+  },
+  {
+    "dataset_id": "sd1020_adcp_arctic_2018",
+    "usv_id": "SAILDRONE-SD1020_ADCP_ARCTIC_2018",
+    "name": "Saildrone SD1020 ADCP",
+    "institution": "NOAA/PMEL",
+    "latitude": 62.6623,
+    "longitude": -165.7894,
+    "timestamp": "2018-10-06T23:36:56Z"
+  },
+  {
+    "dataset_id": "sd1021_adcp_arctic_2018",
+    "usv_id": "SAILDRONE-SD1021_ADCP_ARCTIC_2018",
+    "name": "Saildrone SD1021 ADCP",
+    "institution": "NOAA/PMEL",
+    "latitude": 63.4203,
+    "longitude": -163.7485,
+    "timestamp": "2018-10-06T23:29:58Z"
+  },
+  {
+    "dataset_id": "pmelTaoDySsd",
+    "usv_id": "SAILDRONE-PMELTAODYSSD",
+    "name": "TAO/TRITON, RAMA, and PIRATA Buoys, Daily, 1992-present, Sigma-Theta",
+    "institution": "NOAA PMEL, TAO/TRITON, RAMA, PIRATA",
+    "latitude": -2.0,
+    "longitude": 178.5,
+    "timestamp": "2026-09-02T12:00:00Z"
+  },
+  {
+    "dataset_id": "saildrone_asvco2_mode_template",
+    "usv_id": "SAILDRONE-SAILDRONE_ASVCO2_MODE_TEMPLATE",
+    "name": "TPOS 2017 Real-Time-CO2-Data",
+    "institution": "Saildrone",
+    "latitude": 9.95,
+    "longitude": -124.9,
+    "timestamp": "2017-05-22T20:19:00Z"
+  }
+]

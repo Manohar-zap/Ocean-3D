@@ -5,6 +5,7 @@ Filters valid collocations, tracks rejection statistics, and computes robust err
 (bias, RMSE, MAE, median absolute error, standard deviation) across depth bins.
 """
 from __future__ import annotations
+import os
 import math
 import logging
 import numpy as np
@@ -49,8 +50,10 @@ class ErrorAnalysisEngine:
 
         # Unique platforms
         platforms = sorted({r.platform_id for r in var_obs if r.platform_id})
+        max_eval = int(os.getenv("MAX_ERROR_ANALYSIS_PLATFORMS", "150"))
+        eval_platforms = platforms[:max_eval]
 
-        for pid in platforms:
+        for pid in eval_platforms:
             try:
                 prof_resp = collocation_engine.collocate_profile(pid, variable, dataset_id)
                 for level in prof_resp.levels:

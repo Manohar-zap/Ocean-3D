@@ -11,6 +11,7 @@ import json
 import urllib.request
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Any
+from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, FileResponse
@@ -667,6 +668,29 @@ def get_adaptive_mission_simulation(
 ):
     """Executes closed-loop step-by-step mission simulation with BEFORE vs AFTER Bayesian uncertainty reduction."""
     return mission_simulator.simulate_mission(lat, lon, depth, variable, platform)
+
+
+class IngestMissionPayload(BaseModel):
+    mission_id: str
+    platform_id: str
+    platform_type: str = "glider"
+    latitude: float
+    longitude: float
+    sampling_sequence: list[dict[str, Any]] = []
+
+
+@app.post("/api/adaptive/ingest")
+def ingest_adaptive_mission_observation(payload: IngestMissionPayload):
+    """Ingests newly collected in-situ observation profile into system store and resolves information gap."""
+    return mission_simulator.ingest_mission_observations(
+        mission_id=payload.mission_id,
+        platform_id=payload.platform_id,
+        platform_type=payload.platform_type,
+        latitude=payload.latitude,
+        longitude=payload.longitude,
+        sampling_sequence=payload.sampling_sequence,
+    )
+
 
 
 # ---------------------------------------------------------------------------

@@ -565,18 +565,7 @@ function renderGapTarget(gap) {
     missionEntities.push(entSurface);
   }
 
-  // Label at Gap Centroid
-  const lblEnt = viewer.entities.add({
-    position: positionFromLatLonDepth(gap.latitude, gap.longitude, 0),
-    label: {
-      text: `SURFACE SURVEY ZONE\n${gap.name || 'Ocean Information Gap'}\nPriority ${gap.priority_score}%`,
-      font: 'bold 11px "IBM Plex Mono", monospace', style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-      pixelOffset: new Cesium.Cartesian2(0, -40),
-      fillColor: Cesium.Color.fromCssColorString('#22d3ee'),
-      outlineColor: Cesium.Color.BLACK, outlineWidth: 3
-    }
-  });
-  missionEntities.push(lblEnt);
+  // Surface Survey Zone rendered cleanly without floating text labels
 
   // 3D Underwater Target Volume at Depth (-500m)
   const targetPos3D = positionFromLatLonDepth(gap.latitude, gap.longitude, targetDepth);

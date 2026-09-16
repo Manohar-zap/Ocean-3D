@@ -24,11 +24,6 @@ class TestCurrentVectorsLandMask(unittest.TestCase):
             driver.execute_script("state.showVectors = true; document.getElementById('ovVectors').checked = true; loadVectors();")
             time.sleep(4)
 
-            # Capture Screenshot of Current Vectors over Ocean
-            screenshot_path = 'screenshot_vectors_land_masked.png'
-            driver.save_screenshot(screenshot_path)
-            print(f'Saved vector land mask screenshot to {screenshot_path}')
-
             # Verify entities in Cesium viewer
             vector_entities_count = driver.execute_script('return vectorEntities ? vectorEntities.length : 0;')
             print(f'Rendered Ocean Vector Polylines Count: {vector_entities_count}')

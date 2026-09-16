@@ -159,7 +159,14 @@
   window.loadAdaptiveInformationGaps = async function() {
     const viewer = window.viewer; if (!viewer) return;
     try {
-      const url = apiUrl('/api/adaptive/gaps');
+      let queryStr = '';
+      if (typeof currentBounds === 'function') {
+        const b = currentBounds();
+        if (b) {
+          queryStr = `?min_lat=${b.min_lat}&max_lat=${b.max_lat}&min_lon=${b.min_lon}&max_lon=${b.max_lon}`;
+        }
+      }
+      const url = apiUrl('/api/adaptive/gaps' + queryStr);
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -302,24 +309,7 @@
         window.adaptiveState.gapEntities.push(haloEnt);
       }
 
-      // 2. High-Contrast Scientific Billboard Tag at Centroid
-      const badgePos = Cesium.Cartesian3.fromDegrees(gap.longitude, gap.latitude, 0);
-      const badgeImg = generateGapBadgeCanvas(gap);
-      const badgeEnt = viewerInstance.entities.add({
-        id: `${gap.id}_badge`,
-        position: badgePos,
-        billboard: {
-          image: badgeImg,
-          scale: isSelected ? 1.0 : 0.88,
-          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-          scaleByDistance: new Cesium.NearFarScalar(5e4, 1.0, 1.5e7, 0.75)
-        }
-      });
-      badgeEnt.gapData = gap;
-      badgeEnt.gapCentroidPos = badgePos;
-      badgeEnt.isAdaptiveGap = true;
-      window.adaptiveState.gapEntities.push(badgeEnt);
+      // Zone billboard badges removed for clean 3D globe visualization
     });
 
     setupGlobeGapOcclusion(viewerInstance);
@@ -1053,6 +1043,26 @@
         gap.priority_level = 'RESOLVED';
         clearGapEntities();
         renderGapEntitiesOnGlobe();
+      }
+
+      // Ingest new in-situ observations into backend digital twin store
+      if (this.sim && this.sim.selected_platform) {
+        fetch(apiUrl('/api/adaptive/ingest'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mission_id: this.sim.mission_id || 'MIS-AUTO',
+            platform_id: this.sim.selected_platform.instrument_id,
+            platform_type: this.sim.selected_platform.platform_type || 'glider',
+            latitude: this.sim.target?.latitude || (gap && gap.latitude) || 0.0,
+            longitude: this.sim.target?.longitude || (gap && gap.longitude) || 0.0,
+            sampling_sequence: this.sim.depth_sampling_sequence || []
+          })
+        }).then(r => r.json()).then(res => {
+          console.log('[AdaptiveMission] In-situ observations ingested into digital twin:', res);
+        }).catch(err => {
+          console.warn('[AdaptiveMission] Ingestion notification error:', err);
+        });
       }
 
       // Show Summary Modal

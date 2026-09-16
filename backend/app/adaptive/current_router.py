@@ -14,6 +14,7 @@ from typing import Any, Optional
 
 from app.storage import store
 from app.schemas import QueryFilters
+from app.adapters import is_land
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +149,7 @@ class CurrentRouterEngine:
                 rad_b = math.radians(self._calculate_bearing(lat, lon, target_lat, target_lon))
                 along = u * math.cos(rad_b) + v * math.sin(rad_b)
                 cross = abs(-u * math.sin(rad_b) + v * math.cos(rad_b))
+                cell_land = is_land(lat, lon)
                 meta[(i, j)] = {
                     "u": u,
                     "v": v,
@@ -156,6 +158,7 @@ class CurrentRouterEngine:
                     "along": along,
                     "cross": cross,
                     "risk": min(1.0, speed / 0.8 + cross / 0.5),
+                    "is_land": cell_land,
                 }
             cells.append(row)
         return cells, meta
@@ -232,6 +235,9 @@ class CurrentRouterEngine:
                         + W_RISK * risk
                         + W_DISTANCE * (distance / 200.0)
                     )
+
+                if m.get("is_land", False) and (ni, nj) != start and (ni, nj) != goal:
+                    edge += 50000.0
 
                 tentative = g_score[current] + edge
                 ncell = (ni, nj)

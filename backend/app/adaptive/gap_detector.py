@@ -32,6 +32,8 @@ class GapDetector:
         self._last_loaded_count: int = 0
         self._etopo: Optional[np.ndarray] = None
         self.last_diagnostics: dict[str, Any] = {}
+        self._cached_global_gaps: Optional[list[dict[str, Any]]] = None
+        self._cached_grid_1deg: Optional[tuple[np.ndarray, np.ndarray]] = None
 
     @staticmethod
     def _haversine_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -52,6 +54,7 @@ class GapDetector:
 
         self._obs_list = obs
         self._last_loaded_count = len(obs)
+        self._cached_global_gaps = None
 
         if obs:
             obs_coords = np.array([[r.latitude, r.longitude] for r in obs])
@@ -420,8 +423,9 @@ class GapDetector:
     def _generate_organic_polygon(
         self,
         cluster_pts: np.ndarray,
-        n_vertices: int = 28,
+        n_vertices: int = 24,
         seed: int = 42,
+        centroid: Optional[tuple[float, float]] = None,
     ) -> tuple[list[list[float]], list[list[float]], float]:
         """Generates natural organic contour polygon boundary coordinates and internal survey points,
         strictly guaranteed to reside in ocean waters using NOAA ETOPO1 bathymetry AND strictly
@@ -430,7 +434,10 @@ class GapDetector:
         rng = np.random.default_rng(seed)
         lats = cluster_pts[:, 0]
         lons = cluster_pts[:, 1]
-        c_lat, c_lon = self._ensure_ocean_centroid(cluster_pts)
+        if centroid is not None:
+            c_lat, c_lon = centroid
+        else:
+            c_lat, c_lon = self._ensure_ocean_centroid(cluster_pts)
 
         cos_c = max(0.2, math.cos(math.radians(c_lat)))
         d_lat = lats - c_lat
@@ -441,10 +448,10 @@ class GapDetector:
         # Distance from centroid to nearest real in-situ platform
         c_float_dist = self.dist_to_nearest_platform(c_lat, c_lon)
         # Max radius in degrees so that polygon boundary never comes closer than 160km to any platform
-        max_allowed_deg = max(0.8, (c_float_dist - 160.0) / 111.0)
+        max_allowed_deg = max(0.5, (c_float_dist - 160.0) / 111.0)
 
         # Base radius scaled tightly to the void points without outward ballooning
-        base_max_r = max(float(np.percentile(radii, 75)), 1.4) if len(radii) > 2 else 1.8
+        base_max_r = max(float(np.percentile(radii, 75)), 1.2) if len(radii) > 2 else 1.5
         base_max_r = min(base_max_r, max_allowed_deg)
 
         # Organic smooth contour following ocean void lobes
@@ -460,19 +467,19 @@ class GapDetector:
             nearby = radii[diffs < (math.pi / 4.5)]
             local_r = float(np.mean(nearby)) if len(nearby) > 0 else base_max_r * 0.85
 
-            wave = 1.0 + 0.12 * math.sin(3 * th + phase1) + 0.08 * math.cos(5 * th + phase2)
-            final_r = min(max_allowed_deg, max(0.6, local_r * wave))
+            wave = 1.0 + 0.10 * math.sin(3 * th + phase1) + 0.06 * math.cos(5 * th + phase2)
+            final_r = min(max_allowed_deg, max(0.35, local_r * wave))
 
             pt_lat = c_lat + final_r * math.cos(th)
             pt_lon = c_lon + (final_r / cos_c) * math.sin(th)
 
             # Ensure polygon vertex does not spill onto land OR get near any active platform
-            while (not self.is_ocean_point(pt_lat, pt_lon) or self.dist_to_nearest_platform(pt_lat, pt_lon) < 160.0) and final_r > 0.4:
-                final_r *= 0.85
+            while (not self.is_ocean_point(pt_lat, pt_lon) or self.dist_to_nearest_platform(pt_lat, pt_lon) < 160.0) and final_r > 0.3:
+                final_r *= 0.80
                 pt_lat = c_lat + final_r * math.cos(th)
                 pt_lon = c_lon + (final_r / cos_c) * math.sin(th)
 
-            if not self.is_ocean_point(pt_lat, pt_lon) or self.dist_to_nearest_platform(pt_lat, pt_lon) < 160.0:
+            if not self.is_ocean_point(pt_lat, pt_lon) or self.dist_to_nearest_platform(pt_lat, pt_lon) < 150.0:
                 pt_lat, pt_lon = c_lat, c_lon
 
             poly.append([round(float(pt_lon), 4), round(float(pt_lat), 4)])
@@ -481,13 +488,13 @@ class GapDetector:
 
         # Generate internal survey sampling dots inside the contour
         survey_dots: list[list[float]] = []
-        step = max(0.8, base_max_r * 0.35)
+        step = max(0.7, base_max_r * 0.35)
         for r_step in np.arange(step * 0.5, base_max_r * 0.90, step):
-            n_dots = max(5, int(2.0 * math.pi * r_step / step))
+            n_dots = max(4, int(2.0 * math.pi * r_step / step))
             for d_th in np.linspace(0, 2.0 * math.pi, n_dots, endpoint=False):
                 d_lat = c_lat + r_step * math.cos(d_th)
                 d_lon = c_lon + (r_step / cos_c) * math.sin(d_th)
-                if self.is_ocean_point(d_lat, d_lon) and self.dist_to_nearest_platform(d_lat, d_lon) >= 160.0:
+                if self.is_ocean_point(d_lat, d_lon) and self.dist_to_nearest_platform(d_lat, d_lon) >= 150.0:
                     survey_dots.append([round(float(d_lon), 4), round(float(d_lat), 4)])
 
         approx_area_km2 = round(math.pi * ((base_max_r * 111.0) ** 2), 0)
@@ -501,10 +508,11 @@ class GapDetector:
         max_lat: float = 90.0,
         min_lon: float = -180.0,
         max_lon: float = 180.0,
-        max_results: int = 19,
+        max_results: Optional[int] = None,
     ) -> list[dict[str, Any]]:
         """Dynamically scans the real ocean observation grid to identify observational void regions
         between active platforms, generating tight organic contour polygons where zero platforms are enclosed.
+        Ensures ALL genuine large inter-Argo voids reach polygon generation without quota or hard-cap truncation.
         Uses Local Void Extrema and Catchment Partitioning, followed by trained LightGBM ML inference
         to classify voids into Critical (RED) and Elevated (YELLOW).
         """
@@ -515,33 +523,55 @@ class GapDetector:
         if self._tree is None or not self._obs_list:
             return []
 
-        # Operational domain configuration
+        # Return cached global gap catalog if available and no specific sub-region requested
         is_global = (max_lat - min_lat >= 140.0) and (max_lon - min_lon >= 300.0)
-        step = 1.5 if is_global else 1.0
+        if is_global and self._cached_global_gaps is not None:
+            if max_results is not None and max_results > 0:
+                return self._cached_global_gaps[:max_results]
+            return self._cached_global_gaps
 
-        c_min_la = max(min_lat, -65.0) if is_global else min_lat
-        c_max_la = min(max_lat, 65.0) if is_global else max_lat
+        # 1. High-resolution operational ocean grid (1.0 deg, 65S to 65N)
+        if is_global:
+            if self._cached_grid_1deg is None:
+                lats = np.arange(-65.0, 65.0 + 0.01, 1.0)
+                lons = np.arange(-180.0, 180.0, 1.0)
+                oc = []
+                for la in lats:
+                    for lo in lons:
+                        if not is_land(la, lo) and self.is_ocean_point(la, lo):
+                            oc.append((float(la), float(lo)))
+                oc_arr = np.array(oc)
+                rad_lat = np.radians(oc_arr[:, 0])
+                rad_lon = np.radians(oc_arr[:, 1])
+                gc = np.column_stack([
+                    6371.0 * np.cos(rad_lat) * np.cos(rad_lon),
+                    6371.0 * np.cos(rad_lat) * np.sin(rad_lon),
+                    6371.0 * np.sin(rad_lat)
+                ])
+                self._cached_grid_1deg = (oc_arr, gc)
+            ocean_cells, grid_cart = self._cached_grid_1deg
+        else:
+            step = 0.75 if (max_lat - min_lat < 30.0 and max_lon - min_lon < 50.0) else 1.0
+            lats = np.arange(min_lat, max_lat + 0.01, step)
+            lons = np.arange(min_lon, max_lon + 0.01, step)
+            oc = []
+            for la in lats:
+                for lo in lons:
+                    if not is_land(la, lo) and self.is_ocean_point(la, lo):
+                        oc.append((float(la), float(lo)))
+            if not oc:
+                return []
+            ocean_cells = np.array(oc)
+            rad_lat = np.radians(ocean_cells[:, 0])
+            rad_lon = np.radians(ocean_cells[:, 1])
+            grid_cart = np.column_stack([
+                6371.0 * np.cos(rad_lat) * np.cos(rad_lon),
+                6371.0 * np.cos(rad_lat) * np.sin(rad_lon),
+                6371.0 * np.sin(rad_lat)
+            ])
 
-        lats = np.arange(c_min_la, c_max_la + 0.01, step)
-        lons = np.arange(min_lon, max_lon + 0.01, step)
-
-        ocean_cells = []
-        for la in lats:
-            for lo in lons:
-                if not is_land(la, lo) and self.is_ocean_point(la, lo):
-                    ocean_cells.append((float(la), float(lo)))
-
-        if not ocean_cells:
+        if len(ocean_cells) == 0:
             return []
-
-        ocean_cells = np.array(ocean_cells)
-        rad_lat = np.radians(ocean_cells[:, 0])
-        rad_lon = np.radians(ocean_cells[:, 1])
-        grid_cart = np.column_stack([
-            6371.0 * np.cos(rad_lat) * np.cos(rad_lon),
-            6371.0 * np.cos(rad_lat) * np.sin(rad_lon),
-            6371.0 * np.sin(rad_lat)
-        ])
 
         # 2. Geodesic distance transform to nearest in-situ platform
         dists, _ = self._tree.query(grid_cart, k=1)
@@ -559,20 +589,21 @@ class GapDetector:
         void_dists = dists[void_mask]
         void_cart = grid_cart[void_mask]
 
-        # 4. Local Extrema Extraction (Neighborhood radius = 450 km)
+        # 4. Local Extrema Extraction (Inter-void separation neighborhood = 280 km)
         void_tree = cKDTree(void_cart)
-        chord_450km = 2.0 * 6371.0 * math.sin(450.0 / (2.0 * 6371.0))
+        r_nbr = 280.0
+        chord_nbr = 2.0 * 6371.0 * math.sin(r_nbr / (2.0 * 6371.0))
 
         local_maxima_indices = []
         for i in range(len(void_coords)):
             d_i = void_dists[i]
-            nbrs = void_tree.query_ball_point(void_cart[i], r=chord_450km)
+            nbrs = void_tree.query_ball_point(void_cart[i], r=chord_nbr)
             if all(d_i >= void_dists[j] for j in nbrs):
                 local_maxima_indices.append(i)
 
         clusters_before = len(local_maxima_indices)
 
-        # 5. Catchment Basin Partitioning & Cluster Filtering
+        # 5. Catchment Basin Partitioning & Cluster Filtering (NO quotas)
         candidate_clusters = []
         discarded_reasons: dict[str, int] = {}
 
@@ -580,13 +611,13 @@ class GapDetector:
             c_la, c_lo = void_coords[lm_idx]
             c_dist = float(void_dists[lm_idx])
 
-            r_catch = min(0.85 * c_dist, 500.0)
+            r_catch = min(0.85 * c_dist, 400.0)
             chord_catch = 2.0 * 6371.0 * math.sin(r_catch / (2.0 * 6371.0))
             cell_indices = void_tree.query_ball_point(void_cart[lm_idx], r=chord_catch)
             cluster_cells = void_coords[cell_indices]
 
-            if len(cluster_cells) < 3:
-                r = "INSUFFICIENT_CELLS: only 1 or 2 cells"
+            if len(cluster_cells) < 2:
+                r = "INSUFFICIENT_CELLS: isolated single point (< 2 cells)"
                 discarded_reasons[r] = discarded_reasons.get(r, 0) + 1
                 continue
             if c_dist < 180.0:
@@ -606,53 +637,12 @@ class GapDetector:
 
         clusters_after = len(candidate_clusters)
 
-        # 6. Balanced Basin Selection for Global Queries
-        selected_clusters = []
-        if is_global:
-            critical_cands = [c for c in candidate_clusters if c["max_dist"] >= 350.0]
-            elevated_cands = [c for c in candidate_clusters if c["max_dist"] < 350.0]
-
-            basins: dict[str, list[dict[str, Any]]] = {
-                "southern": [],
-                "pacific_south": [],
-                "pacific_north": [],
-                "atlantic_south": [],
-                "atlantic_north": [],
-                "indian": [],
-                "arabian_bob": [],
-            }
-            for cl in critical_cands:
-                la, lo = cl["centroid"]
-                if la <= -45.0:
-                    basins["southern"].append(cl)
-                elif 5.0 <= la <= 25.0 and 50.0 <= lo <= 96.0:
-                    basins["arabian_bob"].append(cl)
-                elif -45.0 < la <= 25.0 and 35.0 <= lo <= 115.0:
-                    basins["indian"].append(cl)
-                elif -45.0 < la <= 0.0 and (lo < -70.0 or lo > 120.0):
-                    basins["pacific_south"].append(cl)
-                elif 0.0 < la and (lo < -100.0 or lo > 120.0):
-                    basins["pacific_north"].append(cl)
-                elif -45.0 < la <= 0.0 and -75.0 <= lo <= 25.0:
-                    basins["atlantic_south"].append(cl)
-                elif 0.0 < la and -75.0 <= lo <= 25.0:
-                    basins["atlantic_north"].append(cl)
-
-            for b_name, b_list in basins.items():
-                b_list.sort(key=lambda c: c["max_dist"], reverse=True)
-                selected_clusters.extend(b_list[:2])
-
-            # Ensure 4-5 representative Elevated (Yellow) voids
-            elevated_cands.sort(key=lambda c: c["max_dist"], reverse=True)
-            selected_clusters.extend(elevated_cands[:5])
-
-            # Fill remainder up to max_results from highest remaining void distance
-            remaining = [c for c in candidate_clusters if c not in selected_clusters]
-            remaining.sort(key=lambda c: c["max_dist"], reverse=True)
-            selected_clusters.extend(remaining[:max(0, max_results - len(selected_clusters))])
-        else:
-            candidate_clusters.sort(key=lambda c: c["max_dist"], reverse=True)
+        # 6. Candidate selection: Retain ALL genuine voids (NO quotas, NO arbitrary discarding)
+        candidate_clusters.sort(key=lambda c: c["max_dist"], reverse=True)
+        if max_results is not None and max_results > 0:
             selected_clusters = candidate_clusters[:max_results]
+        else:
+            selected_clusters = candidate_clusters
 
         # 7. Polygon Generation, ML Diagnostics, and Platform Exclusion
         gaps: list[dict[str, Any]] = []
@@ -664,7 +654,12 @@ class GapDetector:
             c_dist = cl["max_dist"]
             cluster_cells = cl["cells"]
 
-            poly, survey_dots, area_km2 = self._generate_organic_polygon(cluster_cells, seed=idx * 29 + 53)
+            poly, survey_dots, area_km2 = self._generate_organic_polygon(
+                cluster_cells,
+                n_vertices=24,
+                seed=idx * 29 + 53,
+                centroid=(c_la, c_lo),
+            )
             domain_name = self._derive_ocean_region_name(c_la, c_lo)
 
             if c_la <= -45.0 or "Southern Ocean" in domain_name:
@@ -740,6 +735,9 @@ class GapDetector:
         # Sort gaps by priority score descending
         gaps.sort(key=lambda x: x["priority_score"], reverse=True)
 
+        red_count = sum(1 for g in gaps if g["color"] == "red")
+        yellow_count = sum(1 for g in gaps if g["color"] == "yellow")
+
         self.last_diagnostics = {
             "total_ocean_cells": len(ocean_cells),
             "raw_void_cells": raw_void_cells,
@@ -751,7 +749,13 @@ class GapDetector:
             "discarded_reasons": discarded_reasons,
             "zero_platforms_enclosed": (enclosed_count == 0),
             "enclosed_platform_count": enclosed_count,
+            "final_zones_count": len(gaps),
+            "critical_red_count": red_count,
+            "elevated_yellow_count": yellow_count,
         }
+
+        if is_global and max_results is None:
+            self._cached_global_gaps = gaps
 
         return gaps
 
