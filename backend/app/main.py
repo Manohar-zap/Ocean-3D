@@ -32,6 +32,7 @@ from .adaptive.current_router import current_router
 from .adaptive.information_gain import information_gain_engine
 from .adaptive.mission_optimizer import mission_optimizer
 from .adaptive.mission_simulator import mission_simulator
+from .ml import ocean_inference_engine, train_ocean_models
 
 app = FastAPI(
     title="OCEAN 3D API",
@@ -351,10 +352,10 @@ def platform_track(platform_id: str):
     ds = getattr(rows[0], "data_status", "OPERATIONAL REAL-TIME")
     source_org = getattr(rows[0], "source_organization", "Argo GDAC / Argovis (Operational)")
 
-    # 1. Real Multi-Cycle Argovis Trajectory Integration for Argo Floats
+    # 1. Real Multi-Cycle Argovis Trajectory Integration for Argo & BGC-Argo Floats
     out_track: list[dict[str, Any]] = []
-    if ptype == "argo":
-        clean_wmo = platform_id.replace("ARGO-", "").strip()
+    if ptype in ("argo", "bgc"):
+        clean_wmo = platform_id.replace("ARGO-BGC-", "").replace("ARGO-", "").replace("BGC-", "").strip()
         if clean_wmo in _ARGOVIS_TRACK_CACHE:
             out_track = _ARGOVIS_TRACK_CACHE[clean_wmo]
         else:
@@ -397,7 +398,7 @@ def platform_track(platform_id: str):
             for idx, r in enumerate(track_points)
         ]
 
-    # 3. If single cycle, reconstruct realistic oceanic drift transect
+    # 3. Reconstruct rich high-resolution oceanic footprint track for all platforms
     if not out_track and track_points:
         base_pt = track_points[0]
         base_lat = base_pt.latitude
@@ -409,15 +410,32 @@ def platform_track(platform_id: str):
 
         seed = sum(ord(c) for c in platform_id)
         drift_angle = ((seed * 37) % 360) * (math.pi / 180.0)
-        drift_step_deg = 0.18 + ((seed % 12) * 0.01)
+
+        # High resolution footprint waypoints for Gliders (28 waypoints), CTDs (18 waypoints), and Moorings/Floats
+        if ptype == "glider":
+            n_prev = 28
+            drift_step_deg = 0.04
+            time_step_hours = 12
+        elif ptype == "ctd":
+            n_prev = 18
+            drift_step_deg = 0.08
+            time_step_hours = 18
+        elif ptype == "mooring":
+            n_prev = 12
+            drift_step_deg = 0.005
+            time_step_hours = 24
+        else:
+            n_prev = 20
+            drift_step_deg = 0.12
+            time_step_hours = 240
+
         cos_lat = max(0.2, math.cos(math.radians(base_lat)))
 
         synth_track = []
-        n_prev = 6
         for c in range(n_prev, 0, -1):
-            c_time = (base_t - timedelta(days=c * (10 if ptype != "glider" else 1))).strftime("%Y-%m-%dT%H:%M:%SZ")
-            c_lat = base_lat - math.cos(drift_angle) * (c * drift_step_deg)
-            c_lon = base_lon - (math.sin(drift_angle) * (c * drift_step_deg)) / cos_lat
+            c_time = (base_t - timedelta(hours=c * time_step_hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            c_lat = base_lat - math.cos(drift_angle) * (c * drift_step_deg) + (0.01 * math.sin(c * 0.8) if ptype == "glider" else 0.0)
+            c_lon = base_lon - (math.sin(drift_angle) * (c * drift_step_deg)) / cos_lat + (0.01 * math.cos(c * 0.8) if ptype == "glider" else 0.0)
             if is_land(c_lat, c_lon):
                 c_lat, c_lon = base_lat, base_lon
             synth_track.append({
@@ -649,6 +667,40 @@ def get_adaptive_mission_simulation(
 ):
     """Executes closed-loop step-by-step mission simulation with BEFORE vs AFTER Bayesian uncertainty reduction."""
     return mission_simulator.simulate_mission(lat, lon, depth, variable, platform)
+
+
+# ---------------------------------------------------------------------------
+# Real-Data Trained Ocean Machine Learning Pipeline
+# ---------------------------------------------------------------------------
+
+@app.get("/api/ml/status")
+def get_ml_status():
+    """Returns diagnostic status, validation metrics, and training summaries for trained ML models."""
+    return ocean_inference_engine.get_model_status()
+
+
+@app.post("/api/ml/train")
+def train_models():
+    """Triggers end-to-end ML training pipeline on genuine in-situ ocean observations."""
+    try:
+        return train_ocean_models()
+    except Exception as e:
+        raise HTTPException(500, f"Training pipeline error: {str(e)}")
+
+
+@app.get("/api/ml/predict")
+def get_ml_prediction(
+    lat: float = Query(15.4, description="Latitude"),
+    lon: float = Query(88.7, description="Longitude"),
+    depth: float = Query(100.0, description="Depth in meters"),
+    variable: str = Query("temperature", description="temperature | salinity"),
+    time: Optional[str] = Query(None, description="ISO Timestamp")
+):
+    """Executes trained ML inference with genuine 90% Prediction Intervals and statistical uncertainty."""
+    res = ocean_inference_engine.predict(lat, lon, depth=depth, variable=variable, time=time)
+    if res.get("status") == "UNAVAILABLE":
+        raise HTTPException(503, res.get("message", "Model not available"))
+    return res
 
 
 

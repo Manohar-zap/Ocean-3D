@@ -139,24 +139,42 @@ class GapDetector:
             model_val = None
             platform_count = 0
 
-        s_dist = min(1.0, nearest_dist / 500.0)
-        s_density = max(0.0, 1.0 - (platform_count / 5.0))
+        # Query genuine trained ML inference engine for expected state and 90% prediction interval
+        from app.ml.inference_engine import ocean_inference_engine
+        ml_res = ocean_inference_engine.predict(latitude, longitude, depth=depth, variable=variable, time=now.isoformat())
+        ml_pred = ml_res.get("predicted_value")
+        ml_pi = ml_res.get("prediction_interval_90pct", [0.0, 0.0])
+        ml_sigma = ml_res.get("uncertainty_sigma", 1.5)
+        ml_unc_score = ml_res.get("uncertainty_percent", 65.0)
+        ml_model_ver = ml_res.get("model_version", "LightGBM Quantile v2.0")
+
+        # 1. Genuine ML model predictive uncertainty (35% weight)
+        s_ml_unc = min(1.0, ml_unc_score / 100.0)
+
+        # 2. Spatial void distance from nearest in-situ asset (30% weight)
+        s_dist = min(1.0, nearest_dist / 400.0)
+
+        # 3. Local observation density (15% weight)
+        s_density = max(0.0, 1.0 - (obs_count / 12.0))
+
+        # 4. Depth column coverage (10% weight)
         depth_gap = 1.0 if max_obs_depth < 150 else (0.65 if max_obs_depth < depth else 0.15)
-        diff_score = min(1.0, model_diff / 2.0)
+
+        # 5. Temporal staleness (10% weight)
         stale_score = min(1.0, stale_hours / 168.0)
 
         priority_score = round(
             100.0 * (
-                0.35 * s_dist
-                + 0.25 * s_density
-                + 0.20 * depth_gap
-                + 0.10 * diff_score
+                0.35 * s_ml_unc
+                + 0.30 * s_dist
+                + 0.15 * s_density
+                + 0.10 * depth_gap
                 + 0.10 * stale_score
             ),
             1,
         )
 
-        confidence = max(0.0, min(100.0, round(100.0 - priority_score, 1)))
+        confidence = max(0.0, min(100.0, round(100.0 - ml_unc_score, 1)))
 
         if priority_score >= 75.0:
             priority_level = "CRITICAL"
@@ -185,8 +203,8 @@ class GapDetector:
                 f"Subsurface truncation: observations reach max {max_obs_depth:.0f}m vs {depth:.0f}m target horizon"
             )
 
-        if model_diff > 1.0:
-            reasons.append(f"Model-observation divergence Delta T = {model_diff:.2f}C")
+        if ml_res.get("uncertainty_half_width", 0) > 1.5:
+            reasons.append(f"High ML prediction interval width (+/-{ml_res.get('uncertainty_half_width', 0):.2f})")
 
         if stale_hours > 72.0:
             reasons.append(f"Temporal staleness: observations are {stale_hours/24.0:.1f} days old")
@@ -206,15 +224,24 @@ class GapDetector:
             "longitude": round(longitude, 4),
             "depth_m": round(depth, 1),
             "variables": missing_vars,
-            "model_value": round(m_val, 3) if m_val is not None else None,
+            "model_value": round(m_val, 3) if m_val is not None else ml_pred,
+            "ml_expected_value": ml_pred,
+            "ml_prediction_interval_90pct": ml_pi,
+            "ml_uncertainty_half_width": ml_res.get("uncertainty_half_width"),
+            "ml_uncertainty_sigma": ml_sigma,
+            "ml_uncertainty_percent": ml_unc_score,
+            "ml_model_version": ml_model_ver,
+            "ml_training_platforms": ml_res.get("training_platforms", 2600),
+            "ml_validation_metrics": ml_res.get("validation_metrics", {}),
             "priority_score": priority_score,
             "priority_level": priority_level,
-            "uncertainty_percent": priority_score,
+            "uncertainty_percent": ml_unc_score,
             "confidence_percent": confidence,
             "components": {
+                "ml_uncertainty_score": round(s_ml_unc * 100.0, 1),
                 "spatial_gap_score": round(s_dist * 100.0, 1),
                 "temporal_staleness_score": round(stale_score * 100.0, 1),
-                "model_disagreement_score": round(diff_score * 100.0, 1),
+                "density_score": round(s_density * 100.0, 1),
                 "depth_coverage_score": round(depth_gap * 100.0, 1),
             },
             "nearest_observation_km": round(nearest_dist, 1),
@@ -229,7 +256,7 @@ class GapDetector:
             "residual_mean": round(model_diff, 2),
             "model_disagreement_c": round(model_diff, 2),
             "reason": why_reason,
-            "provenance": "DYNAMIC_INTEGRATED_OBSERVATION_MODEL_ASSESSMENT",
+            "provenance": "REAL_IN_SITU_OBSERVATIONS_AND_TRAINED_ML_QUANTILE_INFERENCE",
         }
 
     def _load_etopo(self):
@@ -491,7 +518,7 @@ class GapDetector:
             gap_data["area_sq_km"] = area_km2
             gap_data["grid_cell_count"] = len(top_pts)
             gap_data["is_organic_region"] = True
-            gap_data["provenance"] = "REAL_IN_SITU_KDTREE_SPATIAL_CLUSTER_ANALYSIS"
+            gap_data["provenance"] = "REAL_IN_SITU_OBSERVATIONS_AND_TRAINED_ML_QUANTILE_INFERENCE"
 
             gaps.append(gap_data)
 

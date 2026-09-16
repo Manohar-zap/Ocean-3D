@@ -1221,31 +1221,34 @@
       <div class="adm-card">
         <div class="adm-card-hdr">
           <span>Observation Coverage & Telemetry</span>
-          <span style="font-size:9.5px; color:var(--text-dim);">INCOIS DIGITAL TWIN</span>
+          <span style="font-size:9.5px; color:#38bdf8;">REAL IN-SITU OBSERVATIONS</span>
         </div>
         <div class="adm-row"><span class="adm-label">Regional Coverage:</span><span id="admCoverage" class="adm-val" style="font-size:10.5px;">Sparse</span></div>
         <div class="adm-row"><span class="adm-label">Nearest Active Float:</span><span id="admNearest" class="adm-val" style="color:var(--adm-accent); font-size:10.5px;">ARGO-5906203</span></div>
         <div class="adm-row"><span class="adm-label">Observation Staleness:</span><span id="admStaleness" class="adm-val">18.4 days</span></div>
         <div class="adm-row"><span class="adm-label">Vertical Depth Status:</span><span id="admDepthStatus" class="adm-val" style="color:#ef4444; font-size:10.5px;">0-100m only; deep column missing</span></div>
         <div class="adm-row"><span class="adm-label">Missing Variables:</span><span id="admMissingVars" class="adm-val" style="color:var(--adm-cyan); font-size:10.5px;">Dissolved Oxygen, Salinity</span></div>
-        <div class="adm-row"><span class="adm-label">Model Disagreement:</span><span id="admDisagreement" class="adm-val" style="color:#f43f5e;">ΔT = +1.84 °C</span></div>
+        <div class="adm-row"><span class="adm-label">ML State Prediction:</span><span id="admMlPrediction" class="adm-val" style="color:#38bdf8; font-size:10.5px; font-weight:700;">10.85 °C (90% PI: [7.86, 12.76])</span></div>
+        <div class="adm-row"><span class="adm-label">ML Statistical Uncertainty:</span><span id="admMlUncertainty" class="adm-val" style="color:#f43f5e; font-weight:700;">56.5% (σ = 1.49 °C)</span></div>
       </div>
 
       <!-- Priority Factor Breakdown Bars -->
       <div class="adm-card">
         <div class="adm-card-hdr">
-          <span>Priority Factor Analysis</span>
-          <span style="font-size:9.5px; color:var(--text-dim);">0 - 100%</span>
+          <span>Target Priority Components</span>
+          <span style="font-size:9.5px; color:#38bdf8;">TRAINED ML + IN-SITU NETWORK</span>
         </div>
         <div style="display:flex; flex-direction:column; gap:4px; font-size:10.5px;">
-          <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">Spatial Distance:</span><span class="mono">40% weight</span></div>
-          <div style="background:rgba(255,255,255,0.1); height:5px; border-radius:3px; overflow:hidden;"><div id="admBarSpatial" style="height:100%; background:var(--adm-red); width:80%;"></div></div>
-          <div style="display:flex; justify-content:space-between; margin-top:2px;"><span style="color:var(--text-dim);">Temporal Staleness:</span><span class="mono">25% weight</span></div>
-          <div style="background:rgba(255,255,255,0.1); height:5px; border-radius:3px; overflow:hidden;"><div id="admBarTemporal" style="height:100%; background:var(--adm-accent); width:70%;"></div></div>
-          <div style="display:flex; justify-content:space-between; margin-top:2px;"><span style="color:var(--text-dim);">Model-Obs Discrepancy:</span><span class="mono">25% weight</span></div>
-          <div style="background:rgba(255,255,255,0.1); height:5px; border-radius:3px; overflow:hidden;"><div id="admBarDisagreement" style="height:100%; background:#fb7185; width:85%;"></div></div>
-          <div style="display:flex; justify-content:space-between; margin-top:2px;"><span style="color:var(--text-dim);">Depth Unobserved:</span><span class="mono">10% weight</span></div>
+          <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim);">ML Model Uncertainty:</span><span class="mono">35% weight</span></div>
+          <div style="background:rgba(255,255,255,0.1); height:5px; border-radius:3px; overflow:hidden;"><div id="admBarDisagreement" style="height:100%; background:#f43f5e; width:56%;"></div></div>
+          <div style="display:flex; justify-content:space-between; margin-top:2px;"><span style="color:var(--text-dim);">Spatial Void Distance:</span><span class="mono">30% weight</span></div>
+          <div style="background:rgba(255,255,255,0.1); height:5px; border-radius:3px; overflow:hidden;"><div id="admBarSpatial" style="height:100%; background:var(--adm-accent); width:70%;"></div></div>
+          <div style="display:flex; justify-content:space-between; margin-top:2px;"><span style="color:var(--text-dim);">In-Situ Network Density:</span><span class="mono">15% weight</span></div>
+          <div style="background:rgba(255,255,255,0.1); height:5px; border-radius:3px; overflow:hidden;"><div id="admBarDensity" style="height:100%; background:#fb7185; width:75%;"></div></div>
+          <div style="display:flex; justify-content:space-between; margin-top:2px;"><span style="color:var(--text-dim);">Depth Column Deficit:</span><span class="mono">10% weight</span></div>
           <div style="background:rgba(255,255,255,0.1); height:5px; border-radius:3px; overflow:hidden;"><div id="admBarDepth" style="height:100%; background:var(--adm-cyan); width:50%;"></div></div>
+          <div style="display:flex; justify-content:space-between; margin-top:2px;"><span style="color:var(--text-dim);">Temporal Staleness:</span><span class="mono">10% weight</span></div>
+          <div style="background:rgba(255,255,255,0.1); height:5px; border-radius:3px; overflow:hidden;"><div id="admBarTemporal" style="height:100%; background:#a855f7; width:65%;"></div></div>
         </div>
       </div>
 

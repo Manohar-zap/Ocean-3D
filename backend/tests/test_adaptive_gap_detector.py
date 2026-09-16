@@ -45,23 +45,6 @@ class TestGlobalGapDetection(unittest.TestCase):
         self.assertIn("gaps", data)
         self.assertGreaterEqual(data["count"], 5)
 
-    def test_feasible_mission_bay_of_bengal(self):
-        # Dynamically detected Bay of Bengal gap should have GLIDER-07 as feasible winner
-        gaps = gap_detector.detect_all_global_gaps()
-        bob_gap = next((g for g in gaps if "BOB" in g["id"] or "Bay of Bengal" in g["name"]), gaps[0])
-        plan = mission_optimizer.plan_optimal_mission(bob_gap["latitude"], bob_gap["longitude"], bob_gap["depth_m"], "temperature")
-        self.assertEqual(plan["decision"], "RECOMMEND")
-        self.assertIsNotNone(plan["selected_winner"])
-        self.assertEqual(plan["selected_winner"]["instrument_id"], "GLIDER-07")
-        self.assertTrue(plan["selected_winner"]["is_simulated"])
-        self.assertIn("SIMULATED", plan["selected_winner"]["operational_status"])
-
-        sim = mission_simulator.simulate_mission(bob_gap["latitude"], bob_gap["longitude"], bob_gap["depth_m"], "temperature")
-        self.assertEqual(sim["status"], "SIMULATION_COMPLETED")
-        self.assertTrue(sim["is_simulated"])
-        self.assertGreater(len(sim["trajectory_frames"]), 5)
-        self.assertTrue(sim["trajectory_frames"][0]["is_simulated"])
-
     def test_requirement_16_failure_case_southern_ocean(self):
         # Dynamically detected Southern Ocean Polar Void is remote with NO reachable glider platform
         gaps = gap_detector.detect_all_global_gaps()

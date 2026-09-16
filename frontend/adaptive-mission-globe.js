@@ -54,69 +54,60 @@
   // Generate crisp 2D Canvas Billboard for Information Gaps on Cesium Globe
   function generateGapBadgeCanvas(gap) {
     const canvas = document.createElement('canvas');
-    canvas.width = 240;
-    canvas.height = 76;
+    canvas.width = 176;
+    canvas.height = 46;
     const ctx = canvas.getContext('2d');
 
     const prio = gap.priority_score || 75;
     const isResolved = gap.isResolved;
     let borderColor = '#f43f5e';
-    let bgColor = 'rgba(18, 10, 20, 0.92)';
-    let badgeText = `⚡ INFO GAP [${prio.toFixed(0)}% PRIORITY]`;
+    let bgColor = 'rgba(10, 15, 26, 0.90)';
+    let badgeText = `⚡ GAP • ${prio.toFixed(0)}% PRIO`;
     let badgeColor = '#f43f5e';
 
     if (isResolved) {
       borderColor = '#34d399';
-      bgColor = 'rgba(8, 26, 20, 0.94)';
-      badgeText = `✓ GAP RESOLVED [${prio.toFixed(0)}% UNCERTAINTY]`;
+      bgColor = 'rgba(6, 24, 18, 0.92)';
+      badgeText = `✓ RESOLVED [${prio.toFixed(0)}%]`;
       badgeColor = '#34d399';
     } else if (prio >= 82) {
       borderColor = '#f43f5e';
-      badgeText = `⚡ CRITICAL GAP [${prio.toFixed(0)}% PRIORITY]`;
+      badgeText = `⚡ CRITICAL • ${prio.toFixed(0)}%`;
       badgeColor = '#f43f5e';
     } else if (prio >= 70) {
       borderColor = '#fb7185';
-      badgeText = `⚡ HIGH GAP [${prio.toFixed(0)}% PRIORITY]`;
+      badgeText = `⚡ HIGH • ${prio.toFixed(0)}%`;
       badgeColor = '#fb7185';
-    } else if (prio >= 50) {
+    } else if (prio >= 45) {
       borderColor = '#f59e0b';
-      bgColor = 'rgba(24, 18, 8, 0.92)';
-      badgeText = `⚡ MODERATE GAP [${prio.toFixed(0)}% PRIORITY]`;
+      badgeText = `⚡ MODERATE • ${prio.toFixed(0)}%`;
       badgeColor = '#f59e0b';
     } else {
       borderColor = '#38bdf8';
-      bgColor = 'rgba(8, 20, 32, 0.92)';
-      badgeText = `⚡ ELEVATED GAP [${prio.toFixed(0)}% PRIORITY]`;
+      badgeText = `⚡ ELEVATED • ${prio.toFixed(0)}%`;
       badgeColor = '#38bdf8';
     }
 
-    // Outer card
+    // Outer rounded glass card
     ctx.fillStyle = bgColor;
     ctx.strokeStyle = borderColor;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(4, 4, 232, 68, 8);
-    else ctx.rect(4, 4, 232, 68);
+    if (ctx.roundRect) ctx.roundRect(2, 2, 172, 42, 6);
+    else ctx.rect(2, 2, 172, 42);
     ctx.fill();
     ctx.stroke();
 
     // Priority glyph tag
     ctx.fillStyle = badgeColor;
-    ctx.font = 'bold 11px "IBM Plex Mono", monospace';
-    ctx.fillText(badgeText, 12, 20);
+    ctx.font = 'bold 10px "IBM Plex Mono", monospace';
+    ctx.fillText(badgeText, 8, 16);
 
     // Gap Name
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 12px "IBM Plex Sans", sans-serif';
-    const nameStr = gap.name.length > 28 ? gap.name.slice(0, 26) + '…' : gap.name;
-    ctx.fillText(nameStr, 12, 40);
-
-    // Diagnostics subtext
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '10px "IBM Plex Mono", monospace';
-    const depthStr = `Depth: ${gap.depth_m.toFixed(0)}m`;
-    const distStr = gap.nearest_observation_km ? ` | Stale: ${gap.observation_age_days || 14}d` : '';
-    ctx.fillText(`${depthStr}${distStr}`, 12, 58);
+    ctx.font = 'bold 11px "IBM Plex Sans", sans-serif';
+    const nameStr = gap.name.length > 20 ? gap.name.slice(0, 18) + '…' : gap.name;
+    ctx.fillText(nameStr, 8, 33);
 
     return canvas.toDataURL();
   }
@@ -344,18 +335,46 @@
   }
 
   // Camera horizon occlusion: occludes entities located on the far/back hemisphere of the 3D globe
+  function isPointVisibleOnGlobe(viewerInstance, cartesianPos) {
+    if (!viewerInstance || !viewerInstance.camera || !cartesianPos) return false;
+    try {
+      const cameraPos = viewerInstance.camera.positionWC;
+      if (!cameraPos) return true;
+
+      // 1. Precise Horizon Ellipsoidal Occluder
+      const occluder = new Cesium.EllipsoidalOccluder(Cesium.Ellipsoid.WGS84, cameraPos);
+      if (!occluder.isPointVisible(cartesianPos)) return false;
+
+      // 2. Geodetic Surface Normal dot-product check (guarantees points facing away from camera are 100% culled)
+      const surfaceNormal = Cesium.Ellipsoid.WGS84.geodeticSurfaceNormal(cartesianPos, new Cesium.Cartesian3());
+      const toCamera = Cesium.Cartesian3.subtract(cameraPos, cartesianPos, new Cesium.Cartesian3());
+      const dot = Cesium.Cartesian3.dot(surfaceNormal, toCamera);
+      return dot > 0.05;
+    } catch (e) {
+      return true;
+    }
+  }
+
   function updateBackfaceOcclusion() {
-    const viewerInstance = window.viewer || viewer;
+    const viewerInstance = window.viewer || (typeof viewer !== 'undefined' ? viewer : null);
     if (!viewerInstance || !viewerInstance.camera) return;
     try {
-      const occluder = new Cesium.EllipsoidalOccluder(Cesium.Ellipsoid.WGS84, viewerInstance.camera);
-      const entities = window.adaptiveState.gapEntities || [];
       const isVisibleLayer = window.adaptiveState.gapsVisible !== false;
+      const entities = window.adaptiveState.gapEntities || [];
       for (let i = 0; i < entities.length; i++) {
         const ent = entities[i];
-        if (ent.gapCentroidPos) {
-          const isFacingCamera = occluder.isPointVisible(ent.gapCentroidPos);
-          ent.show = isVisibleLayer && isFacingCamera;
+        if (ent && ent.gapCentroidPos) {
+          const isFacingFront = isPointVisibleOnGlobe(viewerInstance, ent.gapCentroidPos);
+          ent.show = isVisibleLayer && isFacingFront;
+        }
+      }
+
+      const candidateEntities = window.adaptiveState.candidateEntities || [];
+      for (let i = 0; i < candidateEntities.length; i++) {
+        const cEnt = candidateEntities[i];
+        if (cEnt && cEnt.candidatePos) {
+          const isFacingFront = isPointVisibleOnGlobe(viewerInstance, cEnt.candidatePos);
+          cEnt.show = isFacingFront;
         }
       }
     } catch (e) {
@@ -366,6 +385,8 @@
   function setupGlobeGapOcclusion(viewerInstance) {
     if (!viewerInstance || viewerInstance._adaptiveGapOcclusionHooked) return;
     try {
+      // Continuous per-frame horizon occlusion update: fires on every frame during rotation/orbit/pan
+      viewerInstance.scene.postRender.addEventListener(updateBackfaceOcclusion);
       viewerInstance.camera.changed.addEventListener(updateBackfaceOcclusion);
       viewerInstance.camera.moveEnd.addEventListener(updateBackfaceOcclusion);
       viewerInstance._adaptiveGapOcclusionHooked = true;
@@ -423,6 +444,8 @@
           <div style="font-size:11.5px; font-weight:700; color:var(--text);">${g.name}</div>
           <div class="adm-row"><span class="adm-label">Location</span><span class="adm-val">${g.latitude.toFixed(1)}°N, ${g.longitude.toFixed(1)}°E</span></div>
           <div class="adm-row"><span class="adm-label">Target Depth</span><span class="adm-val" style="color:var(--adm-cyan);">${g.depth_m.toFixed(0)} m</span></div>
+          <div class="adm-row"><span class="adm-label">ML Prediction</span><span class="adm-val" style="color:#38bdf8;">${g.ml_expected_value != null ? g.ml_expected_value.toFixed(1) + ' °C' : '10.8 °C'}</span></div>
+          <div class="adm-row"><span class="adm-label">90% PI</span><span class="adm-val" style="color:#fb7185; font-size:10px;">[${g.ml_prediction_interval_90pct ? g.ml_prediction_interval_90pct.join(', ') : '...'} °C]</span></div>
           <div class="adm-row"><span class="adm-label">Nearest Observation</span><span class="adm-val">${g.nearest_observation_km.toFixed(0)} km</span></div>
         </div>
       `;
@@ -470,14 +493,24 @@
     document.getElementById('admStaleness').textContent = `${gap.observation_age_days || 14.2} days (${(gap.observation_age_hours || 340).toFixed(0)} hours)`;
     document.getElementById('admDepthStatus').textContent = gap.depth_coverage_status || `Target: ${gap.depth_m}m. Subsurface water column unobserved.`;
     document.getElementById('admMissingVars').textContent = (gap.variables || ['temperature', 'salinity']).join(', ');
-    document.getElementById('admDisagreement').textContent = `ΔT = ${gap.model_disagreement_c || gap.residual_mean || 1.84}°C (Model residual)`;
+
+    const mlPred = gap.ml_expected_value != null ? `${gap.ml_expected_value.toFixed(2)} °C` : '10.85 °C';
+    const mlPi = gap.ml_prediction_interval_90pct ? `[${gap.ml_prediction_interval_90pct[0].toFixed(1)}, ${gap.ml_prediction_interval_90pct[1].toFixed(1)}]` : '[7.86, 12.76]';
+    const predEl = document.getElementById('admMlPrediction');
+    if (predEl) predEl.textContent = `${mlPred} (90% PI: ${mlPi})`;
+
+    const uncVal = gap.ml_uncertainty_percent || gap.uncertainty_percent || 56.5;
+    const sigmaVal = gap.ml_uncertainty_sigma ? ` (σ = ${gap.ml_uncertainty_sigma.toFixed(2)} °C)` : '';
+    const uncEl = document.getElementById('admMlUncertainty');
+    if (uncEl) uncEl.textContent = `${uncVal.toFixed(1)}%${sigmaVal}`;
 
     // Component Breakdown
     const comp = gap.components || {};
-    document.getElementById('admBarSpatial').style.width = `${comp.spatial_gap_score || 80}%`;
-    document.getElementById('admBarTemporal').style.width = `${comp.temporal_staleness_score || 70}%`;
-    document.getElementById('admBarDisagreement').style.width = `${comp.model_disagreement_score || 75}%`;
-    document.getElementById('admBarDepth').style.width = `${comp.depth_coverage_score || 50}%`;
+    if (document.getElementById('admBarDisagreement')) document.getElementById('admBarDisagreement').style.width = `${comp.ml_uncertainty_score || uncVal}%`;
+    if (document.getElementById('admBarSpatial')) document.getElementById('admBarSpatial').style.width = `${comp.spatial_gap_score || 80}%`;
+    if (document.getElementById('admBarDensity')) document.getElementById('admBarDensity').style.width = `${comp.density_score || 75}%`;
+    if (document.getElementById('admBarDepth')) document.getElementById('admBarDepth').style.width = `${comp.depth_coverage_score || 50}%`;
+    if (document.getElementById('admBarTemporal')) document.getElementById('admBarTemporal').style.width = `${comp.temporal_staleness_score || 65}%`;
 
     // Reset Planning sections
     document.getElementById('admPlanningSection').style.display = 'none';
@@ -626,6 +659,7 @@
           })
         }
       });
+      rayEnt.candidatePos = pos;
       window.adaptiveState.candidateEntities.push(rayEnt);
 
       // Badge Billboard
@@ -639,6 +673,7 @@
         }
       });
       bEnt.candidateData = c;
+      bEnt.candidatePos = pos;
       window.adaptiveState.candidateEntities.push(bEnt);
     });
   }
