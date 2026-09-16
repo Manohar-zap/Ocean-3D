@@ -438,6 +438,10 @@
             <label class="switch"><input type="checkbox" id="ovCtd" checked><span class="slider-toggle"></span></label></div>
           <div class="toggle-row"><span><img src="assets/icons/bgc.png" alt="BGC-Argo Float" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#8ee0a4"></span>BGC-Argo Floats</span>
             <label class="switch"><input type="checkbox" id="ovBgc" checked><span class="slider-toggle"></span></label></div>
+          <div class="toggle-row" style="margin-top:4px; border-top:1px solid var(--line); padding-top:8px;">
+            <span style="color:var(--danger); font-weight:600;">⚠️ Instrument Condition</span>
+            <label class="switch"><input type="checkbox" id="ovCondition"><span class="slider-toggle"></span></label>
+          </div>
         </div>
 
         <div>
@@ -461,6 +465,31 @@
               <span style="color:var(--text-dim);">Data Stream</span>
               <span id="lblTrackerMode" class="mono" style="color:var(--accent); font-weight:600;">OPERATIONAL REAL-TIME</span>
             </div>
+          </div>
+        </div>
+
+        <div id="conditionSummarySection" style="display:none;">
+          <div class="section-title">Instrument Condition Analysis</div>
+          <div id="conditionSummaryCard" style="font-size:11px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); padding:8px 10px; display:flex; flex-direction:column; gap:4px;">
+             <div style="display:flex; justify-content:space-between;">
+               <span>Total Analyzed</span>
+               <span id="condTotal" class="mono">0</span>
+             </div>
+             <div style="display:flex; justify-content:space-between; color:var(--danger);">
+               <span>Bad / Inactive</span>
+               <span id="condBad" class="mono" style="font-weight:700;">0</span>
+             </div>
+             <div style="display:flex; justify-content:space-between; color:#34d399;">
+               <span>Good / Active</span>
+               <span id="condGood" class="mono">0</span>
+             </div>
+             <div style="display:flex; justify-content:space-between; color:var(--text-dim);">
+               <span>Unknown Condition</span>
+               <span id="condUnknown" class="mono">0</span>
+             </div>
+             <div id="condNoDataMsg" style="display:none; font-size:10px; color:var(--obs); margin-top:4px; text-align:center; border-top:1px solid var(--line); padding-top:4px;">
+               Instrument condition data is not available in the current dataset.
+             </div>
           </div>
         </div>
 
@@ -1145,6 +1174,7 @@ var state = {
   showVectors: false,
   showBathymetry: false,
   showProfileLines: false,
+  showCondition: false,
   markers: {},          // platform_id -> entity
   selectedProfile: null,
   waterLevelPercent: 100,
@@ -3268,6 +3298,33 @@ async function loadPlatformTrack(platform_id){
   }
 }
 
+function classifyInstrument(m) {
+  // Logic:
+  // - Bad: quality_flag in ["suspect", "bad", "faulty", "damaged", "fail"]
+  //        OR status in ["STALE", "OFFLINE"]
+  // - Good: quality_flag == "good" AND status in ["ACTIVE", "RECENT"]
+  // - Unknown: If condition data is missing or ambiguous.
+
+  const qf = (m.quality_flag || "").toLowerCase();
+  const st = (m.status || "").toUpperCase();
+
+  const badFlags = ["suspect", "bad", "faulty", "damaged", "fail"];
+  const badStatus = ["STALE", "OFFLINE"];
+  const goodStatus = ["ACTIVE", "RECENT"];
+
+  if (!qf && !st) return "unknown";
+
+  if (badFlags.includes(qf) || badStatus.includes(st)) {
+    return "bad";
+  }
+
+  if (qf === "good" && goodStatus.includes(st)) {
+    return "good";
+  }
+
+  return "unknown";
+}
+
 async function loadObservations(){
   profileEntities.forEach(e => viewer.entities.remove(e));
   profileEntities = [];
@@ -3311,6 +3368,32 @@ async function loadObservations(){
     const res = await fetch(url);
     if(!res.ok) return;
     data = await res.json();
+  }
+
+  // Update Condition Summary (Counts calculated from REAL observation data)
+  const condStats = { total: 0, bad: 0, good: 0, unknown: 0 };
+  if (data.markers) {
+    data.markers.forEach(m => {
+      const cat = classifyInstrument(m);
+      condStats[cat]++;
+      condStats.total++;
+    });
+  }
+
+  const condTotalEl = document.getElementById("condTotal");
+  const condBadEl = document.getElementById("condBad");
+  const condGoodEl = document.getElementById("condGood");
+  const condUnknownEl = document.getElementById("condUnknown");
+  const condSection = document.getElementById("conditionSummarySection");
+
+  if (condTotalEl) condTotalEl.textContent = condStats.total;
+  if (condBadEl) condBadEl.textContent = condStats.bad;
+  if (condGoodEl) condGoodEl.textContent = condStats.good;
+  if (condUnknownEl) condUnknownEl.textContent = condStats.unknown;
+
+  // Show section if any condition data exists
+  if (condSection) {
+    condSection.style.display = (condStats.bad > 0 || condStats.good > 0) ? "block" : "none";
   }
 
   if(data.summary){
@@ -3397,8 +3480,20 @@ async function loadObservations(){
     profileEntities.push(entity);
     state.markers[m.platform_id] = entity;
 
+    // Apply condition highlighting if ON
+    if (state.showCondition && classifyInstrument(m) === 'bad') {
+      entity.billboard.color = Cesium.Color.RED;
+      entity.billboard.width = 34;
+      entity.billboard.height = 34;
+      entity.label.show = true;
+      entity.label.text = `FAULTY: ${m.platform_id}`;
+      entity.label.fillColor = Cesium.Color.RED;
+    } else if (state.showCondition) {
+      entity.show = false; // Hide non-bad when condition mode is ON
+    }
+
     // 3D Vertical Water-Column Depth Sounding Pillar descending down into the ocean
-    const canDrawPillar = isSelected || (!hasActiveSelection && state.showProfileLines && drawnPillarsCount < 10);
+    const canDrawPillar = (isSelected || (!hasActiveSelection && state.showProfileLines && drawnPillarsCount < 10)) && !state.showCondition;
     if(canDrawPillar){
       drawnPillarsCount++;
       const maxDepth = Math.min(2000.0, (m.depth && m.depth > 10 ? m.depth : 1500.0));
@@ -3575,10 +3670,11 @@ function update3DDepthCursor(){
   wcCurrentSal = sNum;
   wcCurrentDensity = densityNum;
 
-  const qc = activeSample.quality_flag ?? "good";
+  // Use actual data fields for condition reporting
+  const qc = activeSample.quality_flag || state.selectedProfile.quality_flag || "unknown";
   const ds = state.selectedProfile.data_status || activeSample.data_status || "REAL DATA";
   const obsTime = activeSample.time || state.selectedProfile.latest_time;
-  const platformStatus = state.selectedProfile.platform_status || (ptype === "GLIDER" ? "OPERATIONAL" : "OFFLINE");
+  const platformStatus = state.selectedProfile.platform_status || state.selectedProfile.status || "ACTIVE";
 
   // Format common values
   const depthStr = `${dM.toFixed(1)} m`;
@@ -3628,9 +3724,10 @@ function update3DDepthCursor(){
       ${renderObsRow("Speed", "0.35 m/s")}
 
       ${renderObsSection("QUALITY & STATUS")}
+      ${renderObsRow("Quality Status", qc, (qc === "good" ? "color:#34d399;" : "color:var(--danger);"))}
+      ${renderObsRow("Status", platformStatus, (platformStatus === "ACTIVE" || platformStatus === "RECENT" ? "color:#34d399;" : "color:var(--danger);"))}
       ${renderObsRow("Profile Date", profileDateStr)}
       ${renderObsRow("Updated Date", updatedDateStr)}
-      ${renderObsRow("Platform Status", "OPERATIONAL", "color:#34d399; font-weight:600;")}
       ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
     `;
   } else if(ptype === "CTD") {
@@ -3664,11 +3761,10 @@ function update3DDepthCursor(){
       ${renderObsRow("Sound Speed", `${soundSpeedVal.toFixed(1)} m/s`)}
 
       ${renderObsSection("QUALITY & STATUS")}
-      ${renderObsRow("QC Status", qc, "color:var(--accent);")}
+      ${renderObsRow("Quality Status", qc, (qc === "good" ? "color:#34d399;" : "color:var(--danger);"))}
+      ${renderObsRow("Status", platformStatus, (platformStatus === "ACTIVE" || platformStatus === "RECENT" ? "color:#34d399;" : "color:var(--danger);"))}
       ${renderObsRow("Cast Date", profileDateStr)}
       ${renderObsRow("Updated Date", updatedDateStr)}
-      ${renderObsRow("Station Status", "COMPLETED", "color:#34d399; font-weight:600;")}
-      ${renderObsRow("Cast Status", "RECOVERED", "color:var(--accent); font-weight:600;")}
       ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
     `;
   } else if(ptype === "BGC" || ptype === "BGC-ARGO") {
@@ -3733,10 +3829,10 @@ function update3DDepthCursor(){
       ${renderObsRow("Trajectory Timespan", `${spanDays} days`)}
 
       ${renderObsSection("QUALITY & STATUS")}
-      ${renderObsRow("Quality Status", qc, "color:var(--accent);")}
+      ${renderObsRow("Quality Status", qc, (qc === "good" ? "color:#34d399;" : "color:var(--danger);"))}
+      ${renderObsRow("Status", platformStatus, (platformStatus === "ACTIVE" || platformStatus === "RECENT" ? "color:#34d399;" : "color:var(--danger);"))}
       ${renderObsRow("Profile Date", profileDateStr)}
       ${renderObsRow("Updated Date", updatedDateStr)}
-      ${renderObsRow("Platform Status", platformStatus, "color:var(--accent); font-weight:600;")}
       ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
     `;
   } else {
@@ -3776,11 +3872,10 @@ function update3DDepthCursor(){
       ${renderObsRow("Mean Drift Speed", `${speedCmS.toFixed(1)} cm/s`)}
 
       ${renderObsSection("QUALITY & STATUS")}
-      ${renderObsRow("Quality Status", qc, "color:var(--accent);")}
-      ${renderObsRow("Profile/Cycle", cycleNum)}
+      ${renderObsRow("Quality Status", qc, (qc === "good" ? "color:#34d399;" : "color:var(--danger);"))}
+      ${renderObsRow("Status", platformStatus, (platformStatus === "ACTIVE" || platformStatus === "RECENT" ? "color:#34d399;" : "color:var(--danger);"))}
       ${renderObsRow("Profile Date", profileDateStr)}
       ${renderObsRow("Updated Date", updatedDateStr)}
-      ${renderObsRow("Platform Status", platformStatus, "color:var(--accent); font-weight:600;")}
       ${renderObsRow("Data Status", ds, "color:var(--accent); font-weight:600;")}
     `;
   }
@@ -4872,6 +4967,7 @@ async function openProfile(platform_id){
 }
 
 function restoreObservationMarkers(){
+  const showCondition = state.showCondition;
   const toggles = {
     argo: document.getElementById("ovArgo") ? document.getElementById("ovArgo").checked : true,
     mooring: document.getElementById("ovMooring") ? document.getElementById("ovMooring").checked : true,
@@ -4883,17 +4979,36 @@ function restoreObservationMarkers(){
   profileEntities.forEach(ent => {
     if(ent.userData){
       if(ent.userData.isPillar){
-        ent.show = state.showProfileLines;
+        ent.show = state.showProfileLines && !showCondition;
       } else if(ent.userData.platform_type){
         const ptype = ent.userData.platform_type.toLowerCase();
-        ent.show = toggles[ptype] !== false;
+        const isSelected = !!(state.selectedProfile && state.selectedProfile.platform_id === ent.userData.platform_id);
+
+        let conditionShow = true;
+        if (showCondition) {
+          const cat = classifyInstrument(ent.userData);
+          conditionShow = (cat === 'bad');
+        }
+
+        ent.show = (isSelected || (toggles[ptype] !== false && conditionShow));
+
         if(ent.billboard){
-          ent.billboard.width = 22;
-          ent.billboard.height = 22;
-          ent.billboard.pixelOffset = new Cesium.Cartesian2(0, 0);
+          const isBad = classifyInstrument(ent.userData) === 'bad';
+          const highlight = (showCondition && isBad);
+          ent.billboard.width = (isSelected || highlight) ? 34 : 22;
+          ent.billboard.height = (isSelected || highlight) ? 34 : 22;
+          ent.billboard.color = highlight ? Cesium.Color.RED : Cesium.Color.WHITE;
         }
         if(ent.label){
-          ent.label.show = false;
+          const isBad = classifyInstrument(ent.userData) === 'bad';
+          ent.label.show = isSelected || (showCondition && isBad);
+          if (showCondition && isBad) {
+            ent.label.text = `FAULTY: ${ent.userData.platform_id}`;
+            ent.label.fillColor = Cesium.Color.RED;
+          } else {
+            ent.label.text = ent.userData.platform_id;
+            ent.label.fillColor = Cesium.Color.WHITE;
+          }
         }
       }
     }
@@ -5021,6 +5136,10 @@ document.getElementById("ovBathymetry").onchange = (e) => {
 document.getElementById("ovProfileLines").onchange = (e) => {
   state.showProfileLines = e.target.checked;
   loadObservations();
+};
+document.getElementById("ovCondition").onchange = (e) => {
+  state.showCondition = e.target.checked;
+  restoreObservationMarkers();
 };
 
 ["ovArgo","ovMooring","ovGlider","ovCtd","ovBgc"].forEach(id => {
