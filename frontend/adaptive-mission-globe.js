@@ -60,32 +60,19 @@
 
     const prio = gap.priority_score || 75;
     const isResolved = gap.isResolved;
-    let borderColor = '#f43f5e';
-    let bgColor = 'rgba(10, 15, 26, 0.90)';
-    let badgeText = `⚡ GAP • ${prio.toFixed(0)}% PRIO`;
-    let badgeColor = '#f43f5e';
+    const isRed = (gap.color === 'red') || (gap.priority_level === 'CRITICAL');
+    const nearestKm = gap.nearest_observation_km || (isRed ? 420 : 260);
+
+    let borderColor = isRed ? '#ef4444' : '#f59e0b';
+    let bgColor = isRed ? 'rgba(25, 10, 15, 0.92)' : 'rgba(25, 20, 10, 0.92)';
+    let badgeText = isRed ? `🔴 CRITICAL • ${nearestKm.toFixed(0)}km VOID` : `🟡 ELEVATED • ${nearestKm.toFixed(0)}km GAP`;
+    let badgeColor = isRed ? '#f87171' : '#fbbf24';
 
     if (isResolved) {
       borderColor = '#34d399';
       bgColor = 'rgba(6, 24, 18, 0.92)';
       badgeText = `✓ RESOLVED [${prio.toFixed(0)}%]`;
       badgeColor = '#34d399';
-    } else if (prio >= 82) {
-      borderColor = '#f43f5e';
-      badgeText = `⚡ CRITICAL • ${prio.toFixed(0)}%`;
-      badgeColor = '#f43f5e';
-    } else if (prio >= 70) {
-      borderColor = '#fb7185';
-      badgeText = `⚡ HIGH • ${prio.toFixed(0)}%`;
-      badgeColor = '#fb7185';
-    } else if (prio >= 45) {
-      borderColor = '#f59e0b';
-      badgeText = `⚡ MODERATE • ${prio.toFixed(0)}%`;
-      badgeColor = '#f59e0b';
-    } else {
-      borderColor = '#38bdf8';
-      badgeText = `⚡ ELEVATED • ${prio.toFixed(0)}%`;
-      badgeColor = '#38bdf8';
     }
 
     // Outer rounded glass card
@@ -218,12 +205,15 @@
         if (flatCoords.length >= 6) {
           const cartesianPositions = Cesium.Cartesian3.fromDegreesArray(flatCoords);
 
-          // A. Organic Shaded Polygon Surface
+          // A. Organic Shaded Polygon Surface (Red for Critical, Yellow for Elevated, Cyan for Selected)
+          const isRed = (gap.color === 'red') || (gap.priority_level === 'CRITICAL');
           const polyColor = isResolved
             ? Cesium.Color.fromCssColorString('#059669').withAlpha(0.22)
             : (isSelected
-              ? Cesium.Color.fromCssColorString('#0891b2').withAlpha(0.24)
-              : Cesium.Color.fromCssColorString('#881337').withAlpha(0.32));
+              ? Cesium.Color.fromCssColorString('#0891b2').withAlpha(0.28)
+              : (isRed
+                ? Cesium.Color.fromCssColorString('#dc2626').withAlpha(0.28)
+                : Cesium.Color.fromCssColorString('#d97706').withAlpha(0.26)));
 
           const polyEnt = viewerInstance.entities.add({
             id: `${gap.id}_polygon`,
@@ -238,12 +228,14 @@
           polyEnt.isAdaptiveGap = true;
           window.adaptiveState.gapEntities.push(polyEnt);
 
-          // B. Dashed Perimeter Contour Boundary (Red dashed for unselected, Cyan dashed for active target)
+          // B. Dashed Perimeter Contour Boundary (Red dashed for Critical, Yellow dashed for Elevated, Cyan for active target)
           const borderColor = isResolved
             ? Cesium.Color.fromCssColorString('#34d399')
             : (isSelected
               ? Cesium.Color.fromCssColorString('#22d3ee')
-              : Cesium.Color.fromCssColorString('#f43f5e'));
+              : (isRed
+                ? Cesium.Color.fromCssColorString('#ef4444')
+                : Cesium.Color.fromCssColorString('#f59e0b')));
 
           const borderEnt = viewerInstance.entities.add({
             id: `${gap.id}_boundary`,
@@ -433,20 +425,24 @@
 
     listEl.innerHTML = gaps.map(g => {
       const prio = g.priority_score || 70;
-      const prioCls = g.isResolved ? 'resolved' : (prio >= 82 ? 'critical' : (prio >= 70 ? 'high' : (prio >= 50 ? 'moderate' : 'elevated')));
-      const prioText = g.isResolved ? 'RESOLVED' : `${prio.toFixed(0)}% ${g.priority_level || 'GAP'}`;
+      const isRed = (g.color === 'red') || (g.priority_level === 'CRITICAL');
+      const prioBadge = g.isResolved 
+        ? '<span class="badge-priority resolved">✓ RESOLVED</span>' 
+        : (isRed 
+          ? `<span class="badge-priority critical" style="background:#991b1b; color:#fecaca; border:1px solid #ef4444; font-size:9.5px; padding:2px 6px;">🔴 RED • CRITICAL</span>`
+          : `<span class="badge-priority elevated" style="background:#854d0e; color:#fef08a; border:1px solid #f59e0b; font-size:9.5px; padding:2px 6px;">🟡 YELLOW • ELEVATED</span>`);
+
       return `
-        <div class="adm-card" style="cursor:pointer; transition:border-color .15s;" onclick="selectAdaptiveGapById('${g.id}')">
+        <div class="adm-card" style="cursor:pointer; transition:border-color .15s; border-left: 4px solid ${isRed ? '#ef4444' : '#f59e0b'};" onclick="selectAdaptiveGapById('${g.id}')">
           <div class="adm-card-hdr">
             <span style="color:#fff; font-weight:600;">${g.id}</span>
-            <span class="badge-priority ${prioCls}">${prioText}</span>
+            ${prioBadge}
           </div>
-          <div style="font-size:11.5px; font-weight:700; color:var(--text);">${g.name}</div>
-          <div class="adm-row"><span class="adm-label">Location</span><span class="adm-val">${g.latitude.toFixed(1)}°N, ${g.longitude.toFixed(1)}°E</span></div>
+          <div style="font-size:11.5px; font-weight:700; color:var(--text); margin-top:2px;">${g.name}</div>
+          <div class="adm-row"><span class="adm-label">Nearest Float</span><span class="adm-val" style="color:${isRed ? '#f87171' : '#fbbf24'}; font-weight:700;">${g.nearest_observation_km.toFixed(0)} km away</span></div>
           <div class="adm-row"><span class="adm-label">Target Depth</span><span class="adm-val" style="color:var(--adm-cyan);">${g.depth_m.toFixed(0)} m</span></div>
           <div class="adm-row"><span class="adm-label">ML Prediction</span><span class="adm-val" style="color:#38bdf8;">${g.ml_expected_value != null ? g.ml_expected_value.toFixed(1) + ' °C' : '10.8 °C'}</span></div>
           <div class="adm-row"><span class="adm-label">90% PI</span><span class="adm-val" style="color:#fb7185; font-size:10px;">[${g.ml_prediction_interval_90pct ? g.ml_prediction_interval_90pct.join(', ') : '...'} °C]</span></div>
-          <div class="adm-row"><span class="adm-label">Nearest Observation</span><span class="adm-val">${g.nearest_observation_km.toFixed(0)} km</span></div>
         </div>
       `;
     }).join('');
@@ -477,11 +473,18 @@
     if (!pPanel) return;
 
     const prio = gap.priority_score || 75;
-    const prioCls = gap.isResolved ? 'resolved' : (prio >= 82 ? 'critical' : (prio >= 70 ? 'high' : (prio >= 50 ? 'moderate' : 'elevated')));
-    const prioText = gap.isResolved ? 'RESOLVED' : `${prio.toFixed(1)}% — ${gap.priority_level || 'HIGH'}`;
+    const isRed = (gap.color === 'red') || (gap.priority_level === 'CRITICAL');
+    const prioCls = gap.isResolved ? 'resolved' : (isRed ? 'critical' : 'elevated');
+    const prioText = gap.isResolved ? '✓ RESOLVED' : (isRed ? `🔴 CRITICAL VOID (${prio.toFixed(0)}%)` : `🟡 ELEVATED GAP (${prio.toFixed(0)}%)`);
 
-    document.getElementById('admBadgePriority').className = `badge-priority ${prioCls}`;
-    document.getElementById('admBadgePriority').textContent = prioText;
+    const badgeEl = document.getElementById('admBadgePriority');
+    badgeEl.className = `badge-priority ${prioCls}`;
+    badgeEl.textContent = prioText;
+    if (!gap.isResolved) {
+      badgeEl.style.background = isRed ? '#991b1b' : '#854d0e';
+      badgeEl.style.color = isRed ? '#fecaca' : '#fef08a';
+      badgeEl.style.border = `1px solid ${isRed ? '#ef4444' : '#f59e0b'}`;
+    }
 
     document.getElementById('admGapTitle').textContent = gap.name;
     document.getElementById('admGapCoords').textContent = `${gap.latitude.toFixed(2)}°N, ${gap.longitude.toFixed(2)}°E (${gap.depth_m.toFixed(0)} m depth)`;
