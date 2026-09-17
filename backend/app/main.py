@@ -438,8 +438,8 @@ def get_external_noaa_ioos_gliders(refresh: bool = False):
 
 
 @app.get("/api/observations/{platform_id}/track")
-def platform_track(platform_id: str):
-    """Chronological historical surface drift track for a single observation platform."""
+def platform_track(platform_id: str, time_end: Optional[str] = None):
+    """Chronological historical surface drift track for a single observation platform, with optional temporal cutoff."""
     rows = query_service.profile(platform_id)
     if not rows:
         raise HTTPException(404, f"No track data for platform '{platform_id}'")
@@ -451,6 +451,15 @@ def platform_track(platform_id: str):
             by_time[r.time] = r
 
     track_points = sorted(by_time.values(), key=lambda r: r.time)
+    if track_points:
+        auth_lat = track_points[-1].latitude
+        auth_lon = track_points[-1].longitude
+        coherent_track_points = [
+            r for r in track_points
+            if (math.sqrt((r.latitude - auth_lat)**2 + ((r.longitude - auth_lon) * max(0.1, math.cos(math.radians(auth_lat))))**2) * 111.0) < 2000.0
+        ]
+        if coherent_track_points:
+            track_points = coherent_track_points
     ptype = rows[0].platform_type
     ds = getattr(rows[0], "data_status", "OPERATIONAL REAL-TIME")
     source_org = getattr(rows[0], "source_organization", "Argo GDAC / Argovis (Operational)")
@@ -459,8 +468,9 @@ def platform_track(platform_id: str):
     out_track: list[dict[str, Any]] = []
     if ptype in ("argo", "bgc"):
         clean_wmo = platform_id.replace("ARGO-BGC-", "").replace("ARGO-", "").replace("BGC-", "").strip()
-        if clean_wmo in _ARGOVIS_TRACK_CACHE:
-            out_track = _ARGOVIS_TRACK_CACHE[clean_wmo]
+        cache_key = platform_id
+        if cache_key in _ARGOVIS_TRACK_CACHE:
+            out_track = _ARGOVIS_TRACK_CACHE[cache_key]
         else:
             try:
                 url = f"https://argovis-api.colorado.edu/argo?platform={clean_wmo}"
@@ -472,18 +482,36 @@ def platform_track(platform_id: str):
                         for d in argovis_data:
                             coords = d.get("geolocation", {}).get("coordinates", [])
                             if len(coords) >= 2:
+                                lat_val = round(float(coords[1]), 4)
+                                lon_val = round(float(coords[0]), 4)
+                                # Filter out unlocated cycles / missing GPS / South Pole artifacts
+                                if abs(lat_val) >= 89.0 or (lat_val == 0.0 and lon_val == 0.0):
+                                    continue
                                 pts.append({
-                                    "latitude": round(float(coords[1]), 4),
-                                    "longitude": round(float(coords[0]), 4),
+                                    "latitude": lat_val,
+                                    "longitude": lon_val,
                                     "timestamp": d.get("timestamp") or d.get("date", "2026-03-01T00:00:00Z"),
                                     "depth": 0.0,
                                     "cycle_number": d.get("cycle_number", len(pts) + 1)
                                 })
-                        pts.sort(key=lambda x: x["timestamp"])
-                        for idx, p in enumerate(pts):
-                            p["sequence_number"] = idx + 1
-                        if len(pts) >= 1:
-                            _ARGOVIS_TRACK_CACHE[clean_wmo] = pts
+                        
+                        # Validate geographic plausibility with platform observation
+                        if pts and track_points:
+                            base_lat = track_points[-1].latitude
+                            base_lon = track_points[-1].longitude
+                            min_dist_km = min(
+                                math.sqrt((p["latitude"] - base_lat)**2 + ((p["longitude"] - base_lon) * max(0.1, math.cos(math.radians(base_lat))))**2) * 111.0
+                                for p in pts
+                            )
+                            if min_dist_km > 2000.0:
+                                # WMO collision or mismatched dataset from another ocean basin -> reject external track
+                                pts = []
+
+                        if pts:
+                            pts.sort(key=lambda x: x["timestamp"])
+                            for idx, p in enumerate(pts):
+                                p["sequence_number"] = idx + 1
+                            _ARGOVIS_TRACK_CACHE[cache_key] = pts
                             out_track = pts
             except Exception:
                 pass
@@ -503,7 +531,7 @@ def platform_track(platform_id: str):
 
     # 3. Reconstruct rich high-resolution oceanic footprint track for all platforms
     if not out_track and track_points:
-        base_pt = track_points[0]
+        base_pt = track_points[-1]
         base_lat = base_pt.latitude
         base_lon = base_pt.longitude
         try:
@@ -558,15 +586,24 @@ def platform_track(platform_id: str):
         })
         out_track = synth_track
 
+    visible_track = out_track
+    if time_end and time_end.strip():
+        req_end = time_end.strip()
+        filtered = [p for p in out_track if p.get("timestamp") and p["timestamp"] <= req_end]
+        if filtered:
+            visible_track = filtered
+
     return {
         "platform_id": platform_id,
         "platform_type": ptype,
         "source": source_org,
         "data_status": ds,
-        "first_timestamp": out_track[0]["timestamp"] if out_track else None,
-        "last_timestamp": out_track[-1]["timestamp"] if out_track else None,
-        "point_count": len(out_track),
-        "track": out_track,
+        "first_timestamp": visible_track[0]["timestamp"] if visible_track else None,
+        "last_timestamp": visible_track[-1]["timestamp"] if visible_track else None,
+        "point_count": len(visible_track),
+        "full_point_count": len(out_track),
+        "track": visible_track,
+        "full_track": out_track,
     }
 
 

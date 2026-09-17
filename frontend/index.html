@@ -3125,6 +3125,7 @@ async function selectOceanDate(dateStr){
   }
 
   state.selectedDate = dateStr;
+  state.dateExplorerExplicitDate = dateStr;
   const matchingIso = (state.rawTimestamps || []).find(t => t.startsWith(dateStr)) || (dateStr + "T00:00:00Z");
   state.selectedIsoTime = matchingIso;
 
@@ -3144,6 +3145,11 @@ async function selectOceanDate(dateStr){
       loadObservations()
     ];
     await Promise.all(tasks);
+
+    // If an instrument profile is currently open, dynamically update its trajectory to the selected date boundary
+    if(state.selectedProfile && state.selectedProfile.platform_id){
+      loadPlatformTrack(state.selectedProfile.platform_id);
+    }
 
     if(statusEl){
       statusEl.textContent = `Ocean data: ${displayDate}`;
@@ -3769,22 +3775,101 @@ function calcTrackSpanDays(track){
   }
 }
 
-async function loadPlatformTrack(platform_id){
+// ---------------------------------------------------------------------
+// Instrument Marker Positioning & Trajectory Separation (Safety Architecture)
+// ---------------------------------------------------------------------
+
+function setInstrumentPosition(entity, observation){
+  if(!entity || !observation) return;
+  const ptype = (observation.platform_type || (entity.userData && entity.userData.platform_type) || "argo").toLowerCase();
+  const posHeight = ptype === "glider" ? 3000.0 : 2500.0;
+  const authPos = entity.userData && entity.userData.authoritativePosition;
+  const lat = observation.lat !== undefined ? observation.lat : (authPos ? authPos.lat : (entity.userData ? entity.userData.initialLat : undefined));
+  const lon = observation.lon !== undefined ? observation.lon : (authPos ? authPos.lon : (entity.userData ? entity.userData.initialLon : undefined));
+  if(lat !== undefined && lon !== undefined){
+    entity.position = Cesium.Cartesian3.fromDegrees(lon, lat, posHeight);
+    if(entity.userData){
+      entity.userData.lat = lat;
+      entity.userData.lon = lon;
+      if(observation.time) entity.userData.time = observation.time;
+    }
+  }
+}
+
+function getEffectiveTrajectoryCutoff(platform_id){
+  // 1. If Date Explorer has an explicit user-selected calendar date during this session, use its UTC day end
+  if(state.dateExplorerExplicitDate){
+    return new Date(state.dateExplorerExplicitDate + "T23:59:59.999Z").getTime();
+  }
+
+  // 2. Primary Anchor: Authoritative observation timestamp for this platform
+  let obsTime = null;
+  if(state.selectedProfile && state.selectedProfile.platform_id === platform_id){
+    obsTime = state.selectedProfile.latest_time || (state.selectedProfile.profile && state.selectedProfile.profile[0]?.time);
+  }
+  if(!obsTime){
+    const m = state.markers && state.markers[platform_id];
+    obsTime = m?.userData?.authoritativePosition?.time || m?.userData?.time;
+  }
+  if(obsTime){
+    return new Date(obsTime).getTime();
+  }
+
+  // 3. Fallback: selectedDate calendar day end
+  if(state.selectedDate){
+    return new Date(state.selectedDate + "T23:59:59.999Z").getTime();
+  }
+  return null;
+}
+
+function renderTrajectory(platform_id, trackData, cutoffTimestamp){
   clearPlatformTrack();
-  const res = await fetch(apiUrl(`/api/observations/${platform_id}/track`));
-  if(!res.ok) return;
-  const data = await res.json();
-  state.currentTrackData = data;
-  const track = data.track || [];
-  if(!track.length) return;
+  if(!trackData) return;
+  const fullTrack = trackData.full_track || trackData.track || [];
+  if(!fullTrack.length) return;
+  
+  // Strict chronological sort by timestamp (safety invariant)
+  const sortedTrack = fullTrack.slice().sort((a, b) => {
+    const tA = new Date(a.timestamp || 0).getTime();
+    const tB = new Date(b.timestamp || 0).getTime();
+    return tA - tB;
+  });
 
-  const ptype = (data.platform_type || "argo").toLowerCase();
+  // Temporally filter trajectory to observation/cutoff timestamp (UTC-safe epoch comparison)
+  let visibleTrack = sortedTrack;
+  if(cutoffTimestamp){
+    const cutoffMs = (typeof cutoffTimestamp === 'number') 
+      ? cutoffTimestamp 
+      : new Date(cutoffTimestamp).getTime();
+    if(!isNaN(cutoffMs)){
+      visibleTrack = sortedTrack.filter(pt => {
+        if(!pt.timestamp) return true;
+        const ptMs = new Date(pt.timestamp).getTime();
+        return !isNaN(ptMs) ? (ptMs <= cutoffMs) : true;
+      });
+    }
+  }
+
+  // If all points are future relative to cutoff, keep at least the first deployment point if available
+  if(!visibleTrack.length && sortedTrack.length > 0){
+    visibleTrack = [sortedTrack[0]];
+  }
+
+  // Preserve both full real trajectory and active visible slice in application state
+  state.currentTrackData = {
+    ...trackData,
+    track: visibleTrack,
+    full_track: sortedTrack
+  };
+  
+  const ptype = (trackData.platform_type || "argo").toLowerCase();
   const trackColorCss = ptype === "glider" ? "#38bdf8" : (ptype === "bgc" ? "#8ee0a4" : (ptype === "ctd" ? "#c084fc" : "#f59e0b"));
+  const trackHeight = ptype === "glider" ? 3000.0 : 2500.0;
 
-  if(track.length >= 2){
+  if(visibleTrack.length >= 2){
     const positions = [];
-    track.forEach(pt => {
-      positions.push(pt.longitude, pt.latitude, 2500.0);
+    visibleTrack.forEach(pt => {
+      positions.push(pt.longitude, pt.latitude, trackHeight);
     });
 
     trackEntity = viewer.entities.add({
@@ -3800,52 +3885,58 @@ async function loadPlatformTrack(platform_id){
     });
   }
 
-  // Anchor the instrument icon & vertical depth pillar at the exact END POINT of the trajectory
-  if(track.length >= 1){
-    const latestPt = track[track.length - 1];
-
-    const mEntity = state.markers[platform_id];
-    if(mEntity && latestPt){
-      const posHeight = ptype === "glider" ? 3000.0 : 2500.0;
-      mEntity.position = Cesium.Cartesian3.fromDegrees(latestPt.longitude, latestPt.latitude, posHeight);
-      if(mEntity.userData){
-        mEntity.userData.lat = latestPt.latitude;
-        mEntity.userData.lon = latestPt.longitude;
-        mEntity.userData.time = latestPt.timestamp;
-      }
-    }
-
-    profileEntities.forEach(ent => {
-      if(ent.userData && ent.userData.isPillar && ent.userData.platform_id === platform_id){
-        const maxDepth = 1500.0;
-        const targetDepthAlt = -maxDepth * 4.0 * state.verticalExaggeration;
-        ent.polyline.positions = Cesium.Cartesian3.fromDegreesArrayHeights([
-          latestPt.longitude, latestPt.latitude, 2500.0,
-          latestPt.longitude, latestPt.latitude, targetDepthAlt
-        ]);
-      }
+  // Render chronological trajectory observation cycle waypoints
+  trackPointEntities = [];
+  visibleTrack.forEach((pt, idx) => {
+    const isStart = (idx === 0);
+    const isEnd = (idx === visibleTrack.length - 1);
+    const cycleLbl = pt.cycle_number ? `C${pt.cycle_number}` : `${idx + 1}`;
+    
+    const ptEnt = viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(pt.longitude, pt.latitude, trackHeight),
+      point: {
+        pixelSize: (isStart || isEnd) ? 8 : 4.5,
+        color: isStart ? Cesium.Color.LIME : (isEnd ? Cesium.Color.CYAN : Cesium.Color.fromCssColorString(trackColorCss).withAlpha(0.85)),
+        outlineColor: Cesium.Color.BLACK,
+        outlineWidth: 1.5
+      },
+      label: (isStart || isEnd) ? {
+        text: isStart ? `START (${cycleLbl})` : `END (${cycleLbl})`,
+        font: 'bold 10px IBM Plex Mono, monospace',
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        pixelOffset: new Cesium.Cartesian2(0, isStart ? 16 : -16),
+        fillColor: isStart ? Cesium.Color.LIME : Cesium.Color.CYAN,
+        outlineColor: Cesium.Color.BLACK,
+        outlineWidth: 2,
+        scaleByDistance: new Cesium.NearFarScalar(1.0e4, 1.0, 5.0e6, 0.4)
+      } : undefined
     });
+    trackPointEntities.push(ptEnt);
+  });
+}
 
-    if(state.selectedProfile && state.selectedProfile.platform_id === platform_id && latestPt){
-      const lat = latestPt.latitude;
-      const lon = latestPt.longitude;
-      const lonOffset = 0.24 / Math.max(0.3, Math.cos(Cesium.Math.toRadians(lat)));
-      const targetLon = lon + lonOffset;
-      const bs = new Cesium.BoundingSphere(Cesium.Cartesian3.fromDegrees(targetLon, lat, 0), 0);
-      viewer.camera.flyToBoundingSphere(bs, {
-        offset: new Cesium.HeadingPitchRange(0.0, Cesium.Math.toRadians(-45.0), 220000),
-        duration: 1.0
-      });
-    }
+async function loadPlatformTrack(platform_id){
+  clearPlatformTrack();
+
+  // Cache full real trajectory in memory to allow Date Explorer updates without redundant network queries
+  let trackData = state.platformTracks && state.platformTracks[platform_id];
+  if(!trackData){
+    const res = await fetch(apiUrl(`/api/observations/${platform_id}/track`));
+    if(!res.ok) return;
+    trackData = await res.json();
+    if(!state.platformTracks) state.platformTracks = {};
+    state.platformTracks[platform_id] = trackData;
   }
 
-  // NOTE: Clutter reduction — historical cycle dots are omitted as requested.
-  // Only the clean glowing trajectory polyline above is displayed for the selected platform.
-  trackPointEntities = [];
+  // Determine temporal cutoff from authoritative observation record or Date Explorer
+  const cutoff = getEffectiveTrajectoryCutoff(platform_id);
+
+  // Render purely historical trajectory polyline bounded to observation timestamp without EVER mutating marker
+  renderTrajectory(platform_id, trackData, cutoff);
 
   // Re-render observation card with updated trajectory stats
   if(state.selectedProfile && state.selectedProfile.platform_id === platform_id){
-    updateObservationCard();
+    update3DDepthCursor();
   }
 }
 
@@ -3988,6 +4079,14 @@ async function loadObservations(){
       iconUrl: iconUrl,
       lat: m.lat,
       lon: m.lon,
+      authoritativePosition: {
+        lat: m.lat,
+        lon: m.lon,
+        time: m.time,
+        depth: m.depth
+      },
+      initialLat: m.lat,
+      initialLon: m.lon,
       status: m.status,
       data_status: m.data_status,
       time: m.time,
@@ -4023,7 +4122,11 @@ async function loadObservations(){
       });
       lineEntity.userData = {
         isPillar: true,
-        platform_id: m.platform_id
+        platform_id: m.platform_id,
+        authoritativePosition: {
+          lat: m.lat,
+          lon: m.lon
+        }
       };
       profileEntities.push(lineEntity);
     }
@@ -5640,6 +5743,8 @@ async function openProfile(platform_id){
   const res = await fetch(apiUrl(`/api/observations/${platform_id}/profile`));
   if(!res.ok) return;
   const data = await res.json();
+  // Reset explicit Date Explorer override so the newly opened observation anchors directly to its authoritative timestamp
+  state.dateExplorerExplicitDate = null;
   state.selectedProfile = data;
   const ptypeUpper = (data.platform_type || "ARGO").toUpperCase();
   let subtitle = "ARGO platform · 3D depth profile active";
@@ -5762,6 +5867,13 @@ function restoreObservationMarkers(){
           }
         }
 
+        const auth = ent.userData.authoritativePosition;
+        if(auth && auth.lat !== undefined && auth.lon !== undefined){
+          setInstrumentPosition(ent, { lat: auth.lat, lon: auth.lon, platform_type: ent.userData.platform_type, time: auth.time });
+        } else if(ent.userData.initialLat !== undefined && ent.userData.initialLon !== undefined){
+          setInstrumentPosition(ent, { lat: ent.userData.initialLat, lon: ent.userData.initialLon, platform_type: ent.userData.platform_type });
+        }
+
         ent.show = show;
         if(ent.billboard){
           ent.billboard.width = 22;
@@ -5794,6 +5906,7 @@ if(ovCond){
 document.getElementById("closeProfile").onclick = () => {
   restoreObservationMarkers();
   clearPlatformTrack();
+  state.dateExplorerExplicitDate = null;
   state.selectedProfile = null;
   state.selectedSample = null;
   state.validationData = null;
