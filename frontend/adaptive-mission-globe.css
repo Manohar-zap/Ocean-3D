@@ -11,6 +11,14 @@
   --adm-red: #f43f5e;
 }
 
+/* Suppress Cesium modal error overlay from intercepting clicks */
+.cesium-widget-errorPanel {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  z-index: -9999 !important;
+}
+
 /* 1. Right-side Slide-in Adaptive Mission Panel */
 #adaptiveMissionPanel {
   position: absolute;
@@ -39,19 +47,24 @@
 }
 #adaptiveMissionPanel .close-btn {
   position: absolute;
-  top: 14px;
-  right: 14px;
-  background: transparent;
-  border: none;
-  color: var(--text-dim);
-  font-size: 18px;
+  top: 10px;
+  right: 12px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 4px 10px;
   border-radius: 4px;
+  z-index: 1000;
+  pointer-events: auto;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 #adaptiveMissionPanel .close-btn:hover {
   color: #fff;
-  background: rgba(255, 255, 255, 0.1);
+  background: #ef4444;
+  border-color: #ef4444;
 }
 
 /* Mission card container */
@@ -406,31 +419,57 @@
   font-weight: 700;
 }
 
+.pb-cam-btn {
+  transition: all 0.18s ease;
+  user-select: none;
+}
+.pb-cam-btn:hover {
+  filter: brightness(1.25);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+}
+.pb-cam-btn.free {
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #94a3b8 !important;
+  box-shadow: none !important;
+}
+.pb-cam-btn.free:hover {
+  border-color: var(--adm-teal) !important;
+  color: #fff !important;
+  background: rgba(63, 224, 197, 0.15) !important;
+}
+
 /* 7. Modal Cards (Candidate Feasibility & Final Summary) */
 .adm-modal-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  z-index: 50;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(4, 10, 20, 0.82);
+  z-index: 10000;
   display: none;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
 }
 .adm-modal-backdrop.open {
   display: flex;
 }
 .adm-modal-box {
-  width: 520px;
-  max-width: 92vw;
+  width: 540px;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
   background: var(--adm-panel);
   border: 1px solid var(--adm-line);
   border-radius: 8px;
-  padding: 20px;
+  padding: 22px;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.9);
+  z-index: 10001;
 }
 .adm-modal-hdr {
   display: flex;
@@ -446,4 +485,36 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* Fleet filter pill buttons */
+.adm-filter-bar {
+  display: flex;
+  gap: 5px;
+  margin: 6px 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.adm-pfilter {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--adm-line);
+  color: var(--text-dim);
+  font-size: 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+.adm-pfilter:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+.adm-pfilter.active {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: var(--adm-cyan);
+  color: var(--adm-cyan);
+  font-weight: 700;
 }

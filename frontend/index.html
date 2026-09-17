@@ -17,6 +17,7 @@
 <script src="assets/ocean_mask_data.js"></script>
 <script src="assets/ocean_flow.js"></script>
 <script src="adaptive-mission-globe.js"></script>
+<script src="vehicle-missions.js"></script>
 <link rel="stylesheet" href="assets/intro.css">
 <script src="assets/intro.js" defer></script>
 
@@ -418,6 +419,7 @@
     <div class="subtitle fisher-only" style="display:none;">Operational Marine Intelligence & Fishery Dashboard — INCOIS</div>
     <div class="modeswitch" id="mainViewSwitcher" style="margin-right:8px;">
       <button id="btnViewGIS" class="active" title="Cesium 3D Globe with live ARGO floats, Gliders, and CTD profiles">🌍 Satellite GIS View</button>
+      <button id="btnViewTerrain" title="3D Deformed Earth Without Water & Dynamic Water Level Terrain">🌐 3D Water Level & Geoid Terrain</button>
       <button id="btnNavAdaptiveMission" title="Open Closed-Loop Adaptive Mission Planner Workspace">🚀 Adaptive Mission</button>
     </div>
     <button id="btnOpenOceanStories" style="background:rgba(63, 224, 197, 0.15); border:1px solid var(--accent); color:var(--accent); font-family:inherit; font-size:12px; font-weight:600; padding:5px 11px; border-radius:var(--radius); cursor:pointer; display:flex; align-items:center; gap:6px; margin-right:8px;">
@@ -437,6 +439,7 @@
       <!-- Modern Navigation Tabs -->
       <div class="sidebar-tabs">
         <button class="sidebar-tab active" data-tab="tab-gis" id="tabBtnGis">🧭 3D GIS</button>
+        <button class="sidebar-tab" data-tab="tab-physics" id="tabBtnPhysics">🌊 Physics</button>
         <button class="sidebar-tab" data-tab="tab-fleet" id="tabBtnFleet">📡 Fleet Data</button>
       </div>
 
@@ -481,6 +484,45 @@
             <label class="switch"><input type="checkbox" id="ovIndiaEEZ" checked><span class="slider-toggle"></span></label></div>
           <div class="toggle-row"><span>🌊 Animated Ocean Currents</span>
             <label class="switch"><input type="checkbox" id="ovVectors"><span class="slider-toggle"></span></label></div>
+          <div class="toggle-row"><span><span class="swatch" style="background:#ef4444; box-shadow:0 0 6px #ef4444;"></span>Pixel Raster Gap Heatmap</span>
+            <label class="switch"><input type="checkbox" id="ovRasterGapsGis" onchange="syncRasterGapToggle(this.checked)"><span class="slider-toggle"></span></label></div>
+          <div class="toggle-row"><span>🏔️ Seabed Bathymetry (GEBCO 2024)</span>
+            <label class="switch"><input type="checkbox" id="ovBathymetry"><span class="slider-toggle"></span></label></div>
+          <div class="toggle-row"><span>🧊 3D Isosurface Preview</span>
+            <label class="switch"><input type="checkbox" id="ovIsosurface"><span class="slider-toggle"></span></label></div>
+        </div>
+      </div>
+
+      <!-- TAB 2: PHYSICS, WATER LEVEL & 3D TERRAIN CONTROLS -->
+      <div id="tab-physics" class="tab-pane" style="display:none;">
+        <div class="field" id="seaLevelPanel" style="background:var(--panel-2); padding:10px; border-radius:var(--radius); border:1px solid var(--line);">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label style="margin:0; font-weight:600; color:var(--text); font-size:11.5px;">Water Level / Ocean Drain</label>
+            <span id="slDisplayValue" class="mono" style="color:var(--accent); font-weight:700; font-size:11.5px;">100% (Normal)</span>
+          </div>
+          <div style="font-size:9.5px; color:var(--text-dim); margin:3px 0 6px 0; line-height:1.3;">
+            Simulate global ocean drainage down to 0% to reveal the Potsdam Gravity Geoid ("Earth Without Water").
+          </div>
+          <input type="range" id="waterLevelSlider" min="0" max="100" step="1" value="100" aria-label="Water Level Slider">
+
+          <div style="display:flex; gap:4px; margin-top:6px;">
+            <button class="action" id="btnDrainOcean" style="flex:1; padding:4px; font-size:10px; background:rgba(239, 68, 68, 0.15); border-color:#ef4444; color:#ef4444; font-weight:600;">Drained (0%)</button>
+            <button class="action" id="btnNormalOcean" style="flex:1; padding:4px; font-size:10px;">Normal (100%)</button>
+          </div>
+          <div style="display:flex; gap:4px; margin-top:4px;">
+            <button class="action" id="btnSidebarDrainAnim" style="flex:1; padding:4px; font-size:10px; background:rgba(63, 224, 197, 0.15); border-color:#3fe0c5; color:#3fe0c5; font-weight:600;">▶ Play Drain Anim</button>
+            <button class="action" id="btnSidebarSwitchTerrain" style="flex:1; padding:4px; font-size:10px; background:rgba(142, 201, 224, 0.15); border-color:#8ec9e0; color:#8ec9e0; font-weight:600;">🌐 3D Terrain View</button>
+          </div>
+          <div id="waterLevelStats" style="font-size:9.5px; color:var(--text-dim); margin-top:6px; display:flex; justify-content:space-between;">
+            <span>State: <strong id="wlStateText" style="color:var(--text);">Normal Oceans</strong></span>
+            <span>Impact: <strong id="wlImpactText" style="color:var(--accent);">0 km²</strong></span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="exagSlider">Vertical Relief Exaggeration (<span id="exagValue">1.0x</span>)</label>
+          <div style="font-size:10px; color:var(--text-dim); margin-top:1px; margin-bottom:4px;">Scale factor for bathymetry ridges, current vectors & sounding columns</div>
+          <input type="range" id="exagSlider" min="0.5" max="4.0" step="0.1" value="1.0" aria-label="Vertical Relief Exaggeration">
         </div>
       </div>
 
@@ -498,6 +540,12 @@
             <label class="switch"><input type="checkbox" id="ovGlider" checked><span class="slider-toggle"></span></label></div>
           <div class="toggle-row"><span><img src="assets/icons/ctd.png" alt="Shipboard CTD Cast" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#c58ee0"></span>Shipboard CTD Casts</span>
             <label class="switch"><input type="checkbox" id="ovCtd" checked><span class="slider-toggle"></span></label></div>
+          <div class="toggle-row"><span><span class="swatch" style="background:#00e5ff; box-shadow:0 0 6px #00e5ff;"></span>⬡ AUV (Submersible)</span>
+            <label class="switch"><input type="checkbox" id="ovAUV" checked><span class="slider-toggle"></span></label></div>
+          <div class="toggle-row"><span><span class="swatch" style="background:#a855f7; box-shadow:0 0 6px #a855f7;"></span>⬢ UUV (Subsea Patrol)</span>
+            <label class="switch"><input type="checkbox" id="ovUUV" checked><span class="slider-toggle"></span></label></div>
+          <div class="toggle-row"><span><span class="swatch" style="background:#ff9100; box-shadow:0 0 6px #ff9100;"></span>⬡ ROV (Tethered Arm)</span>
+            <label class="switch"><input type="checkbox" id="ovROV" checked><span class="slider-toggle"></span></label></div>
           <div class="toggle-row" style="margin-top:8px; border-top:1px solid var(--line); padding-top:6px;">
             <span><span class="swatch" style="background:#ef4444"></span>Instrument Condition Inspection</span>
             <label class="switch"><input type="checkbox" id="ovCondition"><span class="slider-toggle"></span></label></div>
@@ -524,6 +572,9 @@
               <div>MOORING: <span id="cntMooring" class="mono" style="color:#38bdf8; font-weight:600;">0</span></div>
               <div>GLIDER: <span id="cntGlider" class="mono" style="color:#8ec9e0; font-weight:600;">0</span></div>
               <div>CTD: <span id="cntCtd" class="mono" style="color:#c58ee0; font-weight:600;">0</span></div>
+              <div>AUV: <span id="cntAuv" class="mono" style="color:#00e5ff; font-weight:600;">2</span></div>
+              <div>UUV: <span id="cntUuv" class="mono" style="color:#a855f7; font-weight:600;">2</span></div>
+              <div>ROV: <span id="cntRov" class="mono" style="color:#ff9100; font-weight:600;">2</span></div>
             </div>
             <div style="display:flex; justify-content:space-between; margin-top:2px; padding-top:4px; border-top:1px solid var(--line); font-weight:600;">
               <span>ACTIVE PLATFORMS</span>
@@ -572,9 +623,45 @@
 
       <!-- TAB 4: ADAPTIVE INFORMATION GAPS & MISSIONS -->
       <div id="tab-adaptive" class="tab-pane" style="display:none;">
-        <div class="section-title">Detected Ocean Information Gaps</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <div class="section-title" style="margin:0;">Ocean Information Gaps</div>
+          <button id="btnOpenMissionWorkspace" onclick="window.openFullMissionWorkspace()" style="font-size:11px; color:#f59e0b; font-weight:700; display:flex; align-items:center; gap:4px; padding:4px 8px; border:1px solid #f59e0b; border-radius:3px; background:rgba(245,158,11,0.18); cursor:pointer;" title="Activate Full 3D Mission Control on Same Page">
+            <span>🚀 3D Workspace</span>
+          </button>
+        </div>
         <div style="font-size:10px; color:var(--text-dim); line-height:1.4;">
           Regions where observational density, staleness, depth coverage, or model disagreement warrant autonomous sampling missions. Click any gap to inspect & plan.
+        </div>
+
+        <!-- RASTER PIXEL GAP & DENSITY HEATMAP CONTROL -->
+        <div style="background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); padding:8px; margin:8px 0 6px 0; display:flex; flex-direction:column; gap:6px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:11px; font-weight:700; color:#fff; display:flex; align-items:center; gap:5px;">
+              <span class="swatch" style="background:#ef4444; box-shadow:0 0 6px #ef4444;"></span>
+              Pixel Raster Void Heatmap
+            </span>
+            <label class="switch">
+              <input type="checkbox" id="ovRasterGaps" onchange="toggleRasterGapHeatmap(this.checked)">
+              <span class="slider-toggle"></span>
+            </label>
+          </div>
+          <div style="font-size:9.5px; color:var(--text-dim); line-height:1.3;">
+            Scans 524k ocean pixels globally to locate observation voids (&gt;400 km) directly from in-situ platform density.
+          </div>
+          <div id="rasterGapControls" style="display:none; flex-direction:column; gap:6px; margin-top:2px; border-top:1px solid var(--line); padding-top:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
+              <span style="color:var(--text-dim);">Float Search Radius:</span>
+              <span id="rasterRadiusLabel" class="mono" style="color:var(--accent); font-weight:700;">400 km</span>
+            </div>
+            <input type="range" id="rasterRadiusSlider" min="150" max="800" step="25" value="400" oninput="onRasterRadiusChange(this.value)" style="width:100%; accent-color:var(--accent);">
+            <div style="display:flex; justify-content:space-between; font-size:9.5px; font-family:'IBM Plex Mono',monospace; background:rgba(0,0,0,0.25); padding:4px 6px; border-radius:3px;">
+              <span>Ocean Void: <strong id="rasterVoidPct" style="color:#ef4444;">--%</strong></span>
+              <span>Observed: <strong id="rasterObsPct" style="color:#34d399;">--%</strong></span>
+            </div>
+            <button class="action" onclick="focusLargestRasterVoid()" style="padding:4px; font-size:10px; background:rgba(239,68,68,0.18); border-color:#ef4444; color:#ef4444; font-weight:700; width:100%; cursor:pointer;">
+              🎯 Focus Largest Detected Void
+            </button>
+          </div>
         </div>
         <div id="adaptiveGapList" style="display:flex; flex-direction:column; gap:6px;">
           <div style="font-size:11px; color:var(--text-dim); padding:8px;">Analyzing global ocean telemetry...</div>
@@ -930,6 +1017,56 @@
 
   <main>
     <div id="cesiumContainer"></div>
+    <div id="terrainGlobeContainer" style="position:absolute; inset:0; display:none; z-index:3; background:radial-gradient(circle at 50% 50%, #081626 0%, #020710 100%);">
+      <!-- Floating HUD & Control bar for 3D Water Level & Earth Without Water -->
+      <div id="terrainHud" style="position:absolute; top:14px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:10px; background:rgba(8, 20, 32, 0.92); border:1px solid rgba(255,255,255,0.18); border-radius:6px; padding:6px 14px; box-shadow:0 4px 20px rgba(0,0,0,0.6); z-index:10; white-space:nowrap;">
+        <span id="terrainHudTitle" style="font-weight:700; font-size:12px; color:#3fe0c5; font-family:'IBM Plex Mono', monospace; letter-spacing:0.5px;">3D WATER LEVEL TERRAIN</span>
+        <span style="color:rgba(255,255,255,0.3);">|</span>
+        <span id="terrainHudSeaLevel" class="mono" style="font-size:12px; color:#ffffff; font-weight:600;">Sea Level: 0 m (100% Normal)</span>
+        <span style="color:rgba(255,255,255,0.3);">|</span>
+        <button id="btnTerrainAnim" class="action" style="padding:4px 8px; font-size:11px; width:auto; background:rgba(63, 224, 197, 0.2); border-color:#3fe0c5; color:#3fe0c5; font-weight:600;">▶ Play Drain</button>
+        <button id="btnTerrainAutoRotate" class="action" style="padding:4px 8px; font-size:11px; width:auto;">⟳ Rotate</button>
+      </div>
+
+      <!-- Quick viewpoint preset buttons -->
+      <div id="terrainCameraBar" style="position:absolute; bottom:16px; left:50%; transform:translateX(-50%); display:flex; gap:6px; z-index:10; background:rgba(8,20,32,0.85); padding:6px 10px; border-radius:6px; border:1px solid rgba(255,255,255,0.12); white-space:nowrap;">
+        <button id="btnCamIOGL" class="action" style="padding:4px 8px; font-size:11px; width:auto;">🇮🇳 Indian Ocean Low</button>
+        <button id="btnCamNA" class="action" style="padding:4px 8px; font-size:11px; width:auto;">🇪🇺 North Atlantic High</button>
+        <button id="btnCamMAR" class="action" style="padding:4px 8px; font-size:11px; width:auto;">🌊 Mid-Atlantic Ridge</button>
+        <button id="btnCamOverview" class="action" style="padding:4px 8px; font-size:11px; width:auto;">🌏 Reference Overview</button>
+      </div>
+
+      <!-- Informational callout box -->
+      <div id="terrainInfoCallout" style="position:absolute; top:60px; left:16px; width:270px; background:rgba(7, 16, 25, 0.90); border:1px solid rgba(255,255,255,0.14); border-radius:6px; padding:10px 12px; font-size:11px; z-index:10; pointer-events:none; box-shadow:0 4px 16px rgba(0,0,0,0.5);">
+        <div style="font-weight:700; color:#3fe0c5; margin-bottom:4px; font-size:11.5px; display:flex; justify-content:space-between; align-items:center;">
+          <span>EARTH WITHOUT WATER</span>
+          <span style="font-size:9px; background:rgba(242, 166, 90, 0.2); color:#f2a65a; padding:1px 4px; border-radius:2px;">GFZ POTSDAM GEOID</span>
+        </div>
+        <div id="terrainCalloutPhase" style="color:#ffffff; font-weight:600; margin-bottom:4px;">Phase: Normal Ocean Surface</div>
+        <div id="terrainCalloutDesc" style="color:#94a3b8; line-height:1.4;">Water surface is at normal sea level (0 m). Use the Water Level slider in the sidebar to physically sink the 3D ocean water surface and expose the deformed seabed bedrock underneath.</div>
+        <div style="margin-top:8px; border-top:1px solid rgba(255,255,255,0.08); padding-top:6px; display:flex; justify-content:space-between; font-size:10px;">
+          <span style="color:#94a3b8;">Exposed Seabed:</span>
+          <span id="terrainCalloutExposed" class="mono" style="color:#3fe0c5; font-weight:600;">0 km²</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RASTER VOID HEATMAP FLOATING HUD -->
+    <div id="rasterGapGlobeHUD" style="display:none; position:absolute; bottom:52px; left:12px; z-index:4; background:rgba(7,16,25,0.88); border:1px solid rgba(239,68,68,0.45); border-radius:4px; padding:8px 12px; backdrop-filter:blur(8px); box-shadow:0 4px 20px rgba(0,0,0,0.6); max-width:320px; font-size:11px; color:#fff;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:4px;">
+        <span style="font-weight:700; color:#ef4444; display:flex; align-items:center; gap:5px;">
+          <span>🛰️</span>
+          <span>PIXEL RASTER VOID HEATMAP</span>
+        </span>
+        <button onclick="toggleRasterGapHeatmap(false)" style="background:transparent; border:none; color:var(--text-dim); cursor:pointer; font-size:13px; padding:0 4px;" title="Close Raster Heatmap">✕</button>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:10px; font-family:'IBM Plex Mono',monospace;">
+        <div>Radius: <span id="hudRasterRadius" style="color:var(--accent); font-weight:700;">400 km</span></div>
+        <div>Largest Void: <span id="hudRasterLargest" style="color:#ef4444; font-weight:700;">--</span></div>
+        <div>Global Coverage: <span id="hudRasterCoverage" style="color:#34d399; font-weight:700;">--</span></div>
+        <div>Void Area: <span id="hudRasterVoidArea" style="color:#f59e0b; font-weight:700;">--</span></div>
+      </div>
+    </div>
     <div id="hint">Drag to orbit Earth globe · scroll to zoom · click an observation platform to inspect</div>
     <div id="depthDisplayBanner">Depth : -0 m</div>
     <div id="coordsReadout" class="mono">Position: 0.00°N, 20.00°E | Global 3D Ocean Globe Workspace</div>
@@ -1221,6 +1358,11 @@
         <button class="pb-speed-btn" data-speed="2.0">2x</button>
         <button class="pb-speed-btn" data-speed="4.0">4x</button>
       </div>
+      <!-- Camera Freedom Toggle Button - defaults to TOP view matching camMode='TOP' in JS -->
+      <button id="btnPbCamMode" class="pb-cam-btn" title="Current View: Top-Down Aerial (85° Overhead). Click to switch to Chase 3D." style="display:flex; align-items:center; gap:5px; font-size:10px; font-weight:700; padding:4px 9px; border-radius:12px; border:1px solid #38bdf8; background:rgba(56,189,248,0.2); color:#38bdf8; cursor:pointer; font-family:'IBM Plex Mono',monospace; white-space:nowrap; transition:all 0.15s ease;">
+        <span id="pbCamModeIcon">🛰️</span>
+        <span id="pbCamModeText">Camera: Top View</span>
+      </button>
     </div>
 
     <!-- Right Slide-in Focused Adaptive Mission & Information Gap Panel -->
@@ -1877,11 +2019,26 @@ function switchMainView(mode){
     if(sidebarTabs) sidebarTabs.style.display = "none";
     tabPanes.forEach(p => p.style.display = (p.id === "tab-adaptive" ? "flex" : "none"));
 
-    if (window.adaptiveState && window.adaptiveState.gaps && window.adaptiveState.gaps.length > 0) {
-      if (typeof window.selectAdaptiveGap === 'function') {
-        window.selectAdaptiveGap(window.adaptiveState.gaps[0]);
-      }
+    if(typeof window.populateAdaptiveSidebarTab === 'function') {
+      window.populateAdaptiveSidebarTab();
     }
+
+    const selectBestGap = () => {
+      if(typeof window.populateAdaptiveSidebarTab === 'function') {
+        window.populateAdaptiveSidebarTab();
+      }
+      const gaps = (window.adaptiveState && window.adaptiveState.gaps) || [];
+      if (!gaps.length) return;
+      // Prioritize an active gap with controllable vehicles nearby (Arabian Sea, Bay of Bengal)
+      const target = gaps.find(g => (g.name && (g.name.includes('Arabian Sea') || g.name.includes('Bay of Bengal'))) && g.latitude >= 5 && g.latitude <= 23 && g.longitude >= 65 && g.longitude <= 92)
+                  || gaps.find(g => 5 <= g.latitude && g.latitude <= 23 && 65 <= g.longitude && g.longitude <= 92)
+                  || gaps[0];
+      if (typeof window.selectAdaptiveGap === 'function' && target) {
+        window.selectAdaptiveGap(target);
+      }
+    };
+
+    selectBestGap();
   } else {
     // GIS Mode
     if(cContainer) cContainer.style.display = "block";
@@ -1896,6 +2053,33 @@ function switchMainView(mode){
     tabPanes.forEach(p => p.style.display = (p.id === activeTabId ? "flex" : "none"));
   }
 }
+
+window.openFullMissionWorkspace = async function() {
+  if (state.mainView !== 'adaptive') {
+    switchMainView('adaptive');
+  }
+  if ((!window.adaptiveState || !window.adaptiveState.gaps || window.adaptiveState.gaps.length === 0) && typeof window.loadAdaptiveInformationGaps === 'function') {
+    try {
+      await window.loadAdaptiveInformationGaps();
+    } catch(e) {
+      console.warn('Failed loading gaps in openFullMissionWorkspace:', e);
+    }
+  }
+  const gaps = (window.adaptiveState && window.adaptiveState.gaps) || [];
+  let target = window.adaptiveState?.selectedGap;
+  if (!target || !((target.name && (target.name.includes('Arabian Sea') || target.name.includes('Bay of Bengal'))) && target.latitude >= 5 && target.latitude <= 23 && target.longitude >= 65 && target.longitude <= 92)) {
+    if (gaps.length > 0) {
+      target = gaps.find(g => (g.name && (g.name.includes('Arabian Sea') || g.name.includes('Bay of Bengal'))) && g.latitude >= 5 && g.latitude <= 23 && g.longitude >= 65 && g.longitude <= 92)
+            || gaps.find(g => 5 <= g.latitude && g.latitude <= 23 && 65 <= g.longitude && g.longitude <= 92)
+            || gaps[0];
+    }
+  }
+  if (target && typeof window.selectAdaptiveGap === 'function') {
+    window.selectAdaptiveGap(target);
+  }
+  const panel = document.getElementById('adaptiveMissionPanel');
+  if (panel) panel.classList.add('open');
+};
 
 function updateTerrainCamera(){
   if(!terrainCamera) return;
@@ -2708,6 +2892,16 @@ async function initCesiumGlobe(){
   viewer.scene.screenSpaceCameraController.maximumZoomDistance = 22000000.0; // 22,000 km max distance from Earth
   viewer.scene.screenSpaceCameraController.minimumZoomDistance = 100.0;     // 100 meters min distance
 
+  // Suppress Cesium modal error overlay from blocking UI interactions
+  if (viewer.cesiumWidget && viewer.cesiumWidget.showErrorPanel) {
+    viewer.cesiumWidget.showErrorPanel = function(title, message, error) {
+      console.warn("Cesium worker geometry notice:", title, message, error);
+      if (viewer.cesiumWidget && viewer.cesiumWidget._canRender === false) {
+        viewer.cesiumWidget._canRender = true;
+      }
+    };
+  }
+
   // Log Provider Type for Verification
   console.log("Active Terrain Provider Class:", viewer.terrainProvider.constructor.name);
   console.log("Cesium Ion Token Status:", state.cesiumIonStatus);
@@ -2717,6 +2911,7 @@ async function initCesiumGlobe(){
 
   // Hover Readout & Observation Platform Label Display
   let hoveredEntity = null;
+  let lastHoverPickTime = 0;
   const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
   handler.setInputAction((movement) => {
     const cartesian = viewer.camera.pickEllipsoid(movement.endPosition, viewer.scene.globe.ellipsoid);
@@ -2728,8 +2923,19 @@ async function initCesiumGlobe(){
       document.getElementById("coordsReadout").textContent = `Position: ${lat}°N, ${lon}°E | Altitude: ${height} km | Global 3D Ocean Globe`;
     }
 
+    const now = performance.now();
+    if (now - lastHoverPickTime < 60) return;
+    lastHoverPickTime = now;
+
     const pickedObject = viewer.scene.pick(movement.endPosition);
-    if(Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.userData && pickedObject.id.userData.platform_id) {
+    if(Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.vehicleData) {
+      const vData = pickedObject.id.vehicleData;
+      document.getElementById("coordsReadout").innerHTML = `
+        <span style="color:#00e5ff; font-weight:700;">🌊 OCEAN ➔ ${vData.depth}m ➔ [${vData.type}] ${vData.name}</span> | 
+        Pos: ${vData.latitude.toFixed(3)}°N, ${vData.longitude.toFixed(3)}°E | 
+        Depth: <strong>${vData.depth} m</strong> [${vData.source}] | Status: <strong style="color:#34d399;">${vData.status}</strong>
+      `;
+    } else if(Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.userData && pickedObject.id.userData.platform_id) {
       const entity = pickedObject.id;
       const uData = entity.userData;
 
@@ -2751,15 +2957,40 @@ async function initCesiumGlobe(){
     }
   }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-  // Click Platform Entity, Adaptive Information Gap, or Fisher Location Query
+  // Click Platform Entity, Adaptive Information Gap, Vehicle Target, or Fisher Location Query
   handler.setInputAction(async (click) => {
+    // 1. Vehicle Mission Target Picking Mode (Globe Click -> Target)
+    if (window.VehicleMissionManager && window.VehicleMissionManager.isSelectingTarget) {
+      const cartesian = viewer.camera.pickEllipsoid(click.position, viewer.scene.globe.ellipsoid);
+      if (cartesian) {
+        const carto = Cesium.Cartographic.fromCartesian(cartesian);
+        const lat = Cesium.Math.toDegrees(carto.latitude);
+        const lon = Cesium.Math.toDegrees(carto.longitude);
+        window.VehicleMissionManager.handleGlobeTargetClick(lat, lon);
+        return;
+      }
+    }
+
     const pickedObject = viewer.scene.pick(click.position);
     if(Cesium.defined(pickedObject) && pickedObject.id){
-      if(pickedObject.id.gapData && typeof selectAdaptiveGap === 'function'){
-        selectAdaptiveGap(pickedObject.id.gapData);
+      // 2. AUV / UUV / ROV Subsea Vehicle Pin Picked
+      if (pickedObject.id.vehicleData && window.VehicleMissionManager) {
+        window.VehicleMissionManager.selectVehicle(pickedObject.id.vehicleData.id);
+        return;
+      }
+      if((pickedObject.id.gapData || pickedObject.id.isAdaptiveGap) && (typeof window.selectAdaptiveGap === 'function' || typeof selectAdaptiveGap === 'function')){
+        const fn = window.selectAdaptiveGap || selectAdaptiveGap;
+        const gapToSelect = pickedObject.id.gapData || (window.adaptiveState && window.adaptiveState.selectedGap);
+        if (gapToSelect) fn(gapToSelect);
+        return;
+      }
+      if(pickedObject.id.candidateData && typeof window.flyToCandidate === 'function'){
+        window.flyToCandidate(pickedObject.id.candidateData.instrument_id);
         return;
       }
       if(pickedObject.id.userData && pickedObject.id.userData.platform_id){
+        const admPanel = document.getElementById('adaptiveMissionPanel');
+        if (admPanel) admPanel.classList.remove('open');
         const platform_id = pickedObject.id.userData.platform_id;
         if(platform_id) openProfile(platform_id);
         return;
@@ -3633,6 +3864,286 @@ function renderCesiumSurfaceGrid(dataObj, depth, alpha = 0.88){
 }
 
 // ---------------------------------------------------------------------
+// PIXEL-BASED RASTER GAP DETECTION & OBSERVATION DENSITY HEATMAP
+// ---------------------------------------------------------------------
+let gapDensityImageryLayer = null;
+let lastRasterGapStats = null;
+let currentRasterRadiusKm = 400.0;
+
+function findVoidBlobs(binaryGrid, w, h) {
+  const visited = new Uint8Array(w * h);
+  const blobs = [];
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      if (binaryGrid[idx] === 1 && !visited[idx]) {
+        let pixelCount = 0;
+        let sumX = 0, sumY = 0;
+        const queue = [idx];
+        visited[idx] = 1;
+
+        while (queue.length > 0) {
+          const curr = queue.pop();
+          const cx = curr % w;
+          const cy = Math.floor(curr / w);
+          pixelCount++;
+          sumX += cx;
+          sumY += cy;
+
+          const neighbors = [
+            cy > 0 ? (cy - 1) * w + cx : -1,
+            cy < h - 1 ? (cy + 1) * w + cx : -1,
+            cx > 0 ? cy * w + (cx - 1) : -1,
+            cx < w - 1 ? cy * w + (cx + 1) : -1,
+          ];
+          for (let ni = 0; ni < 4; ni++) {
+            const nIdx = neighbors[ni];
+            if (nIdx >= 0 && binaryGrid[nIdx] === 1 && !visited[nIdx]) {
+              visited[nIdx] = 1;
+              queue.push(nIdx);
+            }
+          }
+        }
+
+        const centroidX = sumX / pixelCount;
+        const centroidY = sumY / pixelCount;
+        const centroidLon = -180 + (centroidX + 0.5) * (360 / w);
+        const centroidLat = -90 + (centroidY + 0.5) * (180 / h);
+
+        blobs.push({
+          pixelCount,
+          centroidLon,
+          centroidLat,
+          areaApproxKm2: Math.round(pixelCount * 8000)
+        });
+      }
+    }
+  }
+
+  blobs.sort((a, b) => b.pixelCount - a.pixelCount);
+  return blobs;
+}
+
+function computeObservationDensityField(markers, w, h, radiusKm) {
+  const density = new Float32Array(w * h);
+  if (!markers || !markers.length) return density;
+
+  const validMarkers = markers.filter(m => typeof m.lat === 'number' && typeof m.lon === 'number');
+  if (!validMarkers.length) return density;
+
+  const degPerPixelX = 360.0 / w;
+  const degPerPixelY = 180.0 / h;
+  const radiusDeg = radiusKm / 111.0;
+  const radiusPxX = Math.ceil(radiusDeg / degPerPixelX);
+  const radiusPxY = Math.ceil(radiusDeg / degPerPixelY);
+  const r2 = radiusDeg * radiusDeg;
+
+  for (let m = 0; m < validMarkers.length; m++) {
+    const lat = validMarkers[m].lat;
+    const lon = validMarkers[m].lon;
+
+    const px = Math.floor((lon + 180.0) / 360.0 * w);
+    const py = Math.floor((lat + 90.0) / 180.0 * h);
+
+    const minX = Math.max(0, px - radiusPxX);
+    const maxX = Math.min(w - 1, px + radiusPxX);
+    const minY = Math.max(0, py - radiusPxY);
+    const maxY = Math.min(h - 1, py + radiusPxY);
+
+    for (let y = minY; y <= maxY; y++) {
+      const dyDeg = (y - py) * degPerPixelY;
+      const dy2 = dyDeg * dyDeg;
+      for (let x = minX; x <= maxX; x++) {
+        const dxDeg = (x - px) * degPerPixelX;
+        const d2 = dxDeg * dxDeg + dy2;
+        if (d2 <= r2) {
+          const wgt = 1.0 - Math.sqrt(d2) / radiusDeg;
+          density[y * w + x] += wgt;
+        }
+      }
+    }
+  }
+
+  return density;
+}
+
+function createRasterGapTextureCanvas(density, maskData, w, h) {
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  const imgData = ctx.createImageData(w, h);
+  const d = imgData.data;
+
+  const isVoid = new Uint8Array(w * h);
+  let totalOceanPixels = 0;
+  let voidPixelCount = 0;
+
+  for (let i = 0; i < w * h; i++) {
+    const isWater = (!maskData || maskData[i] === 1);
+    const pIdx = i * 4;
+
+    if (!isWater) {
+      d[pIdx] = 0;
+      d[pIdx + 1] = 0;
+      d[pIdx + 2] = 0;
+      d[pIdx + 3] = 0;
+      continue;
+    }
+
+    totalOceanPixels++;
+    const dens = density[i];
+
+    if (dens < 0.05) {
+      isVoid[i] = 1;
+      voidPixelCount++;
+      d[pIdx] = 239;
+      d[pIdx + 1] = 68;
+      d[pIdx + 2] = 68;
+      d[pIdx + 3] = 165;
+    } else if (dens < 0.35) {
+      d[pIdx] = 245;
+      d[pIdx + 1] = 158;
+      d[pIdx + 2] = 11;
+      d[pIdx + 3] = 120;
+    } else if (dens < 1.0) {
+      d[pIdx] = 56;
+      d[pIdx + 1] = 189;
+      d[pIdx + 2] = 248;
+      d[pIdx + 3] = 90;
+    } else {
+      d[pIdx] = 52;
+      d[pIdx + 1] = 211;
+      d[pIdx + 2] = 153;
+      d[pIdx + 3] = 70;
+    }
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+
+  const blobs = findVoidBlobs(isVoid, w, h);
+  return {
+    canvas,
+    totalOceanPixels,
+    voidPixelCount,
+    blobs
+  };
+}
+
+function updateRasterGapLayer(radiusKm = currentRasterRadiusKm) {
+  if (!viewer) return;
+
+  const markers = (state.loadedMarkers && state.loadedMarkers.length)
+    ? state.loadedMarkers
+    : (window.allObservationMarkers || []);
+
+  const w = 256;
+  const h = 128;
+  const density = computeObservationDensityField(markers, w, h, radiusKm);
+  const result = createRasterGapTextureCanvas(density, oceanMaskData, w, h);
+
+  if (gapDensityImageryLayer) {
+    try {
+      viewer.imageryLayers.remove(gapDensityImageryLayer, true);
+    } catch(e) {}
+    gapDensityImageryLayer = null;
+  }
+
+  const provider = new Cesium.SingleTileImageryProvider({
+    url: result.canvas.toDataURL(),
+    rectangle: Cesium.Rectangle.fromDegrees(-180.0, -90.0, 180.0, 90.0)
+  });
+
+  gapDensityImageryLayer = viewer.imageryLayers.addImageryProvider(provider);
+  gapDensityImageryLayer.alpha = 0.88;
+
+  const voidPct = result.totalOceanPixels ? ((result.voidPixelCount / result.totalOceanPixels) * 100).toFixed(1) : "0.0";
+  const obsPct = (100.0 - parseFloat(voidPct)).toFixed(1);
+
+  const voidPctEl = document.getElementById("rasterVoidPct");
+  if (voidPctEl) voidPctEl.textContent = `${voidPct}%`;
+  const obsPctEl = document.getElementById("rasterObsPct");
+  if (obsPctEl) obsPctEl.textContent = `${obsPct}%`;
+
+  const hudVoidArea = document.getElementById("hudRasterVoidArea");
+  if (hudVoidArea) hudVoidArea.textContent = `${voidPct}% of ocean`;
+  const hudCoverage = document.getElementById("hudRasterCoverage");
+  if (hudCoverage) hudCoverage.textContent = `${obsPct}%`;
+  const hudRadius = document.getElementById("hudRasterRadius");
+  if (hudRadius) hudRadius.textContent = `${radiusKm} km`;
+
+  const largestBlob = result.blobs[0];
+  const hudLargest = document.getElementById("hudRasterLargest");
+  if (hudLargest) {
+    if (largestBlob) {
+      hudLargest.textContent = `${largestBlob.centroidLat.toFixed(1)}°N, ${largestBlob.centroidLon.toFixed(1)}°E`;
+    } else {
+      hudLargest.textContent = "None";
+    }
+  }
+
+  lastRasterGapStats = {
+    voidPct,
+    obsPct,
+    largestBlob,
+    blobs: result.blobs
+  };
+}
+
+function toggleRasterGapHeatmap(show) {
+  const hud = document.getElementById("rasterGapGlobeHUD");
+  const controls = document.getElementById("rasterGapControls");
+  const cbTab = document.getElementById("ovRasterGaps");
+  const cbGis = document.getElementById("ovRasterGapsGis");
+
+  if (cbTab) cbTab.checked = show;
+  if (cbGis) cbGis.checked = show;
+
+  if (show) {
+    if (hud) hud.style.display = "block";
+    if (controls) controls.style.display = "flex";
+    updateRasterGapLayer(currentRasterRadiusKm);
+  } else {
+    if (hud) hud.style.display = "none";
+    if (controls) controls.style.display = "none";
+    if (gapDensityImageryLayer && viewer) {
+      try {
+        viewer.imageryLayers.remove(gapDensityImageryLayer, true);
+      } catch(e) {}
+      gapDensityImageryLayer = null;
+    }
+  }
+}
+
+function syncRasterGapToggle(checked) {
+  toggleRasterGapHeatmap(checked);
+}
+
+function onRasterRadiusChange(val) {
+  currentRasterRadiusKm = parseFloat(val);
+  const lbl = document.getElementById("rasterRadiusLabel");
+  if (lbl) lbl.textContent = `${currentRasterRadiusKm} km`;
+  if (gapDensityImageryLayer) {
+    updateRasterGapLayer(currentRasterRadiusKm);
+  }
+}
+
+function focusLargestRasterVoid() {
+  if (!lastRasterGapStats || !lastRasterGapStats.largestBlob) {
+    alert("Please enable the Pixel Raster Void Heatmap first.");
+    return;
+  }
+  const blob = lastRasterGapStats.largestBlob;
+  if (viewer && viewer.camera) {
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(blob.centroidLon, blob.centroidLat, 8500000),
+      duration: 1.5
+    });
+  }
+}
+
+// ---------------------------------------------------------------------
 // GPU-Animated Flowing Ocean Currents Material & Streamlines
 // ---------------------------------------------------------------------
 function FlowLineMaterialProperty(options) {
@@ -3992,6 +4503,9 @@ async function loadObservations(){
     data = await res.json();
   }
 
+  state.loadedMarkers = data.markers || [];
+  window.allObservationMarkers = state.loadedMarkers;
+
   // Count loaded markers directly per category
   const counts = {
     argo: 0, glider: 0, ctd: 0, bgc: 0, mooring: 0
@@ -4024,6 +4538,9 @@ async function loadObservations(){
     glider: document.getElementById("ovGlider") ? document.getElementById("ovGlider").checked : true,
     ctd: document.getElementById("ovCtd") ? document.getElementById("ovCtd").checked : true,
     bgc: document.getElementById("ovBgc") ? document.getElementById("ovBgc").checked : true,
+    auv: document.getElementById("ovAUV") ? document.getElementById("ovAUV").checked : true,
+    uuv: document.getElementById("ovUUV") ? document.getElementById("ovUUV").checked : true,
+    rov: document.getElementById("ovROV") ? document.getElementById("ovROV").checked : true,
   };
 
   const sortedMarkers = (data.markers || []).slice().sort((a, b) => {
@@ -5706,6 +6223,15 @@ function renderRightPanelWaterColumn(){
   } else if(rawPType.includes("MOORING")){
     pKind = "MOORING";
     if(badge){ badge.textContent = "OMNI MOORED BUOY"; badge.style.background = "#0284c7"; }
+  } else if(rawPType.includes("AUV")){
+    pKind = "AUV";
+    if(badge){ badge.textContent = "AUV · AUTONOMOUS SUBMERSIBLE"; badge.style.background = "#0891b2"; }
+  } else if(rawPType.includes("UUV")){
+    pKind = "UUV";
+    if(badge){ badge.textContent = "UUV · UNCREWED SUBSEA DRONE"; badge.style.background = "#7c3aed"; }
+  } else if(rawPType.includes("ROV")){
+    pKind = "ROV";
+    if(badge){ badge.textContent = "ROV · REMOTELY OPERATED SUBMERSIBLE"; badge.style.background = "#ea580c"; }
   } else {
     pKind = "ARGO";
     if(badge){ badge.textContent = "ARGO FLOAT · DIGITAL TWIN"; badge.style.background = "#0284c7"; }
@@ -5722,6 +6248,12 @@ function renderRightPanelWaterColumn(){
       wcVehicleGroup.add(buildCTDModel());
     } else if(pKind === "MOORING"){
       wcVehicleGroup.add(buildMooringModel());
+    } else if(pKind === "AUV" && window.VehicleMissionManager){
+      wcVehicleGroup.add(window.VehicleMissionManager.buildAUVModel());
+    } else if(pKind === "UUV" && window.VehicleMissionManager){
+      wcVehicleGroup.add(window.VehicleMissionManager.buildUUVModel());
+    } else if(pKind === "ROV" && window.VehicleMissionManager){
+      wcVehicleGroup.add(window.VehicleMissionManager.buildROVModel());
     } else {
       wcVehicleGroup.add(buildArgoModel());
     }
@@ -5831,6 +6363,9 @@ function restoreObservationMarkers(){
     glider: document.getElementById("ovGlider") ? document.getElementById("ovGlider").checked : true,
     ctd: document.getElementById("ovCtd") ? document.getElementById("ovCtd").checked : true,
     bgc: document.getElementById("ovBgc") ? document.getElementById("ovBgc").checked : true,
+    auv: document.getElementById("ovAUV") ? document.getElementById("ovAUV").checked : true,
+    uuv: document.getElementById("ovUUV") ? document.getElementById("ovUUV").checked : true,
+    rov: document.getElementById("ovROV") ? document.getElementById("ovROV").checked : true,
   };
 
   let totalCount = 0;
@@ -5904,6 +6439,10 @@ if(ovCond){
 }
 
 document.getElementById("closeProfile").onclick = () => {
+  if(window.VehicleMissionManager) {
+    try { window.VehicleMissionManager.clearSelectedVehicle(); } catch(e){}
+    try { window.VehicleMissionManager.clearMissionGraphics(); } catch(e){}
+  }
   restoreObservationMarkers();
   clearPlatformTrack();
   state.dateExplorerExplicitDate = null;
@@ -5918,8 +6457,13 @@ document.getElementById("closeProfile").onclick = () => {
 };
 
 window.addEventListener('keydown', (e) => {
-  if(e.key === 'Escape' && state.selectedProfile){
-    document.getElementById("closeProfile")?.click();
+  if(e.key === 'Escape'){
+    const btnAdaptive = document.getElementById("btnCloseAdaptivePanel");
+    if(btnAdaptive) btnAdaptive.click();
+    const btnProf = document.getElementById("closeProfile");
+    if(btnProf) btnProf.click();
+    if(typeof closeMissionSummaryModal === 'function') closeMissionSummaryModal();
+    if(typeof closeOceanStoriesModal === 'function') closeOceanStoriesModal();
   }
 });
 
@@ -5993,6 +6537,34 @@ document.getElementById("variableSelect").onchange = async (e) => {
 document.getElementById("viewModeSelect").onchange = async (e) => {
   state.viewMode = e.target.value; await loadModelData();
 };
+const btnViewTerrainEl = document.getElementById("btnViewTerrain");
+if(btnViewTerrainEl) btnViewTerrainEl.onclick = () => switchMainView('terrain');
+const btnAdaptiveNavEl = document.getElementById("btnNavAdaptiveMission");
+if(btnAdaptiveNavEl) btnAdaptiveNavEl.onclick = () => switchMainView('adaptive');
+
+const waterLevelSliderEl = document.getElementById("waterLevelSlider");
+if(waterLevelSliderEl) {
+  waterLevelSliderEl.oninput = (e) => {
+    const val = parseInt(e.target.value);
+    if(state.mainView !== 'terrain') switchMainView('terrain');
+    updateWaterLevelSimulation(val);
+  };
+}
+const btnDrainEl = document.getElementById("btnDrainOcean");
+if(btnDrainEl) {
+  btnDrainEl.onclick = () => {
+    switchMainView('terrain');
+    updateWaterLevelSimulation(0);
+    if(typeof setTerrainCameraView === 'function') setTerrainCameraView(20.0, 50.0);
+  };
+}
+const btnNormalEl = document.getElementById("btnNormalOcean");
+if(btnNormalEl) {
+  btnNormalEl.onclick = () => {
+    switchMainView('terrain');
+    updateWaterLevelSimulation(100);
+  };
+}
 const exagSliderEl = document.getElementById("exagSlider");
 if(exagSliderEl) {
   exagSliderEl.oninput = async (e) => {
@@ -6084,9 +6656,9 @@ if(ovProfEl) ovProfEl.onchange = (e) => {
   loadObservations();
 };
 
-["ovArgo","ovMooring","ovGlider","ovCtd","ovBgc"].forEach(id => {
+["ovArgo","ovMooring","ovGlider","ovCtd","ovBgc","ovAUV","ovUUV","ovROV"].forEach(id => {
   const el = document.getElementById(id);
-  if(el) el.onchange = loadObservations;
+  if(el) el.onchange = restoreObservationMarkers;
 });
 ["minLat","maxLat","minLon","maxLon"].forEach(id => {
   document.getElementById(id).onchange = refreshAll;

@@ -3,3 +3,15 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 node_modules/
+
+# IDE & Virtual Environments
+.venv/
+.idea/
+backend/.venv/
+
+# Caches & Temporary Directories
+backend/data/cache_*.npz
+backend/data/cache_*.json
+backend/data/tmp_ingest_14d/
+backend/data/tmp_test/
+*.log

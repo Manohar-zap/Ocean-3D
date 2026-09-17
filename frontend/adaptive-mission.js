@@ -117,7 +117,19 @@ function createInstrumentModel(viewer, cData, isSelected, isRejected, targetGap)
   if (isSelected) mainColorHex = '#f59e0b';
   else if (isRejected) mainColorHex = '#ef4444';
 
-  const col = Cesium.Color.fromCssColorString(mainColorHex);
+  const removeIfExists = (entId) => {
+    try {
+      const existing = viewer.entities.getById(entId);
+      if (existing) viewer.entities.remove(existing);
+    } catch (e) {}
+  };
+  removeIfExists(`${id}_anchor`);
+  removeIfExists(`${id}_tag`);
+  removeIfExists(`${id}_cone`);
+  removeIfExists(`${id}_surface`);
+  removeIfExists(`${id}_fuselage`);
+  removeIfExists(`${id}_wing`);
+  removeIfExists(`${id}_ray`);
 
   // 1. High-contrast Overview Badge Billboard (Unmissable at overview scale)
   const badgeUrl = generateInstrumentBadgeCanvas(
@@ -626,7 +638,19 @@ function renderRoutePolyline(waypoints, color, width, glow, id) {
 
 // ─── Render All Fleet Instruments ───────────────────────────────────────────
 
+function clearFleetInstruments() {
+  Object.keys(instrumentEntities).forEach(id => {
+    if (Array.isArray(instrumentEntities[id])) {
+      instrumentEntities[id].forEach(e => {
+        try { if (e && viewer) viewer.entities.remove(e); } catch(err) {}
+      });
+    }
+  });
+  instrumentEntities = {};
+}
+
 function renderFleetInstruments(candidates, selectedId, targetGap) {
+  clearFleetInstruments();
   candidates.forEach(c => {
     const id = c.instrument_id;
     const isRejected = !c.feasible;
@@ -676,7 +700,7 @@ function renderMissionPlanUI(plan) {
         openInstrumentModal(candidate);
         if (viewer) {
           viewer.camera.flyTo({
-            destination: positionFromLatLonDepth(candidate.latitude, candidate.longitude, 80000),
+            destination: Cesium.Cartesian3.fromDegrees(candidate.longitude, candidate.latitude, 80000),
             orientation: { heading: 0, pitch: Cesium.Math.toRadians(-45), roll: 0 },
             duration: 1.2
           });
@@ -836,20 +860,26 @@ function renderMissionGlobeOverlay(plan) {
     renderRoutePolyline(route.waypoints, '#3fe0c5', 5, true, 'selected_route');
   }
 
-  // Camera framing: Zoom so ALL candidate instruments and target gap are visible on page load!
-  if (candidates.length > 0 && gap.latitude) {
+  // Camera framing: Zoom so target gap and assigned platform/route are framed cleanly
+  if (winner && winner.latitude && gap.latitude) {
     const pts = [
-      Cesium.Cartesian3.fromDegrees(gap.longitude, gap.latitude),
-      ...candidates.map(c => Cesium.Cartesian3.fromDegrees(c.longitude, c.latitude))
+      Cesium.Cartesian3.fromDegrees(gap.longitude, gap.latitude, 0),
+      Cesium.Cartesian3.fromDegrees(winner.longitude, winner.latitude, 0)
     ];
     const bs = Cesium.BoundingSphere.fromPoints(pts);
     viewer.camera.flyToBoundingSphere(bs, {
       duration: 1.5,
       offset: new Cesium.HeadingPitchRange(
         Cesium.Math.toRadians(0),
-        Cesium.Math.toRadians(-50),
-        Math.max(bs.radius * 2.8, 500000)
+        Cesium.Math.toRadians(-45),
+        Math.max(bs.radius * 2.2, 350000)
       )
+    });
+  } else if (gap.latitude) {
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(gap.longitude, gap.latitude, 650000),
+      orientation: { heading: 0, pitch: Cesium.Math.toRadians(-45), roll: 0 },
+      duration: 1.5
     });
   }
 }
@@ -1040,7 +1070,7 @@ function showFinalSummaryModal(sim) {
 
   if (viewer) {
     viewer.camera.flyTo({
-      destination: positionFromLatLonDepth(target.latitude || 15.4, target.longitude || 88.7, 1200000),
+      destination: Cesium.Cartesian3.fromDegrees(target.longitude || 88.7, target.latitude || 15.4, 1200000),
       orientation: { heading: 0, pitch: Cesium.Math.toRadians(-50), roll: 0 },
       duration: 2.0
     });
@@ -1135,12 +1165,12 @@ class MissionPlayback {
     // Highlight rejections then selection
     const selId = winner.instrument_id;
     Object.keys(instrumentEntities).forEach(id => {
-      if (id !== selId) {
+      if (id !== selId && Array.isArray(instrumentEntities[id])) {
         const c = (this.sim.all_candidates || []).find(x => x.instrument_id === id);
         if (c && !c.feasible) {
           instrumentEntities[id].forEach(p => {
-            if (p.box) p.box.material = Cesium.Color.fromCssColorString('#ef4444').withAlpha(0.3);
-            if (p.cylinder) p.cylinder.material = Cesium.Color.fromCssColorString('#ef4444').withAlpha(0.3);
+            if (p && p.box) p.box.material = Cesium.Color.fromCssColorString('#ef4444').withAlpha(0.3);
+            if (p && p.cylinder) p.cylinder.material = Cesium.Color.fromCssColorString('#ef4444').withAlpha(0.3);
           });
         }
       }
@@ -1310,23 +1340,12 @@ class MissionPlayback {
     const targetDepthM = this.sim.target?.depth_m || 500;
     updateWaterColumn(frame.depth_m, null, targetDepthM, this.sim.seafloor_depth_m, this.sim.bathymetry_status);
 
-    if (frame.depth_m > 0) {
-      // Underwater Close-Up View tracking vehicle descent into water column
-      const headingRad = Cesium.Math.toRadians(frame.heading_deg || 0);
-      viewer.camera.lookAt(
-        positionFromLatLonDepth(frame.latitude, frame.longitude, frame.depth_m),
-        new Cesium.HeadingPitchRange(
-          headingRad + Math.PI / 2.0,
-          Cesium.Math.toRadians(-22.0),
-          Math.max(500, frame.depth_m * 1.6)
-        )
-      );
-    } else if (this.frameIdx % 4 === 0) {
-      // Surface Transit View
+    if (this.frameIdx % 6 === 0 && viewer && viewer.camera) {
+      const camAlt = (frame.depth_m > 0) ? 35000.0 : 65000.0;
       viewer.camera.flyTo({
-        destination: positionFromLatLonDepth(frame.latitude, frame.longitude, 60000),
-        orientation: { heading: Cesium.Math.toRadians(frame.heading_deg || 0), pitch: Cesium.Math.toRadians(-40), roll: 0 },
-        duration: 0.4
+        destination: Cesium.Cartesian3.fromDegrees(frame.longitude, frame.latitude, camAlt),
+        orientation: { heading: Cesium.Math.toRadians(frame.heading_deg || 0), pitch: Cesium.Math.toRadians(-50), roll: 0 },
+        duration: 0.8
       });
     }
   }
@@ -1464,12 +1483,70 @@ class MissionPlayback {
     document.getElementById('btnPlayPause').textContent = '▶';
     setActivePhase(13);
     updateCinematicBanner('PHASE 14 — MISSION COMPLETE', 'OCEAN ADAPTIVE MISSION EXECUTED & DATA ACQUIRED', 'All CTD sampling sequences completed. Bayesian posterior uncertainty updated.');
+    
+    // Ingest sampled observations into backend Digital Twin store
+    if (this.sim && this.sim.selected_platform) {
+      fetch(apiUrl('/api/adaptive/ingest'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mission_id: this.sim.mission_id || 'MIS-AUTO',
+          platform_id: this.sim.selected_platform.instrument_id,
+          platform_type: this.sim.selected_platform.platform_type || 'glider',
+          latitude: this.sim.target?.latitude || 0.0,
+          longitude: this.sim.target?.longitude || 0.0,
+          sampling_sequence: this.sim.depth_sampling_sequence || []
+        })
+      }).then(r => r.json()).then(res => {
+        console.log('[AdaptiveMission] In-situ observations ingested into digital twin store:', res);
+      }).catch(err => {
+        console.warn('[AdaptiveMission] Ingestion notice:', err);
+      });
+    }
+
+    if (viewer && viewer.camera) {
+      if (viewer.camera._flight) viewer.camera.cancelFlight();
+      viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+    }
+
+    const prof = document.getElementById('profilePanel');
+    if (prof) prof.classList.remove('open');
+    const admPanel = document.getElementById('adaptiveMissionPanel');
+    if (admPanel) admPanel.classList.remove('open');
+
     showFinalSummaryModal(this.sim);
   }
 
-  pause() { this.paused = true; document.getElementById('btnPlayPause').textContent = '▶'; }
-  resume() { this.paused = false; this.lastTs = 0; document.getElementById('btnPlayPause').textContent = '⏸'; requestAnimationFrame(t => this.animate(t)); }
-  restart() { this.running = false; startMissionSimulation(); }
+  seek(ratio) {
+    if (!this.frames || !this.frames.length) return;
+    const targetIdx = Math.max(0, Math.min(this.frames.length - 1, Math.floor(ratio * (this.frames.length - 1))));
+    this.frameIdx = targetIdx;
+    if (this.frames[targetIdx]) {
+      this.updateTransitFrame(this.frames[targetIdx]);
+    }
+  }
+
+  pause() {
+    this.paused = true;
+    document.getElementById('btnPlayPause').textContent = '▶';
+    if (viewer && viewer.camera) viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+  }
+
+  resume() {
+    this.paused = false;
+    this.lastTs = 0;
+    document.getElementById('btnPlayPause').textContent = '⏸';
+    requestAnimationFrame(t => this.animate(t));
+  }
+
+  restart() {
+    this.running = false;
+    if (viewer && viewer.camera) {
+      if (viewer.camera._flight) viewer.camera.cancelFlight();
+      viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+    }
+    startMissionSimulation();
+  }
 }
 
 // ─── Simulation launch ───────────────────────────────────────────────────────
