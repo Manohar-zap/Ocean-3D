@@ -1340,12 +1340,15 @@
 
     <!-- Right Slide-in Focused Adaptive Mission & Information Gap Panel -->
     <div id="adaptiveMissionPanel">
-      <button class="close-btn" id="btnCloseAdaptivePanel" title="Close Panel">✕</button>
-      
-      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--adm-line); padding-bottom:6px;">
-        <span style="font-size:12px; font-weight:700; color:#fff; letter-spacing:0.5px;">INFORMATION GAP DETECTED</span>
-        <span id="admBadgePriority" class="badge-priority high">HIGH — 82%</span>
+      <!-- Sticky panel header with embedded close button — always visible -->
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--adm-line); padding-bottom:6px; position:sticky; top:0; background:var(--adm-panel); z-index:10; margin-bottom:4px;">
+        <div style="display:flex; flex-direction:column; gap:2px;">
+          <span style="font-size:12px; font-weight:700; color:#fff; letter-spacing:0.5px;">INFORMATION GAP DETECTED</span>
+          <span id="admBadgePriority" class="badge-priority high" style="align-self:flex-start;">HIGH — 82%</span>
+        </div>
+        <button id="btnCloseAdaptivePanel" title="Close Panel" style="flex-shrink:0; background:rgba(244,63,94,0.15); border:1px solid rgba(244,63,94,0.5); color:#f43f5e; font-size:14px; font-weight:700; cursor:pointer; padding:5px 10px; border-radius:5px; line-height:1; transition:all 0.15s ease;">✕</button>
       </div>
+
 
       <div id="admGapTitle" style="font-size:14px; font-weight:700; color:var(--adm-teal); line-height:1.25;">
         Bay of Bengal Deep Thermocline

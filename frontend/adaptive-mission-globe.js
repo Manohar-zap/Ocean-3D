@@ -1145,10 +1145,8 @@
       const isWinner = c.instrument_id === winnerId;
       const isFeasible = c.feasible && c.controllable;
       const isSim = c.is_simulated || (c.operational_status && c.operational_status.includes('SIMULATED'));
-      const statusBadge = isWinner ? '<span class="badge-priority resolved">★ SELECTED</span>' : (isFeasible ? '<span class="badge-priority elevated">SUITABLE</span>' : '<span class="badge-priority critical">UNSUITABLE</span>');
-      const provTag = isSim
-        ? '<span style="font-size:9px; padding:1px 5px; border-radius:3px; background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.4); font-weight:600; font-family:\'IBM Plex Mono\',monospace;">◬ SIMULATED</span>'
-        : '<span style="font-size:9px; padding:1px 5px; border-radius:3px; background:rgba(56,189,248,0.15); color:#38bdf8; border:1px solid rgba(56,189,248,0.4); font-weight:600; font-family:\'IBM Plex Mono\',monospace;">● IN-SITU</span>';
+      // Only show ★ SELECTED badge for the winner; remove UNSUITABLE/SUITABLE/IN-SITU/SIMULATED badges
+      const statusBadge = isWinner ? '<span class="badge-priority resolved">★ SELECTED</span>' : '';
 
       const ptypeLower = (c.platform_type || '').toLowerCase();
       let pColor = '#38bdf8';
@@ -1172,13 +1170,13 @@
       const estDays = estHours / 24.0;
       const distLabel = c.distance_label || (distKm ? `${distKm.toFixed(1)} km [SIMULATED ESTIMATE]` : '0 km');
       const transitLabel = estHours < 48 ? `~${estHours.toFixed(1)}h (${speedText})` : `~${estDays.toFixed(1)} days (${speedText})`;
-      const battLabel = isSim ? `${c.battery_percent}% • ${c.remaining_range_km} km [SIMULATED]` : `${c.battery_percent}% • ${c.remaining_range_km} km`;
+      const battLabel = `${c.battery_percent}% • ${c.remaining_range_km} km`;
 
       return `
         <div class="adm-card" onclick="window.flyToCandidate('${c.instrument_id}')" style="cursor:pointer; border-color:${isWinner ? 'var(--adm-accent)' : (isFeasible ? 'var(--adm-line)' : 'rgba(244,63,94,0.4)')}; background:${isWinner ? 'rgba(245,158,11,0.1)' : 'var(--adm-panel-card)'};">
           <div class="adm-card-hdr" style="flex-wrap:wrap; gap:4px;">
             <span style="font-size:11.5px; font-weight:700; color:#fff;">${c.name || c.instrument_id}</span>
-            <div style="display:flex; gap:4px; align-items:center;">${provTag} ${statusBadge}</div>
+            <div style="display:flex; gap:4px; align-items:center;">${statusBadge}</div>
           </div>
           <div class="adm-row"><span class="adm-label">Platform Class</span><span class="adm-val">${ptypeBadge}</span></div>
           <div class="adm-row"><span class="adm-label">Distance to Gap</span><span class="adm-val">${distLabel}</span></div>
@@ -2464,6 +2462,30 @@
       btnRestart.onclick = () => {
         const pb = window.adaptiveState.playback;
         if (pb) pb.restart();
+      };
+    }
+
+    // Exit Simulation button — destroys playback and hides all HUDs
+    const btnPbExit = document.getElementById('btnPbExit');
+    if (btnPbExit) {
+      btnPbExit.onclick = () => {
+        const pb = window.adaptiveState.playback;
+        if (pb) {
+          pb.destroy();
+          window.adaptiveState.playback = null;
+        }
+        // Hide all simulation HUDs
+        ['phaseTimeline','cinematicBanner','missionTelemetryHud','adaptiveWaterColumnOverlay','missionPlaybackBar'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = 'none';
+        });
+        // Restore coordsReadout and other elements
+        const coords = document.getElementById('coordsReadout');
+        if (coords) coords.style.display = '';
+        const hint = document.getElementById('hint');
+        if (hint) hint.style.display = '';
+        const depthBanner = document.getElementById('depthDisplayBanner');
+        if (depthBanner) depthBanner.style.display = '';
       };
     }
 

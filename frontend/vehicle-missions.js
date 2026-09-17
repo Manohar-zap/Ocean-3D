@@ -154,29 +154,23 @@
 
     _generateVehicleIconCanvas(vehicle) {
       const canvas = document.createElement('canvas');
-      canvas.width = 36;
-      canvas.height = 36;
+      canvas.width = 24;
+      canvas.height = 24;
       const ctx = canvas.getContext('2d');
       const cfg = VEHICLE_CONFIG[vehicle.type] || VEHICLE_CONFIG.AUV;
 
-      // Circular glowing pin
+      // Simple glowing colored dot — no text label
       ctx.shadowColor = cfg.colorCss;
-      ctx.shadowBlur = 8;
-      ctx.fillStyle = 'rgba(7, 16, 25, 0.94)';
-      ctx.strokeStyle = cfg.colorCss;
-      ctx.lineWidth = 2.5;
-
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = cfg.colorCss;
       ctx.beginPath();
-      ctx.arc(18, 18, 13, 0, Math.PI * 2);
+      ctx.arc(12, 12, 7, 0, Math.PI * 2);
       ctx.fill();
-      ctx.stroke();
 
       ctx.shadowBlur = 0;
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 9px "IBM Plex Mono", monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(vehicle.type, 18, 18);
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
 
       return canvas.toDataURL();
     }
