@@ -38,6 +38,7 @@ from .noaa_glider_service import noaa_glider_service
 from .oceangliders_service import oceangliders_service
 from .noaa_ioos_glider_service import noaa_ioos_glider_service
 from .currents_service import currents_service
+from .physics_service import physics_service
 
 app = FastAPI(
     title="OCEAN 3D API",
@@ -70,12 +71,12 @@ def get_catalog():
 
 @app.get("/api/model")
 def query_model(
-    dataset_id: str = Query(..., description="e.g. incois_las_model, bgc_model"),
+    dataset_id: str = Query(..., description="e.g. incois_las_model, bgc_model, copernicus_cmems"),
     variable: str = Query(...),
     min_lat: float = -90, max_lat: float = 90,
     min_lon: float = -180, max_lon: float = 180,
     min_depth: float = 0, max_depth: float = 6000,
-    time: Optional[str] = Query(None, description="ISO timestamp; snapped to nearest available step"),
+    time: Optional[str] = Query(None, description="ISO timestamp; strictly matched to date"),
 ):
     """Filtered model field query -> used to render a depth-slice or volumetric field."""
     if min_lat > max_lat or min_lon > max_lon:
@@ -83,13 +84,35 @@ def query_model(
     if min_depth > max_depth:
         raise HTTPException(400, "min_depth must be <= max_depth")
 
+    # If copernicus_cmems or incois_las_model and physics_service is loaded, serve genuine physical data
+    if dataset_id in ("copernicus_cmems", "incois_las_model") and physics_service.is_loaded and variable in ("temperature", "salinity", "pressure"):
+        pts = physics_service.get_points(
+            variable=variable,
+            depth=min_depth,
+            time_str=time,
+            min_lat=min_lat,
+            max_lat=max_lat,
+            min_lon=min_lon,
+            max_lon=max_lon
+        )
+        if not pts:
+            raise HTTPException(404, f"No real {variable} data available for time='{time}' at depth={min_depth}m")
+        units_map = {"temperature": "degC", "salinity": "psu", "pressure": "dbar"}
+        actual_time = time or (physics_service.get_available_times()[-1] if physics_service.get_available_times() else "")
+        return {
+            "count": len(pts),
+            "time": actual_time,
+            "unit": units_map.get(variable, ""),
+            "points": pts
+        }
+
     f = QueryFilters(dataset_id=dataset_id, variable=variable,
                       min_lat=min_lat, max_lat=max_lat, min_lon=min_lon, max_lon=max_lon,
                       min_depth=min_depth, max_depth=max_depth, time=time)
     rows = query_service.model_grid(f)
     if not rows:
-        raise HTTPException(404, "No model data matches this query. Try a different variable, "
-                                  "depth, time, or a wider region.")
+        raise HTTPException(404, f"No model data matches this query for variable='{variable}', "
+                                  f"time='{time}', depth={min_depth}m.")
     return {
         "count": len(rows),
         "time": rows[0].time,
@@ -101,12 +124,56 @@ def query_model(
     }
 
 
+@app.get("/api/model/grid")
+def get_model_grid(
+    dataset_id: str = Query("copernicus_cmems"),
+    variable: str = Query("temperature"),
+    depth: float = Query(0.0),
+    time: Optional[str] = Query(None)
+):
+    """Return full regular 2D scalar grid (171x360) for fast Cesium GPU canvas rendering."""
+    if dataset_id in ("copernicus_cmems", "incois_las_model") and physics_service.is_loaded:
+        res = physics_service.get_scalar_grid(variable=variable, depth=depth, time_str=time)
+        if res.get("available") is False:
+            raise HTTPException(404, f"Real {variable} grid unavailable for time='{time}' at depth={depth}m")
+        return res
+    raise HTTPException(404, f"Grid mode unavailable for dataset='{dataset_id}'")
+
+
 @app.get("/api/model/times")
 def model_times(dataset_id: str):
+    if dataset_id in ("copernicus_cmems", "incois_las_model") and physics_service.is_loaded:
+        times = physics_service.get_available_times()
+        if times:
+            return {"dataset_id": dataset_id, "times": times}
     times = query_service.available_times(dataset_id)
     if not times:
         raise HTTPException(404, f"Unknown dataset_id '{dataset_id}'")
     return {"dataset_id": dataset_id, "times": times}
+
+
+@app.get("/api/availability")
+def get_variable_availability(time: Optional[str] = Query(None)):
+    """Return availability map for each variable across the 14-day window."""
+    times = currents_service.get_available_times()
+    res = {}
+    for t in times:
+        date_str = t[:10]
+        has_currents = currents_service.is_loaded
+        has_physics = physics_service.is_loaded and (t in physics_service.get_available_times())
+        res[date_str] = {
+            "date": date_str,
+            "temperature": has_physics,
+            "salinity": has_physics,
+            "pressure": has_physics,
+            "currents": has_currents
+        }
+    if time:
+        req_date = time.strip()[:10]
+        if req_date in res:
+            return res[req_date]
+        raise HTTPException(404, f"Date '{req_date}' outside available operational timeline")
+    return {"times": times, "availability": res}
 
 
 @app.get("/api/model/volume")
@@ -1020,7 +1087,7 @@ def get_currents(
     stride: int = Query(4, ge=1, le=10, description="Downsampling stride for 60 FPS globe rendering")
 ):
     """Return 2D horizontal vector field for globe streamlines visualization at given depth and time."""
-    return currents_service.get_current_field(
+    res = currents_service.get_current_field(
         depth=depth,
         time_str=time,
         min_lat=min_lat,
@@ -1029,6 +1096,9 @@ def get_currents(
         max_lon=max_lon,
         stride=stride
     )
+    if res.get("available") is False:
+        raise HTTPException(404, f"Ocean currents data unavailable for time='{time}'")
+    return res
 
 
 @app.get("/api/currents/grid")
@@ -1037,7 +1107,10 @@ def get_currents_grid(
     time: Optional[str] = Query(None, description="ISO timestamp (e.g. 2024-03-01T00:00:00Z)")
 ):
     """Return full 2D regular velocity grid for continuous particle advection and interpolation."""
-    return currents_service.get_current_grid(depth=depth, time_str=time)
+    res = currents_service.get_current_grid(depth=depth, time_str=time)
+    if res.get("available") is False:
+        raise HTTPException(404, f"Ocean currents grid unavailable for time='{time}'")
+    return res
 
 
 @app.get("/api/currents/depths")

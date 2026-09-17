@@ -72,10 +72,10 @@ class Adapter(Protocol):
 LAT_RANGE = (-70.0, 70.0)     # Global Oceans box
 LON_RANGE = (-180.0, 180.0)
 DEPTHS = [0, 10, 25, 50, 75, 100, 150, 200, 300, 500, 750, 1000, 1500, 2000, 3000, 4246]
-TIME_STEPS = 8               # e.g. 8 daily steps
+TIME_STEPS = 14              # 14-day operational mission window
 GRID_N = 18                  # lat/lon grid resolution per axis (kept small: browser-renderable)
 
-BASE_TIME = datetime(2026, 9, 1, 0, 0, 0)
+BASE_TIME = datetime(2026, 9, 4, 0, 0, 0)
 
 
 def _time_at(step: int) -> str:
@@ -252,8 +252,8 @@ class BathymetryAdapter:
 class ModelNetCDFAdapter:
     """INCOIS ocean circulation model output adapter (ROMS NetCDF)."""
 
-    VARIABLES = ["temperature", "salinity", "pressure", "current_u", "current_v"]
-    UNITS = {"temperature": "degC", "salinity": "psu", "pressure": "dbar", "current_u": "m/s", "current_v": "m/s"}
+    VARIABLES = ["temperature", "salinity", "pressure"]
+    UNITS = {"temperature": "degC", "salinity": "psu", "pressure": "dbar"}
 
     def can_handle(self, source: str) -> bool:
         return source == "incois_las_model" or source.endswith(".nc")
@@ -292,12 +292,12 @@ def parse_netcdf_records(filepath: str, dataset_id: str, data_status: str, sourc
     try:
         import numpy as np
         from scipy.io import netcdf_file
-        units = {"temperature": "degC", "salinity": "psu", "current_u": "m/s", "current_v": "m/s"}
+        units = {"temperature": "degC", "salinity": "psu", "pressure": "dbar"}
         with netcdf_file(filepath, 'r', mmap=False) as f:
             lats = np.array(f.variables.get('lat', f.variables.get('latitude')).data)
             lons = np.array(f.variables.get('lon', f.variables.get('longitude')).data)
             depths = np.array(f.variables.get('depth', [0]).data)
-            for var in ["temperature", "salinity", "current_u", "current_v"]:
+            for var in ["temperature", "salinity", "pressure"]:
                 data = np.array(f.variables[var].data) if var in f.variables else None
                 for i, lat in enumerate(lats):
                     for j, lon in enumerate(lons):

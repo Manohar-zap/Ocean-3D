@@ -157,7 +157,15 @@
   // ─── 1. Automatic Gap Loading and Globe Markers ─────────────────────────────
 
   window.loadAdaptiveInformationGaps = async function() {
-    const viewer = window.viewer; if (!viewer) return;
+    const viewerInstance = window.viewer || (typeof viewer !== 'undefined' ? viewer : null);
+    if (!viewerInstance) return;
+    const ovGapsEl = document.getElementById('ovGaps');
+    const isVisible = ovGapsEl ? ovGapsEl.checked : (window.adaptiveState.gapsVisible !== false);
+    window.adaptiveState.gapsVisible = isVisible;
+    if (!isVisible) {
+      clearGapEntities();
+      return;
+    }
     try {
       let queryStr = '';
       if (typeof currentBounds === 'function') {
@@ -173,7 +181,9 @@
       window.adaptiveState.gaps = data.gaps || [];
 
       clearGapEntities();
-      renderGapEntitiesOnGlobe();
+      if (window.adaptiveState.gapsVisible !== false) {
+        renderGapEntitiesOnGlobe();
+      }
       populateAdaptiveSidebarTab();
     } catch (e) {
       console.warn('Adaptive gap loading notice:', e);
@@ -181,16 +191,34 @@
   };
 
   function clearGapEntities() {
-    const viewer = window.viewer; if (!viewer) return;
-    window.adaptiveState.gapEntities.forEach(ent => (window.viewer || viewer).entities.remove(ent));
+    const viewerInstance = window.viewer || (typeof viewer !== 'undefined' ? viewer : null);
+    if (!viewerInstance || !viewerInstance.entities) return;
+    (window.adaptiveState.gapEntities || []).forEach(ent => {
+      try { viewerInstance.entities.remove(ent); } catch(e){}
+    });
     window.adaptiveState.gapEntities = [];
+    try {
+      const allEnts = viewerInstance.entities.values.slice();
+      for(let i=0; i<allEnts.length; i++){
+        const e = allEnts[i];
+        if (e && (e.isAdaptiveGap || (e.id && (e.id.includes('GAP-') || e.id.includes('_polygon') || e.id.includes('_boundary') || e.id.includes('_halo'))))) {
+          viewerInstance.entities.remove(e);
+        }
+      }
+    } catch(e){}
   }
 
   function renderGapEntitiesOnGlobe() {
     clearGapEntities();
+    const ovGapsEl = document.getElementById('ovGaps');
+    const isVisible = ovGapsEl ? ovGapsEl.checked : (window.adaptiveState.gapsVisible !== false);
+    window.adaptiveState.gapsVisible = isVisible;
+    if (!isVisible) {
+      return; // Do NOT render any gap entities on globe when toggle is OFF
+    }
     const gaps = window.adaptiveState.gaps;
     const selectedGap = window.adaptiveState.selectedGap;
-    const viewerInstance = window.viewer || viewer;
+    const viewerInstance = window.viewer || (typeof viewer !== 'undefined' ? viewer : null);
     if (!viewerInstance) return;
 
     setupGlobeGapPicking(viewerInstance);
@@ -399,7 +427,16 @@
 
   // Toggle visibility of gap layer
   window.toggleAdaptiveGapsLayer = function(show) {
-    window.adaptiveState.gapsVisible = show;
+    window.adaptiveState.gapsVisible = !!show;
+    if (!show) {
+      clearGapEntities();
+    } else {
+      if (typeof window.loadAdaptiveInformationGaps === 'function') {
+        window.loadAdaptiveInformationGaps();
+      } else {
+        renderGapEntitiesOnGlobe();
+      }
+    }
     updateBackfaceOcclusion();
   };
 

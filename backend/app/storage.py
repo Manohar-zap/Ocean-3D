@@ -79,10 +79,10 @@ class Store:
                 and f.min_lon <= r.longitude <= f.max_lon]
 
         if f.time:
-            times = sorted({r.time for r in rows})
-            if times:
-                nearest = min(times, key=lambda t: abs(_parse(t) - _parse(f.time)))
-                rows = [r for r in rows if r.time == nearest]
+            req_time = f.time.strip()
+            req_date = req_time[:10]
+            # Strict date resolution: exact ISO or matching daily timestamp prefix
+            rows = [r for r in rows if r.time == req_time or r.time.startswith(req_date)]
         elif f.time_start and f.time_end:
             rows = [r for r in rows if f.time_start <= r.time <= f.time_end]
         return rows

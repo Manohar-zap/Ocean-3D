@@ -106,10 +106,99 @@
     display:flex; align-items:center; padding:0 18px; gap:22px; z-index:2; }
 
   .timebar{ flex:1; display:flex; align-items:center; gap:12px; }
-  .timebar button{ background:var(--panel-2); border:1px solid var(--line); color:var(--accent);
+  .timebar #btnPlay{ background:var(--panel-2); border:1px solid var(--line); color:var(--accent);
     width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:13px; }
   input[type=range]{ flex:1; accent-color: var(--accent); }
   #timeLabel{ font-size:12px; color:var(--text-dim); min-width:150px; text-align:right; }
+
+  /* Date Picker & 14-Day Calendar UI */
+  .date-picker-wrap { position: relative; display: inline-flex; align-items: center; }
+  .date-picker-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: rgba(13, 30, 46, 0.88); border: 1px solid rgba(63, 224, 197, 0.38);
+    color: #e2e8f0; border-radius: 6px; padding: 5px 12px; font-size: 12px;
+    width: auto !important; height: auto !important; min-height: 28px;
+    cursor: pointer; transition: all 0.15s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    white-space: nowrap;
+  }
+  .date-picker-btn:hover {
+    border-color: var(--accent); background: rgba(19, 44, 68, 0.95);
+    box-shadow: 0 0 12px rgba(63, 224, 197, 0.28); color: #ffffff;
+  }
+  .date-picker-btn.active {
+    border-color: var(--accent); box-shadow: 0 0 14px rgba(63, 224, 197, 0.4);
+    background: rgba(19, 44, 68, 1);
+  }
+  .calendar-dropdown {
+    position: absolute; bottom: calc(100% + 10px); left: 0;
+    background: #091522; border: 1px solid rgba(63, 224, 197, 0.4); border-radius: 8px;
+    box-shadow: 0 14px 42px rgba(0, 0, 0, 0.82), 0 0 18px rgba(63, 224, 197, 0.18);
+    padding: 12px 14px; width: 275px; z-index: 1000; backdrop-filter: blur(14px);
+    display: flex; flex-direction: column; gap: 8px; font-family: inherit;
+    animation: calFadeIn 0.15s ease-out;
+  }
+  @keyframes calFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+  .cal-nav-btn {
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+    color: #cbd5e1; width: 26px; height: 26px; border-radius: 4px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 15px; line-height: 1; transition: all 0.12s ease;
+  }
+  .cal-nav-btn:hover {
+    background: rgba(63,224,197,0.2); color: var(--accent); border-color: var(--accent);
+  }
+  .cal-month-title { font-size: 12px; font-weight: 700; color: #f1f5f9; letter-spacing: 0.3px; }
+  .cal-weekdays {
+    display: grid; grid-template-columns: repeat(7, 1fr); text-align: center;
+    font-size: 10px; font-weight: 600; color: #64748b; margin-bottom: 2px;
+  }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .cal-day {
+    height: 28px; display: flex; align-items: center; justify-content: center;
+    border-radius: 4px; font-size: 11px; font-family: 'IBM Plex Mono', monospace;
+    transition: all 0.12s ease; user-select: none; position: relative;
+  }
+  .cal-day.available {
+    background: rgba(63, 224, 197, 0.08); color: #e2e8f0;
+    border: 1px solid rgba(63, 224, 197, 0.22); cursor: pointer;
+  }
+  .cal-day.available:hover {
+    background: rgba(63, 224, 197, 0.28); border-color: var(--accent);
+    color: #ffffff; transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(63, 224, 197, 0.3);
+  }
+  .cal-day.selected {
+    background: #3fe0c5 !important; color: #040c14 !important;
+    font-weight: 700 !important; border: 1px solid #3fe0c5 !important;
+    box-shadow: 0 0 12px rgba(63, 224, 197, 0.65);
+  }
+  .cal-day.unavailable {
+    color: #475569; background: transparent; border: 1px solid transparent;
+    cursor: not-allowed; opacity: 0.35; pointer-events: none;
+  }
+  .cal-day.empty { border: none; background: transparent; pointer-events: none; }
+  .cal-day.is-latest::after {
+    content: ''; position: absolute; bottom: 2px; width: 4px; height: 4px;
+    border-radius: 50%; background: #38bdf8;
+  }
+  .cal-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    border-top: 1px solid rgba(255,255,255,0.08); padding-top: 8px;
+    margin-top: 2px; font-size: 10px; color: #94a3b8;
+  }
+  .cal-legend { display: flex; align-items: center; gap: 10px; }
+  .cal-legend-item { display: inline-flex; align-items: center; gap: 4px; }
+  .cal-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .cal-dot.available { background: #3fe0c5; box-shadow: 0 0 4px rgba(63, 224, 197, 0.6); }
+  .cal-dot.unavailable { border: 1px solid #64748b; background: transparent; }
+  .cal-window-badge {
+    font-size: 9.5px; color: #3fe0c5; background: rgba(63,224,197,0.12);
+    padding: 2px 6px; border-radius: 3px; border: 1px solid rgba(63,224,197,0.25);
+  }
 
   #colorbar-wrap{ display:flex; align-items:center; gap:10px; }
   #colorbar{ width:180px; height:12px; border-radius:2px; border:1px solid var(--line); }
@@ -392,18 +481,6 @@
             <label class="switch"><input type="checkbox" id="ovIndiaEEZ" checked><span class="slider-toggle"></span></label></div>
           <div class="toggle-row"><span>🌊 Animated Ocean Currents</span>
             <label class="switch"><input type="checkbox" id="ovVectors"><span class="slider-toggle"></span></label></div>
-          <div class="toggle-row"><span>🏔️ Seabed Bathymetry (GEBCO 2024)</span>
-            <label class="switch"><input type="checkbox" id="ovBathymetry"><span class="slider-toggle"></span></label></div>
-          <div class="toggle-row"><span>🧊 3D Isosurface Preview</span>
-            <label class="switch"><input type="checkbox" id="ovIsosurface"><span class="slider-toggle"></span></label></div>
-          <div class="toggle-row"><span>📍 Vertical Sounding Profiles</span>
-            <label class="switch"><input type="checkbox" id="ovProfileLines"><span class="slider-toggle"></span></label></div>
-        </div>
-
-        <div class="field" style="margin-top:8px;">
-          <label for="exagSlider">Vertical Relief Exaggeration (<span id="exagValue">1.0x</span>)</label>
-          <div style="font-size:10px; color:var(--text-dim); margin-top:1px; margin-bottom:4px;">Scale factor for bathymetry ridges, current vectors & sounding columns</div>
-          <input type="range" id="exagSlider" min="0.5" max="4.0" step="0.1" value="1.0" aria-label="Vertical Relief Exaggeration">
         </div>
       </div>
 
@@ -1313,10 +1390,35 @@
       <input type="range" id="depthSlider" min="0" max="15" value="0" step="1" style="max-width:140px;" aria-label="Depth Slider">
       <span class="cb-label mono" id="depthLabel">0 m</span>
 
-      <span class="cb-label" style="margin-left:18px;">Time</span>
-      <button id="btnPlay">▶</button>
-      <input type="range" id="timeSlider" min="0" max="7" value="0" step="1" aria-label="Time Slider">
-      <span id="timeLabel" class="mono">—</span>
+      <span class="cb-label" style="margin-left:20px;">Date</span>
+      <div class="date-picker-wrap">
+        <button id="btnDatePicker" class="date-picker-btn" type="button" aria-haspopup="true" aria-expanded="false" title="Open 14-day ocean data explorer calendar">
+          <span style="font-size:13px;">📅</span>
+          <span id="datePickerLabel" class="mono">—</span>
+          <span style="font-size:9px; opacity:0.75; margin-left:2px;">▾</span>
+        </button>
+
+        <!-- Compact 14-Day Calendar Dropdown -->
+        <div id="calendarDropdown" class="calendar-dropdown" style="display:none;" role="dialog" aria-label="Ocean Data Calendar">
+          <div class="cal-header">
+            <button id="calPrevMonth" class="cal-nav-btn" type="button" title="Previous Month">‹</button>
+            <span id="calMonthTitle" class="cal-month-title mono">September 2026</span>
+            <button id="calNextMonth" class="cal-nav-btn" type="button" title="Next Month">›</button>
+          </div>
+          <div class="cal-weekdays">
+            <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+          </div>
+          <div id="calendarGrid" class="cal-grid"></div>
+          <div class="cal-footer">
+            <div class="cal-legend">
+              <span class="cal-legend-item"><span class="cal-dot available"></span> Available</span>
+              <span class="cal-legend-item"><span class="cal-dot unavailable"></span> Unavailable</span>
+            </div>
+            <div id="calWindowBadge" class="cal-window-badge mono">14-Day Window</div>
+          </div>
+        </div>
+      </div>
+      <span id="dateStatusLabel" class="mono" style="font-size:11.5px; color:var(--text-dim); margin-left:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:320px;">—</span>
     </div>
   </footer>
 </div>
@@ -1376,6 +1478,12 @@ var state = {
   depthIndex: 0,
   timeIndex: 0,
   times: [],
+  selectedDate: "2026-09-17",
+  selectedIsoTime: "2026-09-17T00:00:00Z",
+  rawTimestamps: [],
+  availableDates: new Set(),
+  dateWindow: { start: "2026-09-04", end: "2026-09-17", totalDays: 14, availableCount: 14 },
+  currentCalMonth: null,
   playing: false,
   playTimer: null,
   viewMode: "slice",
@@ -1400,11 +1508,32 @@ window.state = state;
 
 function apiUrl(path){ return state.apiBase.replace(/\/$/, "") + path; }
 
+const MONTH_NAMES_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTH_NAMES_FULL = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
 function formatDateOnly(dtStr){
   if(!dtStr) return "--";
   const s = String(dtStr).trim();
   const match = s.match(/^\d{4}-\d{2}-\d{2}/);
   return match ? match[0] : s;
+}
+
+function formatDisplayDate(dateStr){
+  if(!dateStr) return "--";
+  const s = String(dateStr).trim();
+  const match = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(match){
+    const day = match[3];
+    const monthIdx = parseInt(match[2], 10) - 1;
+    const year = match[1];
+    return `${day} ${MONTH_NAMES_SHORT[monthIdx] || match[2]} ${year}`;
+  }
+  return s;
+}
+
+function formatMonthYear(dateObj){
+  if(!dateObj) return "September 2026";
+  return `${MONTH_NAMES_FULL[dateObj.getUTCMonth()]} ${dateObj.getUTCFullYear()}`;
 }
 
 let oceanMaskData = null;
@@ -1464,13 +1593,14 @@ const HALINE_STOPS = [
   { t: 1.00, rgb: [0.85, 0.15, 0.55] }  // magenta
 ];
 
-// Bathymetric Pressure stops: surface seafoam -> sky blue -> royal navy -> abyss indigo
+// Ocean Hydrostatic & Bathymetric Pressure Stops (0 dbar surface to 4500 dbar abyss)
+// 0 dbar (Surface Seafoam Cyan) -> 1100 dbar (Sky Blue) -> 2200 dbar (Royal Blue) -> 3300 dbar (Deep Cobalt) -> 4500 dbar (Abyssal Indigo)
 const PRESSURE_STOPS = [
-  { t: 0.00, rgb: [0.35, 0.95, 0.90] }, // seafoam cyan
-  { t: 0.25, rgb: [0.20, 0.70, 0.95] }, // sky blue
-  { t: 0.50, rgb: [0.10, 0.40, 0.85] }, // royal blue
-  { t: 0.75, rgb: [0.10, 0.20, 0.60] }, // deep blue
-  { t: 1.00, rgb: [0.12, 0.08, 0.30] }  // abyss indigo
+  { t: 0.00, rgb: [0.35, 0.95, 0.90] }, // surface seafoam cyan (~0-100 dbar)
+  { t: 0.25, rgb: [0.18, 0.72, 0.98] }, // shallow-mid sky blue (~1100 dbar)
+  { t: 0.50, rgb: [0.12, 0.45, 0.90] }, // mid-depth royal blue (~2250 dbar)
+  { t: 0.75, rgb: [0.10, 0.20, 0.65] }, // deep ocean cobalt (~3400 dbar)
+  { t: 1.00, rgb: [0.10, 0.05, 0.28] }  // abyssal midnight indigo (4500+ dbar)
 ];
 
 const OPPORTUNITY_STOPS = [
@@ -2853,13 +2983,17 @@ function populateVariables(){
   const ds = state.catalog.find(d => d.dataset_id === state.dataset_id);
   const sel = document.getElementById("variableSelect");
   sel.innerHTML = "";
-  ds.variable_list.forEach(v => {
+  const rawVars = ds ? ds.variable_list : ["temperature", "salinity", "pressure"];
+  // Filter out vector current components from scalar variable dropdown
+  const varList = rawVars.filter(v => !v.toLowerCase().includes("current") && v !== "u" && v !== "v");
+  varList.forEach(v => {
     const opt = document.createElement("option");
     opt.value = v;
-    opt.textContent = (state.mode === "fisher") ? (PLAIN_LABELS[v] || v) : `${v}  (${ds.units[v]})`;
+    const unitStr = (ds && ds.units && ds.units[v]) ? ` (${ds.units[v]})` : '';
+    opt.textContent = (state.mode === "fisher") ? (PLAIN_LABELS[v] || v) : `${v}${unitStr}`;
     sel.appendChild(opt);
   });
-  if(!ds.variable_list.includes(state.variable)) state.variable = ds.variable_list[0];
+  if(!varList.includes(state.variable)) state.variable = varList[0];
   sel.value = state.variable;
 
   if(ds){
@@ -2870,11 +3004,233 @@ function populateVariables(){
   }
 }
 
+// ---------------------------------------------------------------------
+// 14-Day Ocean Data Explorer & Calendar Controller
+// ---------------------------------------------------------------------
+const currentsGridCache = new Map();
+
+function updateDatePickerButtonLabel(){
+  const btnLabel = document.getElementById("datePickerLabel");
+  if(btnLabel){
+    btnLabel.textContent = formatDisplayDate(state.selectedDate);
+  }
+}
+
+function toggleCalendarDropdown(open){
+  const dd = document.getElementById("calendarDropdown");
+  const btn = document.getElementById("btnDatePicker");
+  if(!dd) return;
+  const show = (open !== undefined) ? !!open : (dd.style.display === "none");
+  dd.style.display = show ? "flex" : "none";
+  if(btn){
+    btn.classList.toggle("active", show);
+    btn.setAttribute("aria-expanded", show ? "true" : "false");
+  }
+  if(show){
+    renderCalendarGrid();
+  }
+}
+
+function closeCalendarDropdown(){
+  toggleCalendarDropdown(false);
+}
+
+function changeCalMonth(delta){
+  if(!state.currentCalMonth) state.currentCalMonth = new Date(Date.UTC(2026, 8, 1));
+  const newM = new Date(Date.UTC(state.currentCalMonth.getUTCFullYear(), state.currentCalMonth.getUTCMonth() + delta, 1));
+  state.currentCalMonth = newM;
+  renderCalendarGrid();
+}
+
+function renderCalendarGrid(){
+  const gridEl = document.getElementById("calendarGrid");
+  const titleEl = document.getElementById("calMonthTitle");
+  const badgeEl = document.getElementById("calWindowBadge");
+  if(!gridEl) return;
+
+  if(!state.currentCalMonth){
+    state.currentCalMonth = new Date(Date.UTC(2026, 8, 1));
+  }
+
+  const calY = state.currentCalMonth.getUTCFullYear();
+  const calM = state.currentCalMonth.getUTCMonth(); // 0-indexed
+
+  if(titleEl){
+    titleEl.textContent = `${MONTH_NAMES_FULL[calM]} ${calY}`;
+  }
+
+  if(badgeEl && state.dateWindow){
+    badgeEl.textContent = `${state.dateWindow.availableCount || 0}/14 Days Available`;
+  }
+
+  // Days in this month
+  const firstDayOfWeek = new Date(Date.UTC(calY, calM, 1)).getUTCDay(); // 0 (Sun) to 6 (Sat)
+  const daysInMonth = new Date(Date.UTC(calY, calM + 1, 0)).getUTCDate();
+
+  gridEl.innerHTML = "";
+
+  // Padding cells before day 1
+  for(let p = 0; p < firstDayOfWeek; p++){
+    const emptyCell = document.createElement("div");
+    emptyCell.className = "cal-day empty";
+    gridEl.appendChild(emptyCell);
+  }
+
+  // Day cells
+  for(let day = 1; day <= daysInMonth; day++){
+    const dStr = `${calY}-${String(calM + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const cell = document.createElement("div");
+    cell.className = "cal-day";
+    cell.textContent = day;
+
+    const inWindow = state.dateWindow && (dStr >= state.dateWindow.start && dStr <= state.dateWindow.end);
+    const hasData = state.availableDates && state.availableDates.has(dStr);
+    const isSelected = (dStr === state.selectedDate);
+    const isLatest = state.dateWindow && (dStr === state.dateWindow.end);
+
+    if(inWindow && hasData){
+      cell.classList.add("available");
+      cell.title = `Ocean Data Available for ${formatDisplayDate(dStr)}`;
+      if(isSelected) cell.classList.add("selected");
+      if(isLatest) cell.classList.add("is-latest");
+
+      cell.onclick = (e) => {
+        e.stopPropagation();
+        selectOceanDate(dStr);
+      };
+    } else {
+      cell.classList.add("unavailable");
+      if(state.dateWindow && dStr > state.dateWindow.end){
+        cell.title = "Future date (data unavailable)";
+      } else if(state.dateWindow && dStr < state.dateWindow.start){
+        cell.title = "Outside supported 14-day window";
+      } else {
+        cell.title = "Ocean data unavailable for this date";
+      }
+    }
+
+    gridEl.appendChild(cell);
+  }
+}
+
+async function selectOceanDate(dateStr){
+  if(!dateStr) return;
+  closeCalendarDropdown();
+
+  const displayDate = formatDisplayDate(dateStr);
+  const statusEl = document.getElementById("dateStatusLabel");
+  if(statusEl){
+    statusEl.textContent = `Loading ocean data for ${displayDate}...`;
+    statusEl.style.color = "#38bdf8";
+  }
+
+  state.selectedDate = dateStr;
+  const matchingIso = (state.rawTimestamps || []).find(t => t.startsWith(dateStr)) || (dateStr + "T00:00:00Z");
+  state.selectedIsoTime = matchingIso;
+
+  if(state.times && state.times.length){
+    const idx = state.times.indexOf(matchingIso);
+    if(idx >= 0) state.timeIndex = idx;
+  }
+
+  updateDatePickerButtonLabel();
+  renderCalendarGrid();
+
+  try {
+    // Concurrently fetch scalar slice, vector currents, and observations
+    const tasks = [
+      loadModelData(),
+      state.showVectors ? loadVectors() : Promise.resolve(),
+      loadObservations()
+    ];
+    await Promise.all(tasks);
+
+    if(statusEl){
+      statusEl.textContent = `Ocean data: ${displayDate}`;
+      statusEl.style.color = "#3fe0c5";
+    }
+  } catch(err){
+    console.error("Date data update notice:", err);
+    if(statusEl){
+      statusEl.textContent = `Ocean data unavailable for ${displayDate}`;
+      statusEl.style.color = "#ef4444";
+    }
+  }
+}
+
 async function loadTimes(){
-  const res = await fetch(apiUrl(`/api/model/times?dataset_id=${state.dataset_id}`));
-  const data = await res.json();
-  state.times = data.times;
-  document.getElementById("timeSlider").max = state.times.length - 1;
+  let times = [];
+  try {
+    const resC = await fetch(apiUrl('/api/currents/times'));
+    if(resC.ok){
+      const dataC = await resC.json();
+      times = dataC.times || [];
+    }
+  } catch(e){
+    console.warn("Currents times fetch notice:", e);
+  }
+
+  if(!times.length){
+    try {
+      const resM = await fetch(apiUrl(`/api/model/times?dataset_id=${state.dataset_id}`));
+      if(resM.ok){
+        const dataM = await resM.json();
+        times = dataM.times || [];
+      }
+    } catch(e){
+      console.warn("Model times fetch notice:", e);
+    }
+  }
+
+  state.rawTimestamps = times;
+  state.times = times;
+
+  const dateStrings = times.map(t => t.slice(0, 10)).sort();
+  const uniqueDates = Array.from(new Set(dateStrings)).sort();
+  state.availableDates = new Set(uniqueDates);
+
+  if(uniqueDates.length > 0){
+    const latestDateStr = uniqueDates[uniqueDates.length - 1];
+    const [y, m, d] = latestDateStr.split('-').map(Number);
+    const startDate = new Date(Date.UTC(y, m - 1, d));
+    startDate.setUTCDate(startDate.getUTCDate() - 13);
+    const startIso = startDate.toISOString().slice(0, 10);
+
+    state.dateWindow = {
+      start: startIso,
+      end: latestDateStr,
+      totalDays: 14,
+      availableCount: uniqueDates.filter(dt => dt >= startIso && dt <= latestDateStr).length
+    };
+
+    if(!state.selectedDate || !state.availableDates.has(state.selectedDate)){
+      state.selectedDate = latestDateStr;
+      const matchingIso = times.find(t => t.startsWith(latestDateStr)) || (latestDateStr + "T00:00:00Z");
+      state.selectedIsoTime = matchingIso;
+      state.timeIndex = Math.max(0, times.indexOf(matchingIso));
+    }
+
+    state.currentCalMonth = new Date(Date.UTC(y, m - 1, 1));
+  } else {
+    state.selectedDate = null;
+    state.selectedIsoTime = null;
+    state.dateWindow = null;
+    state.currentCalMonth = new Date();
+    const statusEl = document.getElementById("dateStatusLabel");
+    if(statusEl){
+      statusEl.textContent = "Ocean data unavailable";
+      statusEl.style.color = "#ef4444";
+    }
+  }
+
+  updateDatePickerButtonLabel();
+  renderCalendarGrid();
+
+  const statusEl = document.getElementById("dateStatusLabel");
+  if(statusEl && state.selectedDate){
+    statusEl.textContent = `Ocean data: ${formatDisplayDate(state.selectedDate)}`;
+    statusEl.style.color = "#3fe0c5";
+  }
 }
 
 
@@ -3007,28 +3363,74 @@ function globalModelBounds(){
   };
 }
 
+const scalarSliceCache = new Map();
+const scalarGridCache = new Map();
+
 async function loadSingleSlice(){
-  const depth = DEPTHS[state.depthIndex];
+  const depth = DEPTHS[state.depthIndex] || 0.0;
   const depthBanner = document.getElementById("depthDisplayBanner");
   if(depthBanner) depthBanner.textContent = `Depth : -${depth} m`;
   const depthLbl = document.getElementById("depthLabel");
   if(depthLbl) depthLbl.textContent = `${depth} m`;
 
-  const time = state.times[state.timeIndex];
-  const b = globalModelBounds();
-  const url = apiUrl(`/api/model?dataset_id=${state.dataset_id}&variable=${state.variable}`
-    + `&min_depth=${depth}&max_depth=${depth}&time=${encodeURIComponent(time||"")}`
-    + `&min_lat=${b.min_lat}&max_lat=${b.max_lat}&min_lon=${b.min_lon}&max_lon=${b.max_lon}`);
-  const res = await fetch(url);
-  if(!res.ok) return;
-  const data = await res.json();
+  const time = state.selectedIsoTime || state.times[state.timeIndex] || "";
+  const dateKey = (time || "").slice(0, 10);
+  const cacheKey = `${state.dataset_id}_${state.variable}_${depth}_${dateKey}`;
 
-  renderCesiumSurfaceGrid(data.points, depth, 0.88);
-  document.getElementById("timeLabel").textContent = formatDateOnly(data.time);
+  let gridObj = scalarGridCache.get(cacheKey);
+
+  if(!gridObj){
+    // 1. First attempt to load genuine regular 2D grid for fastest GPU interpolation
+    try {
+      const gridUrl = apiUrl(`/api/model/grid?dataset_id=${state.dataset_id}&variable=${state.variable}&depth=${depth}&time=${encodeURIComponent(time||"")}`);
+      const res = await fetch(gridUrl);
+      if(res.ok){
+        gridObj = await res.json();
+        if(gridObj && gridObj.values && gridObj.values.length > 0){
+          scalarGridCache.set(cacheKey, gridObj);
+        }
+      }
+    } catch(err){
+      console.warn("Grid load notice:", err);
+    }
+  }
+
+  if(gridObj && gridObj.values && gridObj.values.length > 0){
+    renderCesiumSurfaceGrid(gridObj, depth, 0.88);
+    return;
+  }
+
+  // 2. Point fallback if grid is not available
+  let points = scalarSliceCache.get(cacheKey);
+  if(!points){
+    const b = globalModelBounds();
+    const url = apiUrl(`/api/model?dataset_id=${state.dataset_id}&variable=${state.variable}`
+      + `&min_depth=${depth}&max_depth=${depth}&time=${encodeURIComponent(time||"")}`
+      + `&min_lat=${b.min_lat}&max_lat=${b.max_lat}&min_lon=${b.min_lon}&max_lon=${b.max_lon}`);
+    
+    try {
+      const res = await fetch(url);
+      if(res.ok){
+        const data = await res.json();
+        points = data.points || [];
+        if(points.length > 0){
+          scalarSliceCache.set(cacheKey, points);
+        }
+      } else if(res.status === 404){
+        console.warn(`${state.variable} data unavailable for date=${dateKey} at depth=${depth}m in ${state.dataset_id}`);
+        points = [];
+      }
+    } catch(err){
+      console.warn("Slice load notice:", err);
+      points = [];
+    }
+  }
+
+  renderCesiumSurfaceGrid(points && points.length ? { points: points } : null, depth, 0.88);
 }
 
 async function loadVolumeStack(){
-  const time = state.times[state.timeIndex];
+  const time = state.selectedIsoTime || state.times[state.timeIndex] || "";
   const b = globalModelBounds();
   const url = apiUrl(`/api/model/volume?dataset_id=${state.dataset_id}&variable=${state.variable}`
     + `&depths=0,100,200,500,1000&time=${encodeURIComponent(time||"")}`
@@ -3041,20 +3443,52 @@ async function loadVolumeStack(){
   for(const [depthStr, pts] of Object.entries(data.layers)){
     const d = parseFloat(depthStr);
     const isActive = Math.abs(d - activeDepth) < 10;
-    renderCesiumSurfaceGrid(pts, d, isActive ? 0.90 : 0.35);
+    renderCesiumSurfaceGrid({ points: pts }, d, isActive ? 0.90 : 0.35);
   }
 }
 
 let temperatureImageryLayer = null;
 
 // Render Smooth High-Resolution Ocean Scalar Field (Temperature/Salinity/Pressure) Seamlessly on 3D Earth Globe
-function renderCesiumSurfaceGrid(points, depth, alpha = 0.82){
+function renderCesiumSurfaceGrid(dataObj, depth, alpha = 0.88){
+  if(!dataObj){
+    if(temperatureImageryLayer){
+      viewer.imageryLayers.remove(temperatureImageryLayer);
+      temperatureImageryLayer = null;
+    }
+    return;
+  }
+
+  const isGrid = !!(dataObj && dataObj.values && dataObj.values.length);
+  const dataPts = !isGrid ? (Array.isArray(dataObj) ? dataObj : (dataObj.points || [])) : [];
+
+  if(!isGrid && !dataPts.length){
+    if(temperatureImageryLayer){
+      viewer.imageryLayers.remove(temperatureImageryLayer);
+      temperatureImageryLayer = null;
+    }
+    return;
+  }
+
   const ds = state.catalog ? state.catalog.find(d => d.dataset_id === state.dataset_id) : null;
 
   let vmin = -2.0, vmax = 32.0;
-  if(state.variable === "salinity"){ vmin = 32.0; vmax = 37.5; }
-  else if(state.variable === "pressure"){ vmin = 0; vmax = 4500; }
-  else if(ds && ds.valid_range && ds.valid_range[state.variable]){
+  if(state.variable === "salinity"){
+    vmin = 32.0; vmax = 37.5;
+  } else if(state.variable === "pressure"){
+    // Physical hydrostatic pressure dynamic scaling by depth level
+    const nominalP = 1.025 * depth + 10.13;
+    vmin = Math.max(0, nominalP - 15.0);
+    vmax = nominalP + 15.0;
+  } else if(state.variable === "temperature"){
+    if(depth >= 500){
+      vmin = -1.5; vmax = 12.0;
+    } else if(depth >= 200){
+      vmin = 0.0; vmax = 22.0;
+    } else {
+      vmin = -2.0; vmax = 32.0;
+    }
+  } else if(ds && ds.valid_range && ds.valid_range[state.variable]){
     vmin = ds.valid_range[state.variable][0];
     vmax = ds.valid_range[state.variable][1];
   }
@@ -3070,49 +3504,80 @@ function renderCesiumSurfaceGrid(points, depth, alpha = 0.82){
   const imgData = ctx.createImageData(canvasW, canvasH);
   const pixels = imgData.data;
 
-  const dataPts = (points && points.length) ? points : [];
+  if(isGrid){
+    // REAL COPERNICUS MARINE PHYSICAL FIELD INTERPOLATION
+    const values = dataObj.values;
+    const nLat = dataObj.n_lat;
+    const nLon = dataObj.n_lon;
+    const latMin = dataObj.lat_min;
+    const latStep = dataObj.lat_step || 1.0;
+    const lonMin = dataObj.lon_min;
+    const lonStep = dataObj.lon_step || 1.0;
 
-  for(let py = 0; py < canvasH; py++){
-    const lat = 85.0 - (py / (canvasH - 1)) * 170.0;
-    const absLat = Math.abs(lat);
-    const nLat = absLat / 90.0;
+    for(let py = 0; py < canvasH; py++){
+      const lat = 85.0 - (py / (canvasH - 1)) * 170.0;
+      const fLat = (lat - latMin) / latStep;
+      const r0 = Math.max(0, Math.min(nLat - 1, Math.floor(fLat)));
+      const r1 = Math.max(0, Math.min(nLat - 1, r0 + 1));
+      const dr = fLat - r0;
 
-    for(let px = 0; px < canvasW; px++){
-      const lon = -180.0 + (px / (canvasW - 1)) * 360.0;
-      const pIdx = (py * canvasW + px) * 4;
+      for(let px = 0; px < canvasW; px++){
+        const pIdx = (py * canvasW + px) * 4;
 
-      // STRICT NATURAL EARTH LAND MASK EXCLUSION:
-      // Leave land 100% transparent so Earth terrestrial satellite imagery stays crisp
-      if(oceanMaskData && oceanMaskData[pIdx] < 128){
-        continue;
+        // STRICT NATURAL EARTH LAND MASK EXCLUSION:
+        // Leave land 100% transparent so Earth terrestrial satellite imagery stays crisp
+        if(oceanMaskData && oceanMaskData[pIdx] < 128){
+          continue;
+        }
+
+        const lon = -180.0 + (px / (canvasW - 1)) * 360.0;
+        const normLon = ((lon - lonMin) % 360.0 + 360.0) % 360.0;
+        const fLon = normLon / lonStep;
+        const c0 = Math.floor(fLon) % nLon;
+        const c1 = (c0 + 1) % nLon;
+        const dc = fLon - Math.floor(fLon);
+
+        const v00 = values[r0 * nLon + c0];
+        const v01 = values[r0 * nLon + c1];
+        const v10 = values[r1 * nLon + c0];
+        const v11 = values[r1 * nLon + c1];
+
+        let val = null;
+        if(v00 !== null && v01 !== null && v10 !== null && v11 !== null){
+          val = (1.0 - dr) * ((1.0 - dc) * v00 + dc * v01) + dr * ((1.0 - dc) * v10 + dc * v11);
+        } else {
+          let sumVal = 0.0, sumW = 0.0;
+          if(v00 !== null){ const w = (1.0 - dr) * (1.0 - dc); sumVal += v00 * w; sumW += w; }
+          if(v01 !== null){ const w = (1.0 - dr) * dc; sumVal += v01 * w; sumW += w; }
+          if(v10 !== null){ const w = dr * (1.0 - dc); sumVal += v10 * w; sumW += w; }
+          if(v11 !== null){ const w = dr * dc; sumVal += v11 * w; sumW += w; }
+          if(sumW > 0.05) val = sumVal / sumW;
+        }
+
+        if(val === null) continue;
+
+        const norm = Math.max(0, Math.min(1, (val - vmin) / Math.max(1e-9, (vmax - vmin))));
+        const [r, g, b] = colormap(norm, state.variable);
+
+        pixels[pIdx]     = (r * 255) | 0;
+        pixels[pIdx + 1] = (g * 255) | 0;
+        pixels[pIdx + 2] = (b * 255) | 0;
+        pixels[pIdx + 3] = (alpha * 225) | 0;
       }
+    }
+  } else {
+    // Point-based interpolation for sparse observations
+    for(let py = 0; py < canvasH; py++){
+      const lat = 85.0 - (py / (canvasH - 1)) * 170.0;
+      for(let px = 0; px < canvasW; px++){
+        const pIdx = (py * canvasW + px) * 4;
+        if(oceanMaskData && oceanMaskData[pIdx] < 128) continue;
+        const lon = -180.0 + (px / (canvasW - 1)) * 360.0;
 
-      let val = 0.0;
-
-      if(state.variable === "temperature"){
-        // Surface latitudinal temperature gradient (-1.8°C at poles -> 29.5°C at equator)
-        const surfTemp = -1.8 + 31.3 * Math.cos(nLat * Math.PI / 2.0);
-        // Realistic ocean thermal stratification: exponential thermocline cooling toward 2.2°C deep abyss
-        const thermoclineFactor = Math.exp(-depth / 380.0);
-        val = 2.2 + (surfTemp - 2.2) * thermoclineFactor;
-      } else if(state.variable === "salinity"){
-        // Subtropical high evaporation salinity maxima (~36.8 PSU) vs polar/equatorial minima (~34.0 PSU)
-        const surfSal = 34.2 + 2.6 * Math.sin(Math.min(1.0, nLat * 1.8) * Math.PI);
-        // Deep water converges toward ~34.7 PSU
-        val = 34.7 + (surfSal - 34.7) * Math.exp(-depth / 450.0);
-      } else if(state.variable === "pressure"){
-        // Hydrostatic seawater pressure: P = rho * g * z
-        val = 1.025 * depth + 10.13;
-      } else {
-        val = (vmin + vmax) / 2.0;
-      }
-
-      // Smooth feathered Gaussian spatial blending with NetCDF model points
-      if(dataPts.length){
-        let sumW = 0.0;
-        let sumVW = 0.0;
+        let sumW = 0.0, sumVW = 0.0;
         for(let k = 0; k < dataPts.length; k++){
           const pt = dataPts[k];
+          if(pt.depth !== undefined && Math.abs(pt.depth - depth) > 50.0) continue;
           const dLat = lat - pt.lat;
           let dLon = lon - pt.lon;
           if (dLon > 180.0) dLon -= 360.0;
@@ -3125,19 +3590,15 @@ function renderCesiumSurfaceGrid(points, depth, alpha = 0.82){
           }
         }
         if(sumW > 1e-3){
-          // Soft feathered blending weight without sharp boundary discontinuities
-          const blendW = Math.min(0.85, sumW / (sumW + 1.2));
-          val = (sumVW / sumW) * blendW + val * (1.0 - blendW);
+          const val = sumVW / sumW;
+          const norm = Math.max(0, Math.min(1, (val - vmin) / Math.max(1e-9, (vmax - vmin))));
+          const [r, g, b] = colormap(norm, state.variable);
+          pixels[pIdx]     = (r * 255) | 0;
+          pixels[pIdx + 1] = (g * 255) | 0;
+          pixels[pIdx + 2] = (b * 255) | 0;
+          pixels[pIdx + 3] = (alpha * 225) | 0;
         }
       }
-
-      const norm = Math.max(0, Math.min(1, (val - vmin) / Math.max(1e-9, (vmax - vmin))));
-      const [r, g, b] = colormap(norm, state.variable);
-
-      pixels[pIdx]     = (r * 255) | 0;
-      pixels[pIdx + 1] = (g * 255) | 0;
-      pixels[pIdx + 2] = (b * 255) | 0;
-      pixels[pIdx + 3] = (alpha * 195) | 0;
     }
   }
 
@@ -3244,7 +3705,7 @@ async function loadVectors(){
   drawColorbar(0.0, 1.0, "currents");
 
   const depth = DEPTHS[state.depthIndex] || 0.0;
-  const time = state.times[state.timeIndex] || "";
+  const time = state.selectedIsoTime || state.times[state.timeIndex] || "";
 
   if(oceanFlow){
     oceanFlow.setVisible(true);
@@ -3578,7 +4039,7 @@ async function refreshAll(){
     state.showVectors ? loadVectors() : Promise.resolve(),
     state.showIsosurface ? loadIsosurface() : Promise.resolve(),
     loadObservations(),
-    (typeof loadAdaptiveInformationGaps === 'function') ? loadAdaptiveInformationGaps() : Promise.resolve()
+    (document.getElementById("ovGaps") && document.getElementById("ovGaps").checked && typeof loadAdaptiveInformationGaps === 'function') ? loadAdaptiveInformationGaps() : Promise.resolve()
   ]);
 }
 
@@ -5419,17 +5880,21 @@ document.getElementById("variableSelect").onchange = async (e) => {
 document.getElementById("viewModeSelect").onchange = async (e) => {
   state.viewMode = e.target.value; await loadModelData();
 };
-document.getElementById("exagSlider").oninput = async (e) => {
-  state.verticalExaggeration = parseFloat(e.target.value);
-  document.getElementById("exagValue").textContent = `${state.verticalExaggeration.toFixed(1)}x`;
-  if(viewer && viewer.scene && 'verticalExaggeration' in viewer.scene){
-    try { viewer.scene.verticalExaggeration = state.verticalExaggeration; } catch(err){}
-  }
-  if(window.oceanFlow && state.showVectors){
-    window.oceanFlow.setAltitude(DEPTHS[state.depthIndex], state.verticalExaggeration);
-  }
-  await refreshAll();
-};
+const exagSliderEl = document.getElementById("exagSlider");
+if(exagSliderEl) {
+  exagSliderEl.oninput = async (e) => {
+    state.verticalExaggeration = parseFloat(e.target.value);
+    const exagVal = document.getElementById("exagValue");
+    if(exagVal) exagVal.textContent = `${state.verticalExaggeration.toFixed(1)}x`;
+    if(viewer && viewer.scene && 'verticalExaggeration' in viewer.scene){
+      try { viewer.scene.verticalExaggeration = state.verticalExaggeration; } catch(err){}
+    }
+    if(window.oceanFlow && state.showVectors){
+      window.oceanFlow.setAltitude(DEPTHS[state.depthIndex], state.verticalExaggeration);
+    }
+    await refreshAll();
+  };
+}
 document.getElementById("btnViewGIS").onclick = () => switchMainView('gis');
 const btnAdaptiveNav = document.getElementById("btnNavAdaptiveMission");
 if(btnAdaptiveNav) btnAdaptiveNav.onclick = () => switchMainView('adaptive');
@@ -5444,22 +5909,64 @@ document.getElementById("depthSlider").oninput = async (e) => {
   await loadModelData();
   if(state.showVectors) await loadVectors();
 };
-document.getElementById("timeSlider").oninput = async (e) => {
-  state.timeIndex = parseInt(e.target.value); await refreshAll();
-};
+
+// Date Picker & 14-Day Calendar UI Wiring
+const btnDatePickerEl = document.getElementById("btnDatePicker");
+if(btnDatePickerEl){
+  btnDatePickerEl.onclick = (e) => {
+    e.stopPropagation();
+    toggleCalendarDropdown();
+  };
+}
+
+const calPrevBtn = document.getElementById("calPrevMonth");
+if(calPrevBtn){
+  calPrevBtn.onclick = (e) => {
+    e.stopPropagation();
+    changeCalMonth(-1);
+  };
+}
+
+const calNextBtn = document.getElementById("calNextMonth");
+if(calNextBtn){
+  calNextBtn.onclick = (e) => {
+    e.stopPropagation();
+    changeCalMonth(1);
+  };
+}
+
+// Close calendar when clicking outside
+document.addEventListener("click", (e) => {
+  const wrap = document.querySelector(".date-picker-wrap");
+  if(wrap && !wrap.contains(e.target)){
+    closeCalendarDropdown();
+  }
+});
+
 document.getElementById("ovVectors").onchange = (e) => {
   state.showVectors = e.target.checked;
   loadVectors();
 };
-document.getElementById("ovBathymetry").onchange = (e) => {
+const ovGapsEl = document.getElementById("ovGaps");
+if(ovGapsEl){
+  ovGapsEl.onchange = (e) => {
+    if(typeof window.toggleAdaptiveGapsLayer === 'function'){
+      window.toggleAdaptiveGapsLayer(e.target.checked);
+    }
+  };
+}
+const ovBathyEl = document.getElementById("ovBathymetry");
+if(ovBathyEl) ovBathyEl.onchange = (e) => {
   state.showBathymetry = e.target.checked;
   loadBathymetry();
 };
-document.getElementById("ovIsosurface").onchange = (e) => {
+const ovIsoEl = document.getElementById("ovIsosurface");
+if(ovIsoEl) ovIsoEl.onchange = (e) => {
   state.showIsosurface = e.target.checked;
   loadIsosurface();
 };
-document.getElementById("ovProfileLines").onchange = (e) => {
+const ovProfEl = document.getElementById("ovProfileLines");
+if(ovProfEl) ovProfEl.onchange = (e) => {
   state.showProfileLines = e.target.checked;
   loadObservations();
 };
@@ -5473,21 +5980,26 @@ document.getElementById("ovProfileLines").onchange = (e) => {
 });
 document.getElementById("apiBase").onchange = (e) => { state.apiBase = e.target.value; loadCatalog(); };
 
-document.getElementById("btnPlay").onclick = () => {
-  state.playing = !state.playing;
-  document.getElementById("btnPlay").textContent = state.playing ? "⏸" : "▶";
-  if(state.playing){
-    state.playTimer = setInterval(async () => {
-      const slider = document.getElementById("timeSlider");
-      let v = (parseInt(slider.value) + 1) % state.times.length;
-      slider.value = v; state.timeIndex = v; await loadModelData();
-    }, 1200);
-  } else clearInterval(state.playTimer);
-};
+const btnPlayEl = document.getElementById("btnPlay");
+if(btnPlayEl){
+  btnPlayEl.onclick = () => {
+    state.playing = !state.playing;
+    btnPlayEl.textContent = state.playing ? "⏸" : "▶";
+    if(state.playing){
+      state.playTimer = setInterval(async () => {
+        const slider = document.getElementById("timeSlider");
+        if(slider){
+          let v = (parseInt(slider.value) + 1) % state.times.length;
+          slider.value = v; state.timeIndex = v; await loadModelData();
+        }
+      }, 1200);
+    } else clearInterval(state.playTimer);
+  };
+}
 
 document.getElementById("btnExport").onclick = () => {
   const depth = DEPTHS[state.depthIndex];
-  const time = state.times[state.timeIndex];
+  const time = state.selectedIsoTime || state.times[state.timeIndex] || "";
   const b = currentBounds();
   const url = apiUrl(`/api/export?kind=model&dataset_id=${state.dataset_id}&variable=${state.variable}`
     + `&min_depth=${depth}&max_depth=${depth}&time=${encodeURIComponent(time||"")}`
