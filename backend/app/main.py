@@ -39,6 +39,7 @@ from .oceangliders_service import oceangliders_service
 from .noaa_ioos_glider_service import noaa_ioos_glider_service
 from .currents_service import currents_service
 from .physics_service import physics_service
+from .vehicles.vehicle_service import vehicle_service, MissionPlanRequest, TelemetryPacket
 
 app = FastAPI(
     title="OCEAN 3D API",
@@ -799,9 +800,9 @@ def get_adaptive_instruments(
 def get_adaptive_mission_plan(
     lat: float = Query(15.4), lon: float = Query(88.7),
     depth: float = Query(500.0), variable: str = Query("temperature"),
-    platform: str = Query("glider")
+    platform: str = Query("all", description="Fleet platform filter: 'all', 'auv', 'uuv', 'glider', 'usv'")
 ):
-    """Current-aware trajectory planning, energy evaluation, and multi-criteria candidate ranking."""
+    """Current-aware trajectory planning, energy evaluation, and multi-criteria candidate ranking across all steerable assets."""
     return mission_optimizer.plan_optimal_mission(lat, lon, depth, variable, platform)
 
 
@@ -809,7 +810,7 @@ def get_adaptive_mission_plan(
 def get_adaptive_mission_simulation(
     lat: float = Query(15.4), lon: float = Query(88.7),
     depth: float = Query(500.0), variable: str = Query("temperature"),
-    platform: str = Query("glider")
+    platform: str = Query("all", description="Fleet platform filter: 'all', 'auv', 'uuv', 'glider', 'usv'")
 ):
     """Executes closed-loop step-by-step mission simulation with BEFORE vs AFTER Bayesian uncertainty reduction."""
     return mission_simulator.simulate_mission(lat, lon, depth, variable, platform)
@@ -835,6 +836,53 @@ def ingest_adaptive_mission_observation(payload: IngestMissionPayload):
         longitude=payload.longitude,
         sampling_sequence=payload.sampling_sequence,
     )
+
+
+# ---------------------------------------------------------------------------
+# AUV, UUV, and ROV Autonomous Ocean Observation & Mission Control
+# ---------------------------------------------------------------------------
+
+@app.get("/api/vehicles")
+def get_vehicles(type: Optional[str] = Query(None, description="AUV | UUV | ROV")):
+    """Query autonomous, uncrewed, and remotely operated ocean vehicles."""
+    return vehicle_service.get_all_vehicles(type)
+
+
+@app.get("/api/vehicles/{vehicle_id}")
+def get_vehicle_details(vehicle_id: str):
+    """Query specific vehicle state, telemetry, and track history."""
+    v = vehicle_service.get_vehicle_by_id(vehicle_id)
+    if not v:
+        raise HTTPException(status_code=404, detail=f"Vehicle '{vehicle_id}' not found.")
+    return v
+
+
+@app.post("/api/missions/plan")
+def plan_vehicle_mission(plan_req: MissionPlanRequest):
+    """Generate 3D waypoints, depth transit stages, and duration for an autonomous mission."""
+    try:
+        return vehicle_service.plan_mission(plan_req)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/missions/sample")
+def sample_mission_observation(
+    lat: float = Query(..., description="Target latitude"),
+    lon: float = Query(..., description="Target longitude"),
+    depth: float = Query(..., description="Target depth in meters"),
+    sensors: Optional[str] = Query(None, description="Comma-separated sensor list e.g. temperature,salinity,oxygen,chlorophyll")
+):
+    """Retrieve / interpolate oceanographic baseline observations for target sampling point."""
+    sensor_list = [s.strip() for s in sensors.split(",")] if sensors else None
+    return vehicle_service.sample_observation_at_target(lat, lon, depth, sensor_list)
+
+
+@app.post("/api/vehicles/{vehicle_id}/telemetry")
+def ingest_vehicle_telemetry(vehicle_id: str, packet: TelemetryPacket):
+    """Ingest standardized vehicle telemetry (simulator or future live hardware feed)."""
+    packet.vehicleId = vehicle_id
+    return vehicle_service.ingest_telemetry(packet)
 
 
 
@@ -1108,6 +1156,15 @@ def get_config_js():
         if os.path.exists(candidate):
             return FileResponse(candidate, media_type="application/javascript")
     raise HTTPException(404, "config.js not found")
+
+
+@app.get("/vehicle-missions.js")
+def get_vehicle_missions_js():
+    """Serve frontend/vehicle-missions.js with application/javascript MIME type."""
+    for candidate in ["frontend/vehicle-missions.js", "../frontend/vehicle-missions.js", os.path.join("..", "frontend", "vehicle-missions.js")]:
+        if os.path.exists(candidate):
+            return FileResponse(candidate, media_type="application/javascript")
+    raise HTTPException(404, "vehicle-missions.js not found")
 
 
 # ---------------------------------------------------------------------------
