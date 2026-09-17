@@ -147,10 +147,25 @@ class MissionSimulatorEngine:
 
         ptype = (platform_type or "glider").lower().strip()
         if ptype == "auv":
-            p_prop = 120.0
+            p_prop = 110.0
             p_sensor = 25.0
-            p_pump = 35.0
-            capacity_wh = 4800.0
+            p_pump = 30.0
+            capacity_wh = 5200.0
+        elif ptype == "uuv":
+            p_prop = 80.0
+            p_sensor = 20.0
+            p_pump = 20.0
+            capacity_wh = 14000.0
+        elif ptype in ("usv", "asv"):
+            p_prop = 30.0
+            p_sensor = 15.0
+            p_pump = 0.0
+            capacity_wh = 12000.0
+        elif ptype == "rov":
+            p_prop = 250.0
+            p_sensor = 40.0
+            p_pump = 0.0
+            capacity_wh = 25000.0
         elif ptype == "vessel":
             p_prop = 500000.0
             p_sensor = 1500.0
@@ -359,7 +374,7 @@ class MissionSimulatorEngine:
         longitude: float,
         depth_m: float = 100.0,
         variable: str = "temperature",
-        preferred_platform: str = "glider",
+        preferred_platform: str = "all",
     ) -> dict[str, Any]:
         plan = mission_optimizer.plan_optimal_mission(latitude, longitude, depth_m, variable, preferred_platform)
         winner = plan.get("selected_winner")

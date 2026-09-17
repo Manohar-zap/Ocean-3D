@@ -16,6 +16,7 @@
 <script src="config.js"></script>
 <script src="assets/ocean_mask_data.js"></script>
 <script src="adaptive-mission-globe.js"></script>
+<script src="vehicle-missions.js"></script>
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
@@ -387,6 +388,8 @@
           <div class="section-title">3D Scene Layers</div>
           <div class="toggle-row"><span><span class="swatch" style="background:#f43f5e; box-shadow:0 0 6px #f43f5e;"></span>⚠️ Adaptive Information Gaps</span>
             <label class="switch"><input type="checkbox" id="ovGaps" checked><span class="slider-toggle"></span></label></div>
+          <div class="toggle-row"><span><span class="swatch" style="background:#ef4444; box-shadow:0 0 6px #ef4444;"></span>🛰️ Pixel Raster Void Heatmap</span>
+            <label class="switch"><input type="checkbox" id="ovRasterGapsGis" onchange="syncRasterGapToggle(this.checked)"><span class="slider-toggle"></span></label></div>
           <div class="toggle-row"><span>🇮🇳 India EEZ Boundary (200 NM)</span>
             <label class="switch"><input type="checkbox" id="ovIndiaEEZ" checked><span class="slider-toggle"></span></label></div>
           <div class="toggle-row"><span>🌊 Animated Ocean Currents</span>
@@ -436,7 +439,7 @@
       <!-- TAB 3: OBSERVATION FLEET & OPERATIONAL PROVENANCE -->
       <div id="tab-fleet" class="tab-pane" style="display:none;">
         <div>
-          <div class="section-title">Instrument Overlays</div>
+          <div class="section-title">Observation & Vehicle Layers</div>
           <div class="toggle-row"><span><img src="assets/icons/argo_float.png" alt="Argo Float" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#f2a65a"></span>Argo Floats</span>
             <label class="switch"><input type="checkbox" id="ovArgo" checked><span class="slider-toggle"></span></label></div>
           <div class="toggle-row"><span><img src="assets/icons/bgc.png" alt="BGC-Argo Float" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#8ee0a4"></span>BGC-Argo Floats</span>
@@ -447,6 +450,12 @@
             <label class="switch"><input type="checkbox" id="ovGlider" checked><span class="slider-toggle"></span></label></div>
           <div class="toggle-row"><span><img src="assets/icons/ctd.png" alt="Shipboard CTD Cast" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));"><span class="swatch" style="background:#c58ee0"></span>Shipboard CTD Casts</span>
             <label class="switch"><input type="checkbox" id="ovCtd" checked><span class="slider-toggle"></span></label></div>
+          <div class="toggle-row"><span><span class="swatch" style="background:#00e5ff; box-shadow:0 0 6px #00e5ff;"></span>⬡ AUV (Submersible)</span>
+            <label class="switch"><input type="checkbox" id="ovAUV" checked><span class="slider-toggle"></span></label></div>
+          <div class="toggle-row"><span><span class="swatch" style="background:#a855f7; box-shadow:0 0 6px #a855f7;"></span>⬢ UUV (Subsea Patrol)</span>
+            <label class="switch"><input type="checkbox" id="ovUUV" checked><span class="slider-toggle"></span></label></div>
+          <div class="toggle-row"><span><span class="swatch" style="background:#ff9100; box-shadow:0 0 6px #ff9100;"></span>⬡ ROV (Tethered Arm)</span>
+            <label class="switch"><input type="checkbox" id="ovROV" checked><span class="slider-toggle"></span></label></div>
         </div>
 
         <div>
@@ -458,6 +467,9 @@
               <div>MOORING: <span id="cntMooring" class="mono" style="color:#38bdf8; font-weight:600;">0</span></div>
               <div>GLIDER: <span id="cntGlider" class="mono" style="color:#8ec9e0; font-weight:600;">0</span></div>
               <div>CTD: <span id="cntCtd" class="mono" style="color:#c58ee0; font-weight:600;">0</span></div>
+              <div>AUV: <span id="cntAuv" class="mono" style="color:#00e5ff; font-weight:600;">2</span></div>
+              <div>UUV: <span id="cntUuv" class="mono" style="color:#a855f7; font-weight:600;">2</span></div>
+              <div>ROV: <span id="cntRov" class="mono" style="color:#ff9100; font-weight:600;">2</span></div>
             </div>
             <div style="display:flex; justify-content:space-between; margin-top:2px; padding-top:4px; border-top:1px solid var(--line); font-weight:600;">
               <span>ACTIVE PLATFORMS</span>
@@ -515,6 +527,38 @@
         <div style="font-size:10px; color:var(--text-dim); line-height:1.4;">
           Regions where observational density, staleness, depth coverage, or model disagreement warrant autonomous sampling missions. Click any gap to inspect & plan.
         </div>
+
+        <!-- RASTER PIXEL GAP & DENSITY HEATMAP CONTROL -->
+        <div style="background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); padding:8px; margin:8px 0 6px 0; display:flex; flex-direction:column; gap:6px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:11px; font-weight:700; color:#fff; display:flex; align-items:center; gap:5px;">
+              <span class="swatch" style="background:#ef4444; box-shadow:0 0 6px #ef4444;"></span>
+              Pixel Raster Void Heatmap
+            </span>
+            <label class="switch">
+              <input type="checkbox" id="ovRasterGaps" onchange="toggleRasterGapHeatmap(this.checked)">
+              <span class="slider-toggle"></span>
+            </label>
+          </div>
+          <div style="font-size:9.5px; color:var(--text-dim); line-height:1.3;">
+            Scans 524k ocean pixels globally to locate observation voids (&gt;400 km) directly from in-situ platform density.
+          </div>
+          <div id="rasterGapControls" style="display:none; flex-direction:column; gap:6px; margin-top:2px; border-top:1px solid var(--line); padding-top:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
+              <span style="color:var(--text-dim);">Float Search Radius:</span>
+              <span id="rasterRadiusLabel" class="mono" style="color:var(--accent); font-weight:700;">400 km</span>
+            </div>
+            <input type="range" id="rasterRadiusSlider" min="150" max="800" step="25" value="400" oninput="onRasterRadiusChange(this.value)" style="width:100%; accent-color:var(--accent);">
+            <div style="display:flex; justify-content:space-between; font-size:9.5px; font-family:'IBM Plex Mono',monospace; background:rgba(0,0,0,0.25); padding:4px 6px; border-radius:3px;">
+              <span>Ocean Void: <strong id="rasterVoidPct" style="color:#ef4444;">--%</strong></span>
+              <span>Observed: <strong id="rasterObsPct" style="color:#34d399;">--%</strong></span>
+            </div>
+            <button class="action" onclick="focusLargestRasterVoid()" style="padding:4px; font-size:10px; background:rgba(239,68,68,0.18); border-color:#ef4444; color:#ef4444; font-weight:700; width:100%; cursor:pointer;">
+              🎯 Focus Largest Detected Void
+            </button>
+          </div>
+        </div>
+
         <div id="adaptiveGapList" style="display:flex; flex-direction:column; gap:6px;">
           <div style="font-size:11px; color:var(--text-dim); padding:8px;">Analyzing global ocean telemetry...</div>
         </div>
@@ -904,7 +948,61 @@
     </div>
     <div id="hint">Drag to orbit Earth globe · scroll to zoom · click an observation platform to inspect</div>
     <div id="depthDisplayBanner">Depth : -0 m</div>
+
+    <!-- RASTER VOID HEATMAP FLOATING HUD -->
+    <div id="rasterGapGlobeHUD" style="display:none; position:absolute; bottom:52px; left:12px; z-index:4; background:rgba(7,16,25,0.88); border:1px solid rgba(239,68,68,0.45); border-radius:4px; padding:8px 12px; backdrop-filter:blur(8px); box-shadow:0 4px 20px rgba(0,0,0,0.6); max-width:320px; font-size:11px; color:#fff;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:4px;">
+        <span style="font-weight:700; color:#ef4444; display:flex; align-items:center; gap:5px;">
+          <span>🛰️</span>
+          <span>PIXEL RASTER VOID HEATMAP</span>
+        </span>
+        <button onclick="toggleRasterGapHeatmap(false)" style="background:transparent; border:none; color:var(--text-dim); cursor:pointer; font-size:13px; padding:0 4px;" title="Close Raster Heatmap">✕</button>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px; font-size:10px;">
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:var(--text-dim);">Global Ocean Analyzed:</span>
+          <span class="mono" style="color:#fff; font-weight:600;">524,288 Pixels</span>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:var(--text-dim);">Unobserved Voids (&gt;400 km):</span>
+          <span id="hudRasterVoidPct" class="mono" style="color:#ef4444; font-weight:700;">--%</span>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:var(--text-dim);">Float-Observed Ocean:</span>
+          <span id="hudRasterObsPct" class="mono" style="color:#34d399; font-weight:700;">--%</span>
+        </div>
+      </div>
+      <!-- Colorbar Legend -->
+      <div style="margin-top:8px;">
+        <div style="height:6px; border-radius:3px; background:linear-gradient(to right, #ef4444 0%, #ef4444 35%, #f59e0b 60%, #38bdf8 100%);"></div>
+        <div style="display:flex; justify-content:space-between; font-size:8.5px; color:var(--text-dim); margin-top:2px;">
+          <span style="color:#ef4444;">🔴 Void (&gt;400 km)</span>
+          <span style="color:#f59e0b;">🟡 Edge</span>
+          <span style="color:#38bdf8;">🔵 Observed</span>
+        </div>
+      </div>
+    </div>
+
     <div id="coordsReadout" class="mono">Position: 0.00°N, 20.00°E | Global 3D Ocean Globe Workspace</div>
+    
+    <!-- OBSERVATION & VEHICLE MISSION MAP LEGEND -->
+    <div id="mapLegendWidget" style="position:absolute; bottom:12px; right:12px; z-index:5; background:rgba(7,16,25,0.90); border:1px solid var(--line); border-radius:4px; padding:6px 10px; font-size:10px; font-family:'IBM Plex Sans', sans-serif; box-shadow:0 4px 16px rgba(0,0,0,0.5); backdrop-filter:blur(6px); max-width:270px; user-select:none;">
+      <div style="font-size:9.5px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.6px; margin-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:3px; display:flex; justify-content:space-between; align-items:center;">
+        <span>OBSERVATION &amp; VEHICLE LEGEND</span>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:2px 8px; font-size:9.5px; color:#cbd5e1;">
+        <div style="display:flex; align-items:center; gap:4px;"><span style="color:#f2a65a; font-size:10px;">●</span> Argo Float</div>
+        <div style="display:flex; align-items:center; gap:4px;"><span style="color:#8ec9e0; font-size:10px;">●</span> Glider</div>
+        <div style="display:flex; align-items:center; gap:4px;"><span style="color:#38bdf8; font-size:10px;">●</span> Moored Buoy</div>
+        <div style="display:flex; align-items:center; gap:4px;"><span style="color:#00e5ff; font-weight:700;">⬡</span> AUV</div>
+        <div style="display:flex; align-items:center; gap:4px;"><span style="color:#a855f7; font-weight:700;">⬢</span> UUV</div>
+        <div style="display:flex; align-items:center; gap:4px;"><span style="color:#ff9100; font-weight:700;">⬡</span> ROV</div>
+        <div style="display:flex; align-items:center; gap:4px;"><span style="color:#f43f5e; font-weight:700;">◎</span> Mission Target</div>
+        <div style="display:flex; align-items:center; gap:4px;"><span style="width:12px; height:0; border-top:2px dashed #00e5ff; display:inline-block;"></span> Planned Route</div>
+        <div style="display:flex; align-items:center; gap:4px; grid-column:span 2;"><span style="width:14px; height:0; border-top:2px solid #a855f7; display:inline-block;"></span> Completed Track</div>
+      </div>
+    </div>
+
     <div id="terrainErrorBanner"></div>
     <div id="loading">Initializing Real 3D Earth Globe & Cesium World Terrain…</div>
 
@@ -1193,13 +1291,19 @@
         <button class="pb-speed-btn" data-speed="2.0">2x</button>
         <button class="pb-speed-btn" data-speed="4.0">4x</button>
       </div>
+      <!-- Camera Freedom Toggle Button - defaults to TOP view matching camMode='TOP' in JS -->
+      <button id="btnPbCamMode" class="pb-cam-btn" title="Current View: Top-Down Aerial (85° Overhead). Click to switch to Chase 3D." style="display:flex; align-items:center; gap:5px; font-size:10px; font-weight:700; padding:4px 9px; border-radius:12px; border:1px solid #38bdf8; background:rgba(56,189,248,0.2); color:#38bdf8; cursor:pointer; font-family:'IBM Plex Mono',monospace; white-space:nowrap; transition:all 0.15s ease;">
+        <span id="pbCamModeIcon">🛰️</span>
+        <span id="pbCamModeText">Camera: Top View</span>
+      </button>
     </div>
+
 
     <!-- Right Slide-in Focused Adaptive Mission & Information Gap Panel -->
     <div id="adaptiveMissionPanel">
       <button class="close-btn" id="btnCloseAdaptivePanel" title="Close Panel">✕</button>
       
-      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--adm-line); padding-bottom:6px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--adm-line); padding-bottom:6px; padding-right:36px;">
         <span style="font-size:12px; font-weight:700; color:#fff; letter-spacing:0.5px;">INFORMATION GAP DETECTED</span>
         <span id="admBadgePriority" class="badge-priority high">HIGH — 82%</span>
       </div>
@@ -1309,45 +1413,6 @@
         </ul>
       </div>
     </div>
-
-    <!-- Post-Mission Summary Modal -->
-    <div id="missionSummaryModal" class="adm-modal-backdrop">
-      <div class="adm-modal-box">
-        <div class="adm-modal-hdr">
-          <div class="adm-modal-title">
-            <span style="color:#34d399;">✓</span>
-            <span>MISSION COMPLETE — DIGITAL TWIN REASSESSED</span>
-          </div>
-          <button class="close-btn" onclick="closeMissionSummaryModal()" style="background:none; border:none; color:var(--text-dim); font-size:18px; cursor:pointer;">✕</button>
-        </div>
-        <div style="font-size:12px; color:var(--text); line-height:1.5;">
-          Controllable observing platform completed the 3D depth sampling sequence down to the target horizon. Continuous temperature, salinity, pressure, and dissolved oxygen profiles were ingested into the Ocean Digital Twin.
-        </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-          <div class="adm-card">
-            <span class="adm-label">PRIOR INFORMATION GAP</span>
-            <span id="smBefore" class="adm-val" style="color:#f43f5e; font-size:18px;">86.4%</span>
-            <span style="font-size:10px; color:var(--text-dim);">Critical Uncertainty</span>
-          </div>
-          <div class="adm-card">
-            <span class="adm-label">POSTERIOR INFORMATION GAP</span>
-            <span id="smAfter" class="adm-val" style="color:#34d399; font-size:18px;">24.2%</span>
-            <span style="font-size:10px; color:var(--text-dim);">Resolved & Constrained</span>
-          </div>
-        </div>
-        <div class="adm-card">
-          <div class="adm-row"><span class="adm-label">Expected Information Gain:</span><span id="smGain" class="adm-val" style="color:var(--adm-cyan);">+62.2%</span></div>
-          <div class="adm-row"><span class="adm-label">Uncertainty Reduction:</span><span id="smReduction" class="adm-val" style="color:var(--adm-green);">72.0%</span></div>
-          <div class="adm-row"><span class="adm-label">Digital Twin Status:</span><span class="adm-val">SIMULATED REASSESSMENT COMPLETE</span></div>
-        </div>
-        <div style="font-size:10.5px; color:#f59e0b; background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.35); border-radius:4px; padding:6px 10px; line-height:1.45; font-family:'IBM Plex Mono',monospace;">
-          ⚠ <strong>PROVENANCE & SIMULATION NOTICE:</strong> All vehicle trajectories, transit battery expenditures, and acquired soundings are numerically generated planning models. Real operational assets are limited to verified in-situ observational networks (Argo, Moorings, CTD).
-        </div>
-        <button class="action primary" onclick="closeMissionSummaryModal()" style="margin-top:4px; padding:8px; font-weight:600; cursor:pointer;">
-          Resume 3D Ocean Digital Twin Workspace
-        </button>
-      </div>
-    </div>
   </main>
 
   <footer>
@@ -1368,6 +1433,45 @@
       <span id="timeLabel" class="mono">—</span>
     </div>
   </footer>
+</div>
+
+<!-- Post-Mission Summary Modal -->
+<div id="missionSummaryModal" class="adm-modal-backdrop">
+  <div class="adm-modal-box">
+    <div class="adm-modal-hdr">
+      <div class="adm-modal-title">
+        <span style="color:#34d399;">✓</span>
+        <span>MISSION COMPLETE — DIGITAL TWIN REASSESSED</span>
+      </div>
+      <button class="close-btn" onclick="closeMissionSummaryModal()" style="background:none; border:none; color:var(--text-dim); font-size:18px; cursor:pointer;">✕</button>
+    </div>
+    <div style="font-size:12px; color:var(--text); line-height:1.5;">
+      Controllable observing platform completed the 3D depth sampling sequence down to the target horizon. Continuous temperature, salinity, pressure, and dissolved oxygen profiles were ingested into the Ocean Digital Twin.
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+      <div class="adm-card">
+        <span class="adm-label">PRIOR INFORMATION GAP</span>
+        <span id="smBefore" class="adm-val" style="color:#f43f5e; font-size:18px;">86.4%</span>
+        <span style="font-size:10px; color:var(--text-dim);">Critical Uncertainty</span>
+      </div>
+      <div class="adm-card">
+        <span class="adm-label">POSTERIOR INFORMATION GAP</span>
+        <span id="smAfter" class="adm-val" style="color:#34d399; font-size:18px;">24.2%</span>
+        <span style="font-size:10px; color:var(--text-dim);">Resolved & Constrained</span>
+      </div>
+    </div>
+    <div class="adm-card">
+      <div class="adm-row"><span class="adm-label">Expected Information Gain:</span><span id="smGain" class="adm-val" style="color:var(--adm-cyan);">+62.2%</span></div>
+      <div class="adm-row"><span class="adm-label">Uncertainty Reduction:</span><span id="smReduction" class="adm-val" style="color:var(--adm-green);">72.0%</span></div>
+      <div class="adm-row"><span class="adm-label">Digital Twin Status:</span><span class="adm-val">SIMULATED REASSESSMENT COMPLETE</span></div>
+    </div>
+    <div style="font-size:10.5px; color:#f59e0b; background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.35); border-radius:4px; padding:6px 10px; line-height:1.45; font-family:'IBM Plex Mono',monospace;">
+      ⚠ <strong>PROVENANCE & SIMULATION NOTICE:</strong> All vehicle trajectories, transit battery expenditures, and acquired soundings are numerically generated planning models. Real operational assets are limited to verified in-situ observational networks (Argo, Moorings, CTD).
+    </div>
+    <button class="action primary" onclick="closeMissionSummaryModal()" style="margin-top:4px; padding:8px; font-weight:600; cursor:pointer;">
+      Resume 3D Ocean Digital Twin Workspace
+    </button>
+  </div>
 </div>
 
 <!-- Guided Science Communication "Ocean Stories" Modal -->
@@ -2652,7 +2756,10 @@ async function initCesiumGlobe(){
   // Suppress Cesium modal error overlay from blocking UI interactions
   if (viewer.cesiumWidget && viewer.cesiumWidget.showErrorPanel) {
     viewer.cesiumWidget.showErrorPanel = function(title, message, error) {
-      console.warn("Cesium worker geometry notice:", title, message);
+      console.warn("Cesium worker geometry notice:", title, message, error);
+      if (viewer.cesiumWidget && viewer.cesiumWidget._canRender === false) {
+        viewer.cesiumWidget._canRender = true;
+      }
     };
   }
 
@@ -2665,6 +2772,7 @@ async function initCesiumGlobe(){
 
   // Hover Readout & Observation Platform Label Display
   let hoveredEntity = null;
+  let lastHoverPickTime = 0;
   const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
   handler.setInputAction((movement) => {
     const cartesian = viewer.camera.pickEllipsoid(movement.endPosition, viewer.scene.globe.ellipsoid);
@@ -2676,8 +2784,19 @@ async function initCesiumGlobe(){
       document.getElementById("coordsReadout").textContent = `Position: ${lat}°N, ${lon}°E | Altitude: ${height} km | Global 3D Ocean Globe`;
     }
 
+    const now = performance.now();
+    if (now - lastHoverPickTime < 60) return;
+    lastHoverPickTime = now;
+
     const pickedObject = viewer.scene.pick(movement.endPosition);
-    if(Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.userData && pickedObject.id.userData.platform_id) {
+    if(Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.vehicleData) {
+      const vData = pickedObject.id.vehicleData;
+      document.getElementById("coordsReadout").innerHTML = `
+        <span style="color:#00e5ff; font-weight:700;">🌊 OCEAN ➔ ${vData.depth}m ➔ [${vData.type}] ${vData.name}</span> | 
+        Pos: ${vData.latitude.toFixed(3)}°N, ${vData.longitude.toFixed(3)}°E | 
+        Depth: <strong>${vData.depth} m</strong> [${vData.source}] | Status: <strong style="color:#34d399;">${vData.status}</strong>
+      `;
+    } else if(Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.userData && pickedObject.id.userData.platform_id) {
       const entity = pickedObject.id;
       const uData = entity.userData;
 
@@ -2699,13 +2818,35 @@ async function initCesiumGlobe(){
     }
   }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-  // Click Platform Entity, Adaptive Information Gap, or Fisher Location Query
+  // Click Platform Entity, Adaptive Information Gap, Vehicle Target, or Fisher Location Query
   handler.setInputAction(async (click) => {
+    // 1. Vehicle Mission Target Picking Mode (Globe Click -> Target)
+    if (window.VehicleMissionManager && window.VehicleMissionManager.isSelectingTarget) {
+      const cartesian = viewer.camera.pickEllipsoid(click.position, viewer.scene.globe.ellipsoid);
+      if (cartesian) {
+        const carto = Cesium.Cartographic.fromCartesian(cartesian);
+        const lat = Cesium.Math.toDegrees(carto.latitude);
+        const lon = Cesium.Math.toDegrees(carto.longitude);
+        window.VehicleMissionManager.handleGlobeTargetClick(lat, lon);
+        return;
+      }
+    }
+
     const pickedObject = viewer.scene.pick(click.position);
     if(Cesium.defined(pickedObject) && pickedObject.id){
-      if(pickedObject.id.gapData && (typeof window.selectAdaptiveGap === 'function' || typeof selectAdaptiveGap === 'function')){
+      // 2. AUV / UUV / ROV Subsea Vehicle Pin Picked
+      if (pickedObject.id.vehicleData && window.VehicleMissionManager) {
+        window.VehicleMissionManager.selectVehicle(pickedObject.id.vehicleData.id);
+        return;
+      }
+      if((pickedObject.id.gapData || pickedObject.id.isAdaptiveGap) && (typeof window.selectAdaptiveGap === 'function' || typeof selectAdaptiveGap === 'function')){
         const fn = window.selectAdaptiveGap || selectAdaptiveGap;
-        fn(pickedObject.id.gapData);
+        const gapToSelect = pickedObject.id.gapData || (window.adaptiveState && window.adaptiveState.selectedGap);
+        if (gapToSelect) fn(gapToSelect);
+        return;
+      }
+      if(pickedObject.id.candidateData && typeof window.flyToCandidate === 'function'){
+        window.flyToCandidate(pickedObject.id.candidateData.instrument_id);
         return;
       }
       if(pickedObject.id.userData && pickedObject.id.userData.platform_id){
@@ -3247,6 +3388,284 @@ function renderCesiumSurfaceGrid(points, depth, alpha = 0.82){
 }
 
 // ---------------------------------------------------------------------
+// PIXEL-BASED RASTER GAP DETECTION & OBSERVATION DENSITY HEATMAP
+// ---------------------------------------------------------------------
+let gapDensityImageryLayer = null;
+let lastRasterGapStats = null;
+let currentRasterRadiusKm = 400.0;
+
+function findVoidBlobs(binaryGrid, w, h) {
+  const visited = new Uint8Array(w * h);
+  const blobs = [];
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      if (binaryGrid[idx] === 1 && !visited[idx]) {
+        let pixelCount = 0;
+        let sumX = 0, sumY = 0;
+        const queue = [idx];
+        visited[idx] = 1;
+
+        while (queue.length > 0) {
+          const curr = queue.pop();
+          const cx = curr % w;
+          const cy = Math.floor(curr / w);
+          pixelCount++;
+          sumX += cx;
+          sumY += cy;
+
+          const neighbors = [
+            cy > 0 ? (cy - 1) * w + cx : -1,
+            cy < h - 1 ? (cy + 1) * w + cx : -1,
+            cx > 0 ? cy * w + (cx - 1) : -1,
+            cx < w - 1 ? cy * w + (cx + 1) : -1,
+          ];
+          for (let ni = 0; ni < 4; ni++) {
+            const nIdx = neighbors[ni];
+            if (nIdx >= 0 && binaryGrid[nIdx] === 1 && !visited[nIdx]) {
+              visited[nIdx] = 1;
+              queue.push(nIdx);
+            }
+          }
+        }
+
+        if (pixelCount >= 8) {
+          const avgX = sumX / pixelCount;
+          const avgY = sumY / pixelCount;
+          const lon = -180.0 + (avgX / Math.max(1, w - 1)) * 360.0;
+          const lat = 85.0 - (avgY / Math.max(1, h - 1)) * 170.0;
+          blobs.push({
+            pixelCount,
+            centroidLat: lat,
+            centroidLon: lon,
+            approxAreaSqKm: Math.round(pixelCount * 65000)
+          });
+        }
+      }
+    }
+  }
+
+  blobs.sort((a, b) => b.pixelCount - a.pixelCount);
+  return blobs;
+}
+
+async function renderCesiumGapDensityRaster(radiusKm = 400.0, alpha = 0.84) {
+  currentRasterRadiusKm = radiusKm;
+  const canvasW = 1024;
+  const canvasH = 512;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvasW;
+  canvas.height = canvasH;
+  const ctx = canvas.getContext("2d");
+  const imgData = ctx.createImageData(canvasW, canvasH);
+  const pixels = imgData.data;
+
+  // 1. Gather observation platforms
+  let markers = window.allObservationMarkers || state.loadedMarkers || [];
+  if (!markers.length) {
+    try {
+      const res = await fetch(apiUrl('/api/observations?min_lat=-85&max_lat=85&min_lon=-180&max_lon=180'));
+      if (res.ok) {
+        const d = await res.json();
+        markers = d.markers || [];
+        state.loadedMarkers = markers;
+        window.allObservationMarkers = markers;
+      }
+    } catch (e) {
+      console.warn("Could not fetch observation markers for raster gap:", e);
+    }
+  }
+
+  // 2. High-performance Gaussian splatting onto 2D Float32 density grid
+  const densityGrid = new Float32Array(canvasW * canvasH);
+  const basePxRadius = Math.max(3, Math.round((radiusKm / 40000.0) * canvasW));
+  const rSqBase = basePxRadius * basePxRadius;
+
+  markers.forEach(m => {
+    const lat = Number(m.lat ?? m.latitude);
+    const lon = Number(m.lon ?? m.longitude);
+    if (isNaN(lat) || isNaN(lon) || lat < -85.0 || lat > 85.0) return;
+
+    const px0 = Math.round(((lon + 180.0) / 360.0) * (canvasW - 1));
+    const py0 = Math.round(((85.0 - lat) / 170.0) * (canvasH - 1));
+
+    const latCos = Math.max(0.18, Math.cos(lat * Math.PI / 180.0));
+    const pxRadiusX = Math.round(basePxRadius / latCos);
+    const pxRadiusY = basePxRadius;
+
+    const minX = Math.max(0, px0 - pxRadiusX);
+    const maxX = Math.min(canvasW - 1, px0 + pxRadiusX);
+    const minY = Math.max(0, py0 - pxRadiusY);
+    const maxY = Math.min(canvasH - 1, py0 + pxRadiusY);
+
+    for (let y = minY; y <= maxY; y++) {
+      const dy = (y - py0);
+      const dySq = dy * dy;
+      for (let x = minX; x <= maxX; x++) {
+        const dx = (x - px0) * latCos;
+        const distSq = dx * dx + dySq;
+        if (distSq <= rSqBase) {
+          const w = Math.exp(-distSq / (rSqBase * 0.45));
+          densityGrid[y * canvasW + x] += w;
+        }
+      }
+    }
+  });
+
+  // 3. Render pixel colors & compute raster statistics
+  let totalOceanPixels = 0;
+  let unobservedOceanPixels = 0;
+  let denseOceanPixels = 0;
+
+  const downW = 128, downH = 64;
+  const voidBinary = new Uint8Array(downW * downH);
+  const scaleX = canvasW / downW;
+  const scaleY = canvasH / downH;
+
+  for (let py = 0; py < canvasH; py++) {
+    const lat = 85.0 - (py / (canvasH - 1)) * 170.0;
+    const downY = Math.min(downH - 1, Math.floor(py / scaleY));
+
+    for (let px = 0; px < canvasW; px++) {
+      const pIdx = (py * canvasW + px) * 4;
+      const downX = Math.min(downW - 1, Math.floor(px / scaleX));
+
+      // Land check: leave land 100% transparent so Earth land satellite imagery is preserved
+      if (oceanMaskData && oceanMaskData[pIdx] < 128) {
+        pixels[pIdx + 3] = 0;
+        continue;
+      }
+
+      totalOceanPixels++;
+      const w = densityGrid[py * canvasW + px];
+
+      if (w >= 0.35) {
+        // High float density: Glowing Cyan / Aqua
+        denseOceanPixels++;
+        pixels[pIdx]     = 56;   // R
+        pixels[pIdx + 1] = 189;  // G
+        pixels[pIdx + 2] = 248;  // B
+        pixels[pIdx + 3] = Math.min(210, Math.floor(alpha * 190 * Math.min(1.2, w * 0.8)));
+      } else if (w >= 0.08) {
+        // Transition / Marginal observation zone: Warm Amber / Gold
+        pixels[pIdx]     = 245;  // R
+        pixels[pIdx + 1] = 158;  // G
+        pixels[pIdx + 2] = 11;   // B
+        pixels[pIdx + 3] = Math.floor(alpha * 175);
+      } else {
+        // OBSERVATION VOID / CRITICAL GAP: High-visibility Glowing Crimson Ruby Red
+        unobservedOceanPixels++;
+        pixels[pIdx]     = 239;  // R
+        pixels[pIdx + 1] = 68;   // G
+        pixels[pIdx + 2] = 68;   // B
+        pixels[pIdx + 3] = Math.floor(alpha * 195);
+        voidBinary[downY * downW + downX] = 1;
+      }
+    }
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+
+  // 4. Connected Components on downsampled void map to identify largest spatial voids
+  const blobs = findVoidBlobs(voidBinary, downW, downH);
+  const largestBlob = blobs.length ? blobs[0] : null;
+
+  const voidPct = totalOceanPixels > 0 ? ((unobservedOceanPixels / totalOceanPixels) * 100.0) : 0;
+  const obsPct = 100.0 - voidPct;
+
+  lastRasterGapStats = {
+    totalOceanPixels,
+    unobservedOceanPixels,
+    denseOceanPixels,
+    voidPct: voidPct.toFixed(1),
+    obsPct: obsPct.toFixed(1),
+    blobs,
+    largestBlob,
+    radiusKm
+  };
+
+  // Update UI stats in both sidebar and on-globe HUD
+  const voidEl = document.getElementById('rasterVoidPct');
+  if (voidEl) voidEl.textContent = `${lastRasterGapStats.voidPct}%`;
+  const obsEl = document.getElementById('rasterObsPct');
+  if (obsEl) obsEl.textContent = `${lastRasterGapStats.obsPct}%`;
+
+  const hudVoid = document.getElementById('hudRasterVoidPct');
+  if (hudVoid) hudVoid.textContent = `${lastRasterGapStats.voidPct}%`;
+  const hudObs = document.getElementById('hudRasterObsPct');
+  if (hudObs) hudObs.textContent = `${lastRasterGapStats.obsPct}%`;
+
+  const globeHUD = document.getElementById('rasterGapGlobeHUD');
+  if (globeHUD) globeHUD.style.display = 'flex';
+
+  // 5. Drape single-tile imagery layer onto Cesium
+  const imageryProvider = new Cesium.SingleTileImageryProvider({
+    url: canvas.toDataURL("image/png"),
+    rectangle: Cesium.Rectangle.fromDegrees(-180.0, -85.0, 180.0, 85.0)
+  });
+
+  if (gapDensityImageryLayer) {
+    viewer.imageryLayers.remove(gapDensityImageryLayer);
+    gapDensityImageryLayer = null;
+  }
+  gapDensityImageryLayer = viewer.imageryLayers.addImageryProvider(imageryProvider);
+  gapDensityImageryLayer.alpha = alpha;
+
+  return lastRasterGapStats;
+}
+
+async function toggleRasterGapHeatmap(enable, radiusKm) {
+  const rSlider = document.getElementById('rasterRadiusSlider');
+  const rad = radiusKm || (rSlider ? parseFloat(rSlider.value) : 400.0);
+  const controls = document.getElementById('rasterGapControls');
+  const globeHUD = document.getElementById('rasterGapGlobeHUD');
+
+  const cbTab4 = document.getElementById('ovRasterGaps');
+  const cbGis = document.getElementById('ovRasterGapsGis');
+  if (cbTab4) cbTab4.checked = enable;
+  if (cbGis) cbGis.checked = enable;
+
+  if (controls) controls.style.display = enable ? 'flex' : 'none';
+  if (globeHUD) globeHUD.style.display = enable ? 'flex' : 'none';
+
+  if (enable) {
+    await renderCesiumGapDensityRaster(rad);
+  } else {
+    if (gapDensityImageryLayer) {
+      viewer.imageryLayers.remove(gapDensityImageryLayer);
+      gapDensityImageryLayer = null;
+    }
+  }
+}
+
+function syncRasterGapToggle(checked) {
+  toggleRasterGapHeatmap(checked);
+}
+
+function onRasterRadiusChange(val) {
+  const lbl = document.getElementById('rasterRadiusLabel');
+  if (lbl) lbl.textContent = `${val} km`;
+  if (gapDensityImageryLayer) {
+    renderCesiumGapDensityRaster(parseFloat(val));
+  }
+}
+
+function focusLargestRasterVoid() {
+  if (!lastRasterGapStats || !lastRasterGapStats.largestBlob) {
+    alert("Please enable the Pixel Raster Void Heatmap first.");
+    return;
+  }
+  const blob = lastRasterGapStats.largestBlob;
+  if (viewer && viewer.camera) {
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(blob.centroidLon, blob.centroidLat, 8500000),
+      duration: 1.5
+    });
+  }
+}
+
+// ---------------------------------------------------------------------
 // GPU-Animated Flowing Ocean Currents Material & Streamlines
 // ---------------------------------------------------------------------
 function FlowLineMaterialProperty(options) {
@@ -3592,6 +4011,9 @@ async function loadObservations(){
     if(!res.ok) return;
     data = await res.json();
   }
+
+  state.loadedMarkers = data.markers || [];
+  window.allObservationMarkers = state.loadedMarkers;
 
   // Count loaded markers directly per category
   const counts = {
@@ -5274,6 +5696,15 @@ function renderRightPanelWaterColumn(){
   } else if(rawPType.includes("MOORING")){
     pKind = "MOORING";
     if(badge){ badge.textContent = "OMNI MOORED BUOY"; badge.style.background = "#0284c7"; }
+  } else if(rawPType.includes("AUV")){
+    pKind = "AUV";
+    if(badge){ badge.textContent = "AUV · AUTONOMOUS SUBMERSIBLE"; badge.style.background = "#0891b2"; }
+  } else if(rawPType.includes("UUV")){
+    pKind = "UUV";
+    if(badge){ badge.textContent = "UUV · UNCREWED SUBSEA DRONE"; badge.style.background = "#7c3aed"; }
+  } else if(rawPType.includes("ROV")){
+    pKind = "ROV";
+    if(badge){ badge.textContent = "ROV · REMOTELY OPERATED SUBMERSIBLE"; badge.style.background = "#ea580c"; }
   } else {
     pKind = "ARGO";
     if(badge){ badge.textContent = "ARGO FLOAT · DIGITAL TWIN"; badge.style.background = "#0284c7"; }
@@ -5290,6 +5721,12 @@ function renderRightPanelWaterColumn(){
       wcVehicleGroup.add(buildCTDModel());
     } else if(pKind === "MOORING"){
       wcVehicleGroup.add(buildMooringModel());
+    } else if(pKind === "AUV" && window.VehicleMissionManager){
+      wcVehicleGroup.add(window.VehicleMissionManager.buildAUVModel());
+    } else if(pKind === "UUV" && window.VehicleMissionManager){
+      wcVehicleGroup.add(window.VehicleMissionManager.buildUUVModel());
+    } else if(pKind === "ROV" && window.VehicleMissionManager){
+      wcVehicleGroup.add(window.VehicleMissionManager.buildROVModel());
     } else {
       wcVehicleGroup.add(buildArgoModel());
     }
@@ -5410,6 +5847,9 @@ function restoreObservationMarkers(){
 document.getElementById("closeProfile").onclick = () => {
   restoreObservationMarkers();
   clearPlatformTrack();
+  if(window.VehicleMissionManager) {
+    window.VehicleMissionManager.clearMissionGraphics();
+  }
   state.selectedProfile = null;
   state.selectedSample = null;
   state.validationData = null;
@@ -5421,8 +5861,13 @@ document.getElementById("closeProfile").onclick = () => {
 };
 
 window.addEventListener('keydown', (e) => {
-  if(e.key === 'Escape' && state.selectedProfile){
-    document.getElementById("closeProfile")?.click();
+  if(e.key === 'Escape'){
+    const btnAdaptive = document.getElementById("btnCloseAdaptivePanel");
+    if(btnAdaptive) btnAdaptive.click();
+    const btnProf = document.getElementById("closeProfile");
+    if(btnProf) btnProf.click();
+    if(typeof closeMissionSummaryModal === 'function') closeMissionSummaryModal();
+    if(typeof closeOceanStoriesModal === 'function') closeOceanStoriesModal();
   }
 });
 

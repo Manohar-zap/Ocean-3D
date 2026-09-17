@@ -12,6 +12,7 @@ from typing import Any
 
 from app.storage import store
 from app.schemas import QueryFilters
+from app.vehicles.vehicle_service import vehicle_service
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +33,10 @@ MOBILE_FLEET: list[dict[str, Any]] = [
         "sensors": ["temperature", "salinity", "pressure", "oxygen", "chlorophyll"],
         "controllable": True,
         "status": "AVAILABLE",
-        "operational_status": "OPERATIONAL_IN_SITU",
-        "is_simulated": False,
-        "provenance": "INCOIS_OPERATIONAL_OCEAN_GLIDER",
-        "telemetry_label": "[OPERATIONAL GLIDER]",
+        "operational_status": "SIMULATED_EXPEDITION_GLIDER",
+        "is_simulated": True,
+        "provenance": "SIMULATED_MISSION_PLANNING_ASSETS",
+        "telemetry_label": "[SIMULATED GLIDER]",
         "position_status": "INCOIS_BAY_OF_BENGAL_STATION",
     },
     {
@@ -51,10 +52,10 @@ MOBILE_FLEET: list[dict[str, Any]] = [
         "sensors": ["temperature", "salinity", "pressure", "oxygen", "chlorophyll"],
         "controllable": True,
         "status": "AVAILABLE",
-        "operational_status": "OPERATIONAL_IN_SITU",
-        "is_simulated": False,
-        "provenance": "INCOIS_OPERATIONAL_OCEAN_GLIDER",
-        "telemetry_label": "[OPERATIONAL GLIDER]",
+        "operational_status": "SIMULATED_EXPEDITION_GLIDER",
+        "is_simulated": True,
+        "provenance": "SIMULATED_MISSION_PLANNING_ASSETS",
+        "telemetry_label": "[SIMULATED GLIDER]",
         "position_status": "INCOIS_ARABIAN_SEA_STATION",
     },
     {
@@ -70,10 +71,10 @@ MOBILE_FLEET: list[dict[str, Any]] = [
         "sensors": ["temperature", "salinity", "pressure"],
         "controllable": True,
         "status": "AVAILABLE",
-        "operational_status": "OPERATIONAL_IN_SITU",
-        "is_simulated": False,
-        "provenance": "CSIR_NIO_COASTAL_GLIDER",
-        "telemetry_label": "[OPERATIONAL GLIDER]",
+        "operational_status": "SIMULATED_EXPEDITION_GLIDER",
+        "is_simulated": True,
+        "provenance": "SIMULATED_MISSION_PLANNING_ASSETS",
+        "telemetry_label": "[SIMULATED GLIDER]",
         "position_status": "LAKSHADWEEP_SEA_COASTAL_TRANSECT",
     },
     {
@@ -89,10 +90,10 @@ MOBILE_FLEET: list[dict[str, Any]] = [
         "sensors": ["temperature", "salinity", "pressure", "bathymetry", "camera", "oxygen"],
         "controllable": True,
         "status": "AVAILABLE",
-        "operational_status": "OPERATIONAL_IN_SITU",
-        "is_simulated": False,
-        "provenance": "NIOT_DEEP_OCEAN_SURVEY_AUV",
-        "telemetry_label": "[OPERATIONAL AUV]",
+        "operational_status": "SIMULATED_EXPEDITION_AUV",
+        "is_simulated": True,
+        "provenance": "SIMULATED_MISSION_PLANNING_ASSETS",
+        "telemetry_label": "[SIMULATED AUV]",
         "position_status": "ANDAMAN_BASIN_SURVEY_COORDINATES",
     },
     {
@@ -108,10 +109,10 @@ MOBILE_FLEET: list[dict[str, Any]] = [
         "sensors": ["temperature", "salinity", "pressure", "adcp"],
         "controllable": True,
         "status": "AVAILABLE",
-        "operational_status": "OPERATIONAL_IN_SITU",
-        "is_simulated": False,
-        "provenance": "NOAA_PMEL_EQUATORIAL_USV",
-        "telemetry_label": "[OPERATIONAL USV]",
+        "operational_status": "SIMULATED_EXPEDITION_USV",
+        "is_simulated": True,
+        "provenance": "SIMULATED_MISSION_PLANNING_ASSETS",
+        "telemetry_label": "[SIMULATED USV]",
         "position_status": "EQUATORIAL_INDIAN_OCEAN_TRANSECT",
     },
     {
@@ -125,12 +126,12 @@ MOBILE_FLEET: list[dict[str, Any]] = [
         "battery_percent": 100.0,
         "cruise_speed_mps": 5.50,
         "sensors": ["temperature", "salinity", "pressure", "ctd", "oxygen", "chlorophyll", "adcp"],
-        "controllable": True,
-        "status": "AVAILABLE",
-        "operational_status": "OPERATIONAL_EXPEDITION_VESSEL",
-        "is_simulated": False,
-        "provenance": "OPERATIONAL_RESEARCH_VESSEL_IN_PORT_OR_EXPEDITION",
-        "telemetry_label": "[OPERATIONAL VESSEL]",
+        "controllable": False,
+        "status": "EXPEDITION_REFERENCE",
+        "operational_status": "EXPEDITION_RESEARCH_VESSEL",
+        "is_simulated": True,
+        "provenance": "EXPEDITION_VESSEL_REFERENCE_ASSET",
+        "telemetry_label": "[EXPEDITION VESSEL]",
         "position_status": "BASE_PORT_COORDINATES",
     },
     {
@@ -146,10 +147,10 @@ MOBILE_FLEET: list[dict[str, Any]] = [
         "sensors": ["temperature", "salinity", "pressure", "oxygen", "chlorophyll"],
         "controllable": True,
         "status": "AVAILABLE",
-        "operational_status": "OPERATIONAL_IN_SITU",
-        "is_simulated": False,
-        "provenance": "IOOS_GLIDER_DAC_TELEMETRY",
-        "telemetry_label": "[OPERATIONAL GLIDER]",
+        "operational_status": "SIMULATED_EXPEDITION_GLIDER",
+        "is_simulated": True,
+        "provenance": "SIMULATED_MISSION_PLANNING_ASSETS",
+        "telemetry_label": "[SIMULATED GLIDER]",
         "position_status": "PACIOOS_OPERATIONAL_TRANSECT",
     },
     {
@@ -165,10 +166,10 @@ MOBILE_FLEET: list[dict[str, Any]] = [
         "sensors": ["temperature", "salinity", "pressure", "adcp"],
         "controllable": True,
         "status": "AVAILABLE",
-        "operational_status": "OPERATIONAL_IN_SITU",
-        "is_simulated": False,
-        "provenance": "NOAA_PMEL_SAILDRONE_TELEMETRY",
-        "telemetry_label": "[OPERATIONAL USV]",
+        "operational_status": "SIMULATED_EXPEDITION_USV",
+        "is_simulated": True,
+        "provenance": "SIMULATED_MISSION_PLANNING_ASSETS",
+        "telemetry_label": "[SIMULATED USV]",
         "position_status": "KUROSHIO_EXTENSION_STATION",
     },
     {
@@ -184,10 +185,10 @@ MOBILE_FLEET: list[dict[str, Any]] = [
         "sensors": ["temperature", "salinity", "pressure", "oxygen", "chlorophyll"],
         "controllable": True,
         "status": "AVAILABLE",
-        "operational_status": "OPERATIONAL_IN_SITU",
-        "is_simulated": False,
-        "provenance": "IMOS_OCEAN_GLIDER_TELEMETRY",
-        "telemetry_label": "[OPERATIONAL GLIDER]",
+        "operational_status": "SIMULATED_EXPEDITION_GLIDER",
+        "is_simulated": True,
+        "provenance": "SIMULATED_MISSION_PLANNING_ASSETS",
+        "telemetry_label": "[SIMULATED GLIDER]",
         "position_status": "SOUTH_PACIFIC_TRANSECT",
     },
     {
@@ -203,10 +204,10 @@ MOBILE_FLEET: list[dict[str, Any]] = [
         "sensors": ["temperature", "salinity", "pressure", "bathymetry", "camera", "oxygen"],
         "controllable": True,
         "status": "AVAILABLE",
-        "operational_status": "OPERATIONAL_IN_SITU",
-        "is_simulated": False,
-        "provenance": "MBARI_AUV_TELEMETRY",
-        "telemetry_label": "[OPERATIONAL AUV]",
+        "operational_status": "SIMULATED_EXPEDITION_AUV",
+        "is_simulated": True,
+        "provenance": "SIMULATED_MISSION_PLANNING_ASSETS",
+        "telemetry_label": "[SIMULATED AUV]",
         "position_status": "EQUATORIAL_PACIFIC_COORDINATES",
     },
     {
@@ -222,30 +223,11 @@ MOBILE_FLEET: list[dict[str, Any]] = [
         "sensors": ["temperature", "salinity", "pressure", "oxygen", "chlorophyll"],
         "controllable": True,
         "status": "AVAILABLE",
-        "operational_status": "OPERATIONAL_IN_SITU",
-        "is_simulated": False,
-        "provenance": "IOOS_GLIDER_DAC_TELEMETRY",
-        "telemetry_label": "[OPERATIONAL GLIDER]",
+        "operational_status": "SIMULATED_EXPEDITION_GLIDER",
+        "is_simulated": True,
+        "provenance": "SIMULATED_MISSION_PLANNING_ASSETS",
+        "telemetry_label": "[SIMULATED GLIDER]",
         "position_status": "SARGASSO_SEA_TRANSECT",
-    },
-    {
-        "instrument_id": "VESSEL-DISCOVERY",
-        "name": "VESSEL-DISCOVERY (RRS Discovery)",
-        "platform_type": "vessel",
-        "latitude": 37.20,
-        "longitude": -22.50,
-        "maximum_depth_m": 6000.0,
-        "remaining_range_km": 3500.0,
-        "battery_percent": 100.0,
-        "cruise_speed_mps": 5.80,
-        "sensors": ["temperature", "salinity", "pressure", "ctd", "oxygen", "chlorophyll", "adcp"],
-        "controllable": True,
-        "status": "AVAILABLE",
-        "operational_status": "OPERATIONAL_EXPEDITION_VESSEL",
-        "is_simulated": False,
-        "provenance": "OPERATIONAL_RESEARCH_VESSEL_IN_PORT_OR_EXPEDITION",
-        "telemetry_label": "[OPERATIONAL VESSEL]",
-        "position_status": "EXPEDITION_COORDINATES",
     },
     {
         "instrument_id": "GLIDER-SATL-01",
@@ -260,10 +242,10 @@ MOBILE_FLEET: list[dict[str, Any]] = [
         "sensors": ["temperature", "salinity", "pressure", "oxygen", "chlorophyll"],
         "controllable": True,
         "status": "AVAILABLE",
-        "operational_status": "OPERATIONAL_IN_SITU",
-        "is_simulated": False,
-        "provenance": "EURO_ARGO_OCEAN_GLIDER",
-        "telemetry_label": "[OPERATIONAL GLIDER]",
+        "operational_status": "SIMULATED_EXPEDITION_GLIDER",
+        "is_simulated": True,
+        "provenance": "SIMULATED_MISSION_PLANNING_ASSETS",
+        "telemetry_label": "[SIMULATED GLIDER]",
         "position_status": "BENGUELA_CURRENT_TRANSECT",
     },
     {
@@ -279,10 +261,10 @@ MOBILE_FLEET: list[dict[str, Any]] = [
         "sensors": ["temperature", "salinity", "pressure", "oxygen", "chlorophyll"],
         "controllable": True,
         "status": "AVAILABLE",
-        "operational_status": "OPERATIONAL_IN_SITU",
-        "is_simulated": False,
-        "provenance": "SOCIB_MEDITERRANEAN_GLIDER",
-        "telemetry_label": "[OPERATIONAL GLIDER]",
+        "operational_status": "SIMULATED_EXPEDITION_GLIDER",
+        "is_simulated": True,
+        "provenance": "SIMULATED_MISSION_PLANNING_ASSETS",
+        "telemetry_label": "[SIMULATED GLIDER]",
         "position_status": "BALEARIC_SEA_STATION",
     },
     {
@@ -298,10 +280,10 @@ MOBILE_FLEET: list[dict[str, Any]] = [
         "sensors": ["temperature", "salinity", "pressure"],
         "controllable": False,
         "status": "PASSIVE_DRIFT",
-        "operational_status": "OPERATIONAL_IN_SITU_FLOAT",
-        "is_simulated": False,
-        "provenance": "REAL_OPERATIONAL_IN_SITU_TELEMETRY",
-        "telemetry_label": "[OPERATIONAL IN-SITU FLOAT]",
+        "operational_status": "SIMULATED_IN_SITU_FLOAT",
+        "is_simulated": True,
+        "provenance": "SIMULATED_MISSION_PLANNING_ASSETS",
+        "telemetry_label": "[SIMULATED FLOAT]",
         "position_status": "LAST_REPORTED_ARGOS_SURFACE_FIX",
     },
     {
@@ -317,10 +299,10 @@ MOBILE_FLEET: list[dict[str, Any]] = [
         "sensors": ["temperature", "salinity", "pressure", "adcp"],
         "controllable": False,
         "status": "FIXED_MOORED",
-        "operational_status": "OPERATIONAL_IN_SITU_MOORING",
-        "is_simulated": False,
-        "provenance": "REAL_OPERATIONAL_IN_SITU_TELEMETRY",
-        "telemetry_label": "[OPERATIONAL FIXED MOORING]",
+        "operational_status": "SIMULATED_IN_SITU_MOORING",
+        "is_simulated": True,
+        "provenance": "SIMULATED_MISSION_PLANNING_ASSETS",
+        "telemetry_label": "[SIMULATED MOORING]",
         "position_status": "MOORED_BUOY_STATION_COORDINATES",
     },
 ]
@@ -340,15 +322,42 @@ class InstrumentRegistry:
         )
         return round(2.0 * r * math.asin(min(1.0, math.sqrt(a))), 2)
 
+    @staticmethod
+    def _normalize_sensor_name(sensor: str) -> str:
+        s = sensor.lower().strip()
+        aliases = {
+            "dissolved_oxygen": "oxygen",
+            "doxy": "oxygen",
+            "chlorophyll_a": "chlorophyll",
+            "chlorophyll-a": "chlorophyll",
+            "chla": "chlorophyll",
+            "temperature_c": "temperature",
+            "temp": "temperature",
+            "sea_water_temperature": "temperature",
+            "practical_salinity": "salinity",
+            "sal": "salinity",
+            "sea_water_salinity": "salinity",
+        }
+        return aliases.get(s, s)
+
+    @classmethod
+    def _matches_sensor(cls, required_sensor: str, available_sensors: list[str]) -> bool:
+        if not required_sensor:
+            return True
+        norm_req = cls._normalize_sensor_name(required_sensor)
+        norm_avail = {cls._normalize_sensor_name(s) for s in available_sensors}
+        return norm_req in norm_avail
+
     def _evaluate_criteria(
         self, inst: dict[str, Any], dist_km: float, target_depth_m: float, required_sensor: str
     ) -> dict[str, Any]:
         """Build per-criterion pass/fail for animated feasibility display."""
+        is_controllable = bool(inst.get("controllable", False)) and inst.get("platform_type", "").lower() != "vessel"
         checks = {
             "controllable": {
                 "label": "STEERABLE",
-                "passed": inst["controllable"],
-                "detail": "Passive drift platform" if not inst["controllable"] else "Controllable",
+                "passed": is_controllable,
+                "detail": "Passive drift / expedition vessel" if not is_controllable else "Controllable",
             },
             "depth": {
                 "label": "DEPTH",
@@ -357,7 +366,7 @@ class InstrumentRegistry:
             },
             "sensor": {
                 "label": "SENSOR",
-                "passed": required_sensor in inst["sensors"],
+                "passed": self._matches_sensor(required_sensor, inst.get("sensors", [])),
                 "detail": f"Requires {required_sensor}",
             },
             "range": {
@@ -389,7 +398,7 @@ class InstrumentRegistry:
         dynamic_fleet = []
         for pid, r in real_platforms.items():
             ptype = (r.platform_type or "argo").lower()
-            controllable = ptype in ["glider", "auv", "usv"]
+            controllable = ptype in ["glider", "auv", "uuv", "usv", "asv"]
             
             # Skip passive platforms for mission planning to avoid flooding the UI with 3000+ rejected candidates
             if not controllable:
@@ -405,13 +414,17 @@ class InstrumentRegistry:
                 cruise_speed_mps = 0.35
                 max_depth = 1000.0
             elif ptype == "auv":
-                remaining_range_km = 150.0
-                cruise_speed_mps = 1.2
-                max_depth = 2000.0
-            elif ptype == "usv":
-                remaining_range_km = 2000.0
+                remaining_range_km = 200.0
                 cruise_speed_mps = 1.5
-                max_depth = 10.0
+                max_depth = 2000.0
+            elif ptype == "uuv":
+                remaining_range_km = 700.0
+                cruise_speed_mps = 2.2
+                max_depth = 1000.0
+            elif ptype in ["usv", "asv"]:
+                remaining_range_km = 2500.0
+                cruise_speed_mps = 1.8
+                max_depth = 500.0  # Winched CTD capability
 
             inst = {
                 "instrument_id": pid,
@@ -434,8 +447,40 @@ class InstrumentRegistry:
             }
             dynamic_fleet.append(inst)
 
-        # 2. Evaluate both real and simulated fallback fleet
-        combined_fleet = dynamic_fleet + MOBILE_FLEET
+        # 2. Add first-class Autonomous Fleet from vehicle_service (AUVs, UUVs, ROVs)
+        try:
+            for v in vehicle_service.get_all_vehicles():
+                ptype = v.type.lower()
+                dynamic_fleet.append({
+                    "instrument_id": v.id,
+                    "name": v.name,
+                    "platform_type": ptype,
+                    "latitude": v.latitude,
+                    "longitude": v.longitude,
+                    "maximum_depth_m": v.max_depth_m,
+                    "remaining_range_km": v.remaining_range_km,
+                    "battery_percent": v.battery_percent,
+                    "cruise_speed_mps": v.cruise_speed_mps,
+                    "sensors": v.sensors,
+                    "controllable": True,
+                    "status": v.status,
+                    "operational_status": f"SIMULATED_FLEET_{v.type}",
+                    "is_simulated": True,
+                    "provenance": "SIMULATED_MISSION_PLANNING_ASSETS",
+                    "telemetry_label": f"[SIMULATED {v.type}]",
+                    "position_status": f"{v.operator} ({v.type})",
+                })
+        except Exception as e:
+            logger.warning(f"Error loading vehicle_service fleet into adaptive registry: {e}")
+
+        # 3. Evaluate combined fleet with deduplication by instrument_id
+        seen_ids = set()
+        combined_fleet = []
+        for inst in dynamic_fleet + MOBILE_FLEET:
+            iid = inst.get("instrument_id")
+            if iid and iid not in seen_ids:
+                seen_ids.add(iid)
+                combined_fleet.append(inst)
 
         for inst in combined_fleet:
             dist_km = self._distance_km(inst["latitude"], inst["longitude"], target_lat, target_lon)

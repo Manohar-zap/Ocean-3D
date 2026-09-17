@@ -694,7 +694,7 @@ function renderMissionPlanUI(plan) {
         openInstrumentModal(candidate);
         if (viewer) {
           viewer.camera.flyTo({
-            destination: positionFromLatLonDepth(candidate.latitude, candidate.longitude, 80000),
+            destination: Cesium.Cartesian3.fromDegrees(candidate.longitude, candidate.latitude, 80000),
             orientation: { heading: 0, pitch: Cesium.Math.toRadians(-45), roll: 0 },
             duration: 1.2
           });
@@ -1064,7 +1064,7 @@ function showFinalSummaryModal(sim) {
 
   if (viewer) {
     viewer.camera.flyTo({
-      destination: positionFromLatLonDepth(target.latitude || 15.4, target.longitude || 88.7, 1200000),
+      destination: Cesium.Cartesian3.fromDegrees(target.longitude || 88.7, target.latitude || 15.4, 1200000),
       orientation: { heading: 0, pitch: Cesium.Math.toRadians(-50), roll: 0 },
       duration: 2.0
     });
@@ -1334,23 +1334,12 @@ class MissionPlayback {
     const targetDepthM = this.sim.target?.depth_m || 500;
     updateWaterColumn(frame.depth_m, null, targetDepthM, this.sim.seafloor_depth_m, this.sim.bathymetry_status);
 
-    if (frame.depth_m > 0) {
-      // Underwater Close-Up View tracking vehicle descent into water column
-      const headingRad = Cesium.Math.toRadians(frame.heading_deg || 0);
-      viewer.camera.lookAt(
-        positionFromLatLonDepth(frame.latitude, frame.longitude, frame.depth_m),
-        new Cesium.HeadingPitchRange(
-          headingRad + Math.PI / 2.0,
-          Cesium.Math.toRadians(-22.0),
-          Math.max(500, frame.depth_m * 1.6)
-        )
-      );
-    } else if (this.frameIdx % 4 === 0) {
-      // Surface Transit View
+    if (this.frameIdx % 6 === 0 && viewer && viewer.camera) {
+      const camAlt = (frame.depth_m > 0) ? 35000.0 : 65000.0;
       viewer.camera.flyTo({
-        destination: positionFromLatLonDepth(frame.latitude, frame.longitude, 60000),
-        orientation: { heading: Cesium.Math.toRadians(frame.heading_deg || 0), pitch: Cesium.Math.toRadians(-40), roll: 0 },
-        duration: 0.4
+        destination: Cesium.Cartesian3.fromDegrees(frame.longitude, frame.latitude, camAlt),
+        orientation: { heading: Cesium.Math.toRadians(frame.heading_deg || 0), pitch: Cesium.Math.toRadians(-50), roll: 0 },
+        duration: 0.8
       });
     }
   }
@@ -1509,12 +1498,49 @@ class MissionPlayback {
       });
     }
 
+    if (viewer && viewer.camera) {
+      if (viewer.camera._flight) viewer.camera.cancelFlight();
+      viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+    }
+
+    const prof = document.getElementById('profilePanel');
+    if (prof) prof.classList.remove('open');
+    const admPanel = document.getElementById('adaptiveMissionPanel');
+    if (admPanel) admPanel.classList.remove('open');
+
     showFinalSummaryModal(this.sim);
   }
 
-  pause() { this.paused = true; document.getElementById('btnPlayPause').textContent = '▶'; }
-  resume() { this.paused = false; this.lastTs = 0; document.getElementById('btnPlayPause').textContent = '⏸'; requestAnimationFrame(t => this.animate(t)); }
-  restart() { this.running = false; startMissionSimulation(); }
+  seek(ratio) {
+    if (!this.frames || !this.frames.length) return;
+    const targetIdx = Math.max(0, Math.min(this.frames.length - 1, Math.floor(ratio * (this.frames.length - 1))));
+    this.frameIdx = targetIdx;
+    if (this.frames[targetIdx]) {
+      this.updateTransitFrame(this.frames[targetIdx]);
+    }
+  }
+
+  pause() {
+    this.paused = true;
+    document.getElementById('btnPlayPause').textContent = '▶';
+    if (viewer && viewer.camera) viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+  }
+
+  resume() {
+    this.paused = false;
+    this.lastTs = 0;
+    document.getElementById('btnPlayPause').textContent = '⏸';
+    requestAnimationFrame(t => this.animate(t));
+  }
+
+  restart() {
+    this.running = false;
+    if (viewer && viewer.camera) {
+      if (viewer.camera._flight) viewer.camera.cancelFlight();
+      viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+    }
+    startMissionSimulation();
+  }
 }
 
 // ─── Simulation launch ───────────────────────────────────────────────────────
