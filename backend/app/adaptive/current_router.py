@@ -55,39 +55,6 @@ class CurrentRouterEngine:
         if prov != "NO_DATA":
             return u, v, speed, direction, prov
 
-        # Fallback to model store if INCOIS dataset is loaded in memory for this coordinate
-        rows_u = store.query_model(
-            QueryFilters(
-                dataset_id="incois_las_model",
-                variable="current_u",
-                min_lat=lat - 0.5,
-                max_lat=lat + 0.5,
-                min_lon=lon - 0.5,
-                max_lon=lon + 0.5,
-                min_depth=depth,
-                max_depth=depth,
-            )
-        )
-        rows_v = store.query_model(
-            QueryFilters(
-                dataset_id="incois_las_model",
-                variable="current_v",
-                min_lat=lat - 0.5,
-                max_lat=lat + 0.5,
-                min_lon=lon - 0.5,
-                max_lon=lon + 0.5,
-                min_depth=depth,
-                max_depth=depth,
-            )
-        )
-        if rows_u and rows_v:
-            u = sum(r.value for r in rows_u) / len(rows_u)
-            v = sum(r.value for r in rows_v) / len(rows_v)
-            prov = "INCOIS MODEL"
-            speed = math.hypot(u, v)
-            direction = (math.degrees(math.atan2(v, u)) + 360.0) % 360.0
-            return round(u, 4), round(v, 4), round(speed, 3), round(direction, 1), prov
-
         # Explicit NO_DATA — NEVER fabricate fallback numbers like 0.35, -0.25
         return 0.0, 0.0, 0.0, 0.0, "NO_DATA"
 

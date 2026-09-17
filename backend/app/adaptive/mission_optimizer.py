@@ -34,10 +34,18 @@ class MissionOptimizerEngine:
         rejected_candidates = list(discovery["rejected_instruments"])
         all_candidates = discovery["all_candidates"]
 
+        # Prioritize evaluation of the most competitive platforms
+        if preferred_platform and preferred_platform.lower() not in ("all", "any", "none", "*"):
+            pref = preferred_platform.lower().strip()
+            matching = [c for c in feasible_candidates if pref in c["platform_type"].lower()]
+            eval_candidates = matching[:15] if matching else feasible_candidates[:15]
+        else:
+            eval_candidates = feasible_candidates[:20]
+
         ranked_candidates = []
         current_field = None
 
-        for inst in feasible_candidates:
+        for inst in eval_candidates:
             pid = inst["instrument_id"]
             ptype = inst["platform_type"]
 

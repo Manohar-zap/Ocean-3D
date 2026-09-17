@@ -73,6 +73,7 @@
         UUV: true,
         ROV: true
       };
+      this.showLabels = false;
 
       this._init();
     }
@@ -151,6 +152,35 @@
 
     // ── 1. GLOBE RENDERING & 3D VERTICAL DEPTH REPRESENTATION ───────────────
 
+    _generateVehicleIconCanvas(vehicle) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 36;
+      canvas.height = 36;
+      const ctx = canvas.getContext('2d');
+      const cfg = VEHICLE_CONFIG[vehicle.type] || VEHICLE_CONFIG.AUV;
+
+      // Circular glowing pin
+      ctx.shadowColor = cfg.colorCss;
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = 'rgba(7, 16, 25, 0.94)';
+      ctx.strokeStyle = cfg.colorCss;
+      ctx.lineWidth = 2.5;
+
+      ctx.beginPath();
+      ctx.arc(18, 18, 13, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 9px "IBM Plex Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(vehicle.type, 18, 18);
+
+      return canvas.toDataURL();
+    }
+
     _generateVehicleBadgeCanvas(vehicle) {
       const canvas = document.createElement('canvas');
       canvas.width = 180;
@@ -191,6 +221,12 @@
       return canvas.toDataURL();
     }
 
+    toggleVehicleLabels(show) {
+      this.showLabels = (show !== undefined) ? !!show : !this.showLabels;
+      this.renderVehiclesOnGlobe();
+      return this.showLabels;
+    }
+
     renderVehiclesOnGlobe() {
       const v = window.viewer || (typeof viewer !== 'undefined' ? viewer : null);
       if (!v || !v.entities) return;
@@ -204,16 +240,18 @@
       this.vehicles.forEach(veh => {
         const cfg = VEHICLE_CONFIG[veh.type] || VEHICLE_CONFIG.AUV;
         const pos = Cesium.Cartesian3.fromDegrees(veh.longitude, veh.latitude, 3000.0);
-        const badgeImg = this._generateVehicleBadgeCanvas(veh);
+        const markerImg = this.showLabels 
+          ? this._generateVehicleBadgeCanvas(veh)
+          : this._generateVehicleIconCanvas(veh);
 
         // 1. Vehicle Billboard & Marker Pin
         const entity = v.entities.add({
           id: `veh_${veh.id}`,
           position: pos,
           billboard: {
-            image: badgeImg,
-            scale: 0.82,
-            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            image: markerImg,
+            scale: this.showLabels ? 0.82 : 0.95,
+            verticalOrigin: this.showLabels ? Cesium.VerticalOrigin.BOTTOM : Cesium.VerticalOrigin.CENTER,
             scaleByDistance: new Cesium.NearFarScalar(1.0e5, 1.0, 2.0e7, 0.6)
           },
           show: this.filters[veh.type] !== false
@@ -1153,5 +1191,7 @@
 
   // Initialize and expose globally
   window.VehicleMissionManager = new VehicleMissionManager();
+  window.vehicleMissions = window.VehicleMissionManager;
+  window.toggleVehicleLabels = (show) => window.VehicleMissionManager.toggleVehicleLabels(show);
 
 })(window);

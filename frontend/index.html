@@ -13,6 +13,12 @@
 <!-- Three.js Library for Right-Panel 3D WebGL Water-Column Renderer -->
 <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
 
+<script>
+  window.apiUrl = function(path) {
+    var base = (window.state && window.state.apiBase) || (document.getElementById("apiBase") && document.getElementById("apiBase").value) || "http://localhost:8000";
+    return base.replace(/\/$/, "") + (path.startsWith("/") ? path : "/" + path);
+  };
+</script>
 <script src="config.js"></script>
 <script src="assets/ocean_mask_data.js"></script>
 <script src="assets/ocean_flow.js"></script>
@@ -419,7 +425,7 @@
     <div class="subtitle fisher-only" style="display:none;">Operational Marine Intelligence & Fishery Dashboard — INCOIS</div>
     <div class="modeswitch" id="mainViewSwitcher" style="margin-right:8px;">
       <button id="btnViewGIS" class="active" title="Cesium 3D Globe with live ARGO floats, Gliders, and CTD profiles">🌍 Satellite GIS View</button>
-      <button id="btnViewTerrain" title="3D Deformed Earth Without Water & Dynamic Water Level Terrain">🌐 3D Water Level & Geoid Terrain</button>
+
       <button id="btnNavAdaptiveMission" title="Open Closed-Loop Adaptive Mission Planner Workspace">🚀 Adaptive Mission</button>
     </div>
     <button id="btnOpenOceanStories" style="background:rgba(63, 224, 197, 0.15); border:1px solid var(--accent); color:var(--accent); font-family:inherit; font-size:12px; font-weight:600; padding:5px 11px; border-radius:var(--radius); cursor:pointer; display:flex; align-items:center; gap:6px; margin-right:8px;">
@@ -427,10 +433,7 @@
       <span>Ocean Stories</span>
       <span style="font-size:9.5px; background:var(--accent); color:#04201b; padding:1px 5px; border-radius:2px; font-weight:700;">INCOIS</span>
     </button>
-    <div class="modeswitch">
-      <button id="btnResearch" class="active">🔬 Researcher</button>
-      <button id="btnFisher">🐟 Fisher</button>
-    </div>
+
   </header>
 
   <aside>
@@ -439,7 +442,7 @@
       <!-- Modern Navigation Tabs -->
       <div class="sidebar-tabs">
         <button class="sidebar-tab active" data-tab="tab-gis" id="tabBtnGis">🧭 3D GIS</button>
-        <button class="sidebar-tab" data-tab="tab-physics" id="tabBtnPhysics">🌊 Physics</button>
+
         <button class="sidebar-tab" data-tab="tab-fleet" id="tabBtnFleet">📡 Fleet Data</button>
       </div>
 
@@ -486,45 +489,9 @@
             <label class="switch"><input type="checkbox" id="ovVectors"><span class="slider-toggle"></span></label></div>
           <div class="toggle-row"><span><span class="swatch" style="background:#ef4444; box-shadow:0 0 6px #ef4444;"></span>Pixel Raster Gap Heatmap</span>
             <label class="switch"><input type="checkbox" id="ovRasterGapsGis" onchange="syncRasterGapToggle(this.checked)"><span class="slider-toggle"></span></label></div>
-          <div class="toggle-row"><span>🏔️ Seabed Bathymetry (GEBCO 2024)</span>
-            <label class="switch"><input type="checkbox" id="ovBathymetry"><span class="slider-toggle"></span></label></div>
-          <div class="toggle-row"><span>🧊 3D Isosurface Preview</span>
-            <label class="switch"><input type="checkbox" id="ovIsosurface"><span class="slider-toggle"></span></label></div>
         </div>
       </div>
 
-      <!-- TAB 2: PHYSICS, WATER LEVEL & 3D TERRAIN CONTROLS -->
-      <div id="tab-physics" class="tab-pane" style="display:none;">
-        <div class="field" id="seaLevelPanel" style="background:var(--panel-2); padding:10px; border-radius:var(--radius); border:1px solid var(--line);">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <label style="margin:0; font-weight:600; color:var(--text); font-size:11.5px;">Water Level / Ocean Drain</label>
-            <span id="slDisplayValue" class="mono" style="color:var(--accent); font-weight:700; font-size:11.5px;">100% (Normal)</span>
-          </div>
-          <div style="font-size:9.5px; color:var(--text-dim); margin:3px 0 6px 0; line-height:1.3;">
-            Simulate global ocean drainage down to 0% to reveal the Potsdam Gravity Geoid ("Earth Without Water").
-          </div>
-          <input type="range" id="waterLevelSlider" min="0" max="100" step="1" value="100" aria-label="Water Level Slider">
-
-          <div style="display:flex; gap:4px; margin-top:6px;">
-            <button class="action" id="btnDrainOcean" style="flex:1; padding:4px; font-size:10px; background:rgba(239, 68, 68, 0.15); border-color:#ef4444; color:#ef4444; font-weight:600;">Drained (0%)</button>
-            <button class="action" id="btnNormalOcean" style="flex:1; padding:4px; font-size:10px;">Normal (100%)</button>
-          </div>
-          <div style="display:flex; gap:4px; margin-top:4px;">
-            <button class="action" id="btnSidebarDrainAnim" style="flex:1; padding:4px; font-size:10px; background:rgba(63, 224, 197, 0.15); border-color:#3fe0c5; color:#3fe0c5; font-weight:600;">▶ Play Drain Anim</button>
-            <button class="action" id="btnSidebarSwitchTerrain" style="flex:1; padding:4px; font-size:10px; background:rgba(142, 201, 224, 0.15); border-color:#8ec9e0; color:#8ec9e0; font-weight:600;">🌐 3D Terrain View</button>
-          </div>
-          <div id="waterLevelStats" style="font-size:9.5px; color:var(--text-dim); margin-top:6px; display:flex; justify-content:space-between;">
-            <span>State: <strong id="wlStateText" style="color:var(--text);">Normal Oceans</strong></span>
-            <span>Impact: <strong id="wlImpactText" style="color:var(--accent);">0 km²</strong></span>
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="exagSlider">Vertical Relief Exaggeration (<span id="exagValue">1.0x</span>)</label>
-          <div style="font-size:10px; color:var(--text-dim); margin-top:1px; margin-bottom:4px;">Scale factor for bathymetry ridges, current vectors & sounding columns</div>
-          <input type="range" id="exagSlider" min="0.5" max="4.0" step="0.1" value="1.0" aria-label="Vertical Relief Exaggeration">
-        </div>
-      </div>
 
       <!-- TAB 3: OBSERVATION FLEET & OPERATIONAL PROVENANCE -->
       <div id="tab-fleet" class="tab-pane" style="display:none;">
@@ -1363,7 +1330,13 @@
         <span id="pbCamModeIcon">🛰️</span>
         <span id="pbCamModeText">Camera: Top View</span>
       </button>
+      <!-- Exit Simulation close button -->
+      <button id="btnPbExit" title="Exit Simulation" style="display:flex; align-items:center; gap:4px; font-size:10px; font-weight:700; padding:4px 10px; border-radius:12px; border:1px solid rgba(244,63,94,0.6); background:rgba(244,63,94,0.15); color:#f43f5e; cursor:pointer; font-family:'IBM Plex Mono',monospace; white-space:nowrap; transition:all 0.15s ease;">
+        <span>✕</span>
+        <span>Exit</span>
+      </button>
     </div>
+
 
     <!-- Right Slide-in Focused Adaptive Mission & Information Gap Panel -->
     <div id="adaptiveMissionPanel">
@@ -3909,7 +3882,7 @@ function findVoidBlobs(binaryGrid, w, h) {
         const centroidX = sumX / pixelCount;
         const centroidY = sumY / pixelCount;
         const centroidLon = -180 + (centroidX + 0.5) * (360 / w);
-        const centroidLat = -90 + (centroidY + 0.5) * (180 / h);
+        const centroidLat = 90 - (centroidY + 0.5) * (180 / h);
 
         blobs.push({
           pixelCount,
@@ -3943,8 +3916,8 @@ function computeObservationDensityField(markers, w, h, radiusKm) {
     const lat = validMarkers[m].lat;
     const lon = validMarkers[m].lon;
 
-    const px = Math.floor((lon + 180.0) / 360.0 * w);
-    const py = Math.floor((lat + 90.0) / 180.0 * h);
+    const px = Math.min(w - 1, Math.max(0, Math.floor((lon + 180.0) / 360.0 * w)));
+    const py = Math.min(h - 1, Math.max(0, Math.floor((90.0 - lat) / 180.0 * h)));
 
     const minX = Math.max(0, px - radiusPxX);
     const maxX = Math.min(w - 1, px + radiusPxX);
@@ -3981,8 +3954,17 @@ function createRasterGapTextureCanvas(density, maskData, w, h) {
   let voidPixelCount = 0;
 
   for (let i = 0; i < w * h; i++) {
-    const isWater = (!maskData || maskData[i] === 1);
+    const x = i % w;
+    const y = Math.floor(i / w);
     const pIdx = i * 4;
+
+    let isWater = true;
+    if (maskData) {
+      const mx = Math.min(1023, Math.max(0, Math.floor((x / w) * 1024)));
+      const my = Math.min(511, Math.max(0, Math.floor((y / h) * 512)));
+      const mIdx = (my * 1024 + mx) * 4;
+      isWater = maskData[mIdx] >= 128;
+    }
 
     if (!isWater) {
       d[pIdx] = 0;
@@ -3998,25 +3980,29 @@ function createRasterGapTextureCanvas(density, maskData, w, h) {
     if (dens < 0.05) {
       isVoid[i] = 1;
       voidPixelCount++;
+      // High void priority: distinct glowing reddish-orange
       d[pIdx] = 239;
       d[pIdx + 1] = 68;
       d[pIdx + 2] = 68;
-      d[pIdx + 3] = 165;
+      d[pIdx + 3] = 155;
     } else if (dens < 0.35) {
+      // Low density: amber
       d[pIdx] = 245;
       d[pIdx + 1] = 158;
       d[pIdx + 2] = 11;
-      d[pIdx + 3] = 120;
+      d[pIdx + 3] = 100;
     } else if (dens < 1.0) {
+      // Moderate coverage: ocean cyan
       d[pIdx] = 56;
       d[pIdx + 1] = 189;
       d[pIdx + 2] = 248;
-      d[pIdx + 3] = 90;
+      d[pIdx + 3] = 70;
     } else {
+      // High coverage: emerald
       d[pIdx] = 52;
       d[pIdx + 1] = 211;
       d[pIdx + 2] = 153;
-      d[pIdx + 3] = 70;
+      d[pIdx + 3] = 50;
     }
   }
 
@@ -4031,12 +4017,29 @@ function createRasterGapTextureCanvas(density, maskData, w, h) {
   };
 }
 
-function updateRasterGapLayer(radiusKm = currentRasterRadiusKm) {
-  if (!viewer) return;
+async function updateRasterGapLayer(radiusKm = currentRasterRadiusKm) {
+  const v = window.viewer || (typeof viewer !== 'undefined' ? viewer : null);
+  if (!v) return;
 
-  const markers = (state.loadedMarkers && state.loadedMarkers.length)
+  let markers = (state.loadedMarkers && state.loadedMarkers.length)
     ? state.loadedMarkers
-    : (window.allObservationMarkers || []);
+    : (window.allObservationMarkers && window.allObservationMarkers.length)
+      ? window.allObservationMarkers
+      : [];
+
+  if (!markers.length) {
+    try {
+      const res = await fetch(apiUrl('/api/observations?min_lat=-90&max_lat=90&min_lon=-180&max_lon=180'));
+      if (res.ok) {
+        const data = await res.json();
+        markers = data.markers || [];
+        state.loadedMarkers = markers;
+        window.allObservationMarkers = markers;
+      }
+    } catch(e) {
+      console.warn('Raster gap observation load notice:', e);
+    }
+  }
 
   const w = 256;
   const h = 128;
@@ -4045,7 +4048,7 @@ function updateRasterGapLayer(radiusKm = currentRasterRadiusKm) {
 
   if (gapDensityImageryLayer) {
     try {
-      viewer.imageryLayers.remove(gapDensityImageryLayer, true);
+      v.imageryLayers.remove(gapDensityImageryLayer, true);
     } catch(e) {}
     gapDensityImageryLayer = null;
   }
@@ -4055,8 +4058,8 @@ function updateRasterGapLayer(radiusKm = currentRasterRadiusKm) {
     rectangle: Cesium.Rectangle.fromDegrees(-180.0, -90.0, 180.0, 90.0)
   });
 
-  gapDensityImageryLayer = viewer.imageryLayers.addImageryProvider(provider);
-  gapDensityImageryLayer.alpha = 0.88;
+  gapDensityImageryLayer = v.imageryLayers.addImageryProvider(provider);
+  gapDensityImageryLayer.alpha = 0.82;
 
   const voidPct = result.totalOceanPixels ? ((result.voidPixelCount / result.totalOceanPixels) * 100).toFixed(1) : "0.0";
   const obsPct = (100.0 - parseFloat(voidPct)).toFixed(1);

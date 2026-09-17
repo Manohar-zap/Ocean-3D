@@ -450,25 +450,38 @@ class InstrumentRegistry:
         # 2. Add first-class Autonomous Fleet from vehicle_service (AUVs, UUVs, ROVs)
         try:
             for v in vehicle_service.get_all_vehicles():
-                ptype = v.type.lower()
+                v_type = v.get("type", "glider") if isinstance(v, dict) else getattr(v, "type", "glider")
+                ptype = (v_type or "glider").lower()
+                v_id = v.get("id") if isinstance(v, dict) else getattr(v, "id", "")
+                v_name = v.get("name") if isinstance(v, dict) else getattr(v, "name", "")
+                v_lat = v.get("latitude") if isinstance(v, dict) else getattr(v, "latitude", 0.0)
+                v_lon = v.get("longitude") if isinstance(v, dict) else getattr(v, "longitude", 0.0)
+                v_max_depth = v.get("max_depth_m", 2000.0) if isinstance(v, dict) else getattr(v, "max_depth_m", 2000.0)
+                v_range = v.get("remaining_range_km", 200.0) if isinstance(v, dict) else getattr(v, "remaining_range_km", 200.0)
+                v_batt = v.get("battery_percent", 95.0) if isinstance(v, dict) else getattr(v, "battery_percent", 95.0)
+                v_speed = v.get("cruise_speed_mps", 1.5) if isinstance(v, dict) else getattr(v, "cruise_speed_mps", 1.5)
+                v_sensors = v.get("sensors", []) if isinstance(v, dict) else getattr(v, "sensors", [])
+                v_status = v.get("status", "AVAILABLE") if isinstance(v, dict) else getattr(v, "status", "AVAILABLE")
+                v_operator = v.get("operator", "Simulation") if isinstance(v, dict) else getattr(v, "operator", "Simulation")
+
                 dynamic_fleet.append({
-                    "instrument_id": v.id,
-                    "name": v.name,
+                    "instrument_id": v_id,
+                    "name": v_name,
                     "platform_type": ptype,
-                    "latitude": v.latitude,
-                    "longitude": v.longitude,
-                    "maximum_depth_m": v.max_depth_m,
-                    "remaining_range_km": v.remaining_range_km,
-                    "battery_percent": v.battery_percent,
-                    "cruise_speed_mps": v.cruise_speed_mps,
-                    "sensors": v.sensors,
+                    "latitude": v_lat,
+                    "longitude": v_lon,
+                    "maximum_depth_m": v_max_depth,
+                    "remaining_range_km": v_range,
+                    "battery_percent": v_batt,
+                    "cruise_speed_mps": v_speed,
+                    "sensors": v_sensors,
                     "controllable": True,
-                    "status": v.status,
-                    "operational_status": f"SIMULATED_FLEET_{v.type}",
+                    "status": v_status,
+                    "operational_status": f"SIMULATED_FLEET_{v_type}",
                     "is_simulated": True,
                     "provenance": "SIMULATED_MISSION_PLANNING_ASSETS",
-                    "telemetry_label": f"[SIMULATED {v.type}]",
-                    "position_status": f"{v.operator} ({v.type})",
+                    "telemetry_label": f"[SIMULATED {v_type}]",
+                    "position_status": f"{v_operator} ({v_type})",
                 })
         except Exception as e:
             logger.warning(f"Error loading vehicle_service fleet into adaptive registry: {e}")

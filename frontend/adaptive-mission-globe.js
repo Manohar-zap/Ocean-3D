@@ -1274,13 +1274,10 @@
     if (!gap || !plan || !plan.selected_winner) return;
 
     const execBtn = document.getElementById('btnAdaptiveExecuteSim');
-    execBtn.disabled = true;
-
-    // Ensure OBSERVATION INFO and adaptive mission panels are closed during 3D mission playback
-    const profPanel = document.getElementById('profilePanel');
-    if (profPanel) profPanel.classList.remove('open');
-    const admPanel = document.getElementById('adaptiveMissionPanel');
-    if (admPanel) admPanel.classList.remove('open');
+    if (execBtn) {
+      execBtn.disabled = true;
+      execBtn.textContent = '⏳ LAUNCHING 3D SIMULATION...';
+    }
 
     try {
       const pfilter = window.adaptiveState.platformFilter || 'all';
@@ -1290,9 +1287,19 @@
       window.adaptiveState.simulationData = sim;
 
       if (sim.status === 'NO_FEASIBLE_MISSION') {
-        alert('Mission simulation infeasible for this location.');
+        alert('Mission simulation infeasible for this location: ' + (sim.failure_reason || 'No platform available.'));
+        if (execBtn) {
+          execBtn.disabled = false;
+          execBtn.textContent = 'START 3D MISSION SIMULATION';
+        }
         return;
       }
+
+      // Ensure OBSERVATION INFO and adaptive mission panels are closed during 3D mission playback
+      const profPanel = document.getElementById('profilePanel');
+      if (profPanel) profPanel.classList.remove('open');
+      const admPanel = document.getElementById('adaptiveMissionPanel');
+      if (admPanel) admPanel.classList.remove('open');
 
       // Launch Playback Controller
       if (window.adaptiveState.playback) {
@@ -1303,7 +1310,10 @@
 
     } catch (err) {
       console.error('Mission simulation error:', err);
-      execBtn.disabled = false;
+      if (execBtn) {
+        execBtn.disabled = false;
+        execBtn.textContent = 'START 3D MISSION SIMULATION';
+      }
     }
   };
 
@@ -1687,11 +1697,13 @@
       this.lastTs = 0;
       this.cameraFollow = true;
 
-      // Hide hint & depth display banner to prevent overlapping HUD elements
+      // Hide hint, depth display banner & coordinates readout to prevent overlapping HUD elements
       const hint = document.getElementById('hint');
       if (hint) hint.style.display = 'none';
       const depthBanner = document.getElementById('depthDisplayBanner');
       if (depthBanner) depthBanner.style.display = 'none';
+      const coordsReadout = document.getElementById('coordsReadout');
+      if (coordsReadout) coordsReadout.style.display = 'none';
 
       // Ensure side panels are closed during 3D mission playback
       const profPanel = document.getElementById('profilePanel');
@@ -2304,6 +2316,8 @@
       if (hint) hint.style.display = '';
       const depthBanner = document.getElementById('depthDisplayBanner');
       if (depthBanner) depthBanner.style.display = '';
+      const coordsReadout = document.getElementById('coordsReadout');
+      if (coordsReadout) coordsReadout.style.display = '';
       const wcOverlay = document.getElementById('adaptiveWaterColumnOverlay');
       if (wcOverlay) wcOverlay.style.display = 'none';
       const telHud = document.getElementById('missionTelemetryHud');

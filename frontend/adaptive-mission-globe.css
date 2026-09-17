@@ -290,16 +290,17 @@
 #adaptiveWaterColumnOverlay {
   position: absolute;
   top: 105px;
-  right: 440px;
-  width: 190px;
-  background: rgba(7, 20, 32, 0.9);
+  right: 20px;
+  width: 210px;
+  background: rgba(7, 20, 32, 0.92);
   border: 1px solid var(--adm-line);
   border-radius: 6px;
-  padding: 10px;
+  padding: 12px;
   z-index: 15;
   display: none;
   flex-direction: column;
   gap: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(8px);
 }
 .wc-title {
