@@ -482,7 +482,8 @@ class GapDetector:
             if not self.is_ocean_point(pt_lat, pt_lon) or self.dist_to_nearest_platform(pt_lat, pt_lon) < 150.0:
                 pt_lat, pt_lon = c_lat, c_lon
 
-            poly.append([round(float(pt_lon), 4), round(float(pt_lat), 4)])
+            wrapped_lon = (float(pt_lon) + 180.0) % 360.0 - 180.0
+            poly.append([round(wrapped_lon, 4), round(float(pt_lat), 4)])
 
         poly.append(poly[0])  # Close the polygon loop
 

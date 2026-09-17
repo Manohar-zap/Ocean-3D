@@ -24,8 +24,13 @@ class InformationGainEngine:
     ) -> dict[str, Any]:
         ptype = platform_type.lower().strip()
         
-        # Platform sensor resolution factor (Glider/AUV have high precision CTD sensors)
-        sensor_fidelity = 0.85 if ptype in ("glider", "auv", "vessel") else 0.65
+        # Platform sensor resolution factor (Glider/AUV/UUV/ROV/Vessel carry calibrated high-precision CTD payload)
+        if ptype in ("glider", "auv", "uuv", "rov", "vessel"):
+            sensor_fidelity = 0.88
+        elif ptype in ("usv", "asv"):
+            sensor_fidelity = 0.78  # Winched CTD / underway sensors
+        else:
+            sensor_fidelity = 0.65
         
         # Depth decay factor (surface sensors have slightly higher spatial variance)
         depth_decay = max(0.60, 1.0 - (target_depth_m / 3000.0))

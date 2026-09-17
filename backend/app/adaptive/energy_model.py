@@ -29,9 +29,21 @@ class EnergyModelEngine:
         
         # Vehicle power specifications (Watts & Battery Capacity Wh)
         if ptype == "auv":
-            propulsion_watts = 120.0  # High power propulsion motor
+            propulsion_watts = 110.0  # High efficiency brushless DC thruster
             sensor_watts = 25.0
-            battery_capacity_wh = 4800.0  # Lithium-ion AUV battery bank
+            battery_capacity_wh = 5200.0  # Lithium-ion deep survey battery bank
+        elif ptype == "uuv":
+            propulsion_watts = 80.0   # Hybrid long-range subsea thruster
+            sensor_watts = 20.0
+            battery_capacity_wh = 14000.0  # Extended long-range lithium module
+        elif ptype in ("usv", "asv"):
+            propulsion_watts = 25.0   # Wave & solar auxiliary propulsion (net draw)
+            sensor_watts = 15.0
+            battery_capacity_wh = 12000.0  # Solar buffered battery pack
+        elif ptype == "rov":
+            propulsion_watts = 250.0  # Tethered umbilical / deck generator powered
+            sensor_watts = 50.0
+            battery_capacity_wh = 25000.0
         elif ptype == "vessel":
             propulsion_watts = 500000.0  # Marine diesel engine
             sensor_watts = 1500.0
@@ -46,9 +58,9 @@ class EnergyModelEngine:
         travel_seconds = (distance_km * 1000.0) / effective_speed
         duration_hours = travel_seconds / 3600.0
 
-        # Dive vertical buoyancy pumping energy for gliders/AUVs
+        # Dive vertical buoyancy pumping energy for gliders/AUVs/UUVs
         dives = math.ceil(depth_m / 200.0)
-        pumping_wh_per_dive = 2.5 if ptype == "glider" else 12.0
+        pumping_wh_per_dive = 2.5 if ptype == "glider" else (8.0 if ptype == "uuv" else (10.0 if ptype == "auv" else 0.0))
         dive_energy_wh = dives * pumping_wh_per_dive
 
         # Total Watt-hours required
